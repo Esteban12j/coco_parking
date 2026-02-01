@@ -97,18 +97,56 @@ pub enum VehicleStatus {
     Completed,
 }
 
+const DEFAULT_LIST_LIMIT: u32 = 50;
+const MAX_LIST_LIMIT: u32 = 500;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListVehiclesResult {
+    pub items: Vec<Vehicle>,
+    pub total: u32,
+}
+
 #[tauri::command]
-pub fn vehiculos_list_vehicles(state: State<AppState>) -> Result<Vec<Vehicle>, String> {
+pub fn vehiculos_list_vehicles(
+    state: State<AppState>,
+    limit: Option<u32>,
+    offset: Option<u32>,
+    status: Option<String>,
+) -> Result<ListVehiclesResult, String> {
     state.check_permission(permissions::VEHICULOS_ENTRIES_READ)?;
+    let limit = limit.unwrap_or(DEFAULT_LIST_LIMIT).min(MAX_LIST_LIMIT);
+    let offset = offset.unwrap_or(0);
     let conn = state.db.get().map_err(|e| e.to_string())?;
-    let mut stmt = conn
-        .prepare("SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles ORDER BY entry_time DESC")
+
+    let (count_sql, list_sql) = match status.as_deref() {
+        Some("active") | Some("completed") => (
+            format!(
+                "SELECT COUNT(*) FROM vehicles WHERE status = '{}'",
+                status.as_deref().unwrap_or("active")
+            ),
+            format!(
+                "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE status = '{}' ORDER BY entry_time DESC LIMIT ?1 OFFSET ?2",
+                status.as_deref().unwrap_or("active")
+            ),
+        ),
+        _ => (
+            "SELECT COUNT(*) FROM vehicles".to_string(),
+            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles ORDER BY entry_time DESC LIMIT ?1 OFFSET ?2".to_string(),
+        ),
+    };
+
+    let total: u32 = conn
+        .query_row(&count_sql, [], |row| row.get(0))
         .map_err(|e| e.to_string())?;
+
+    let mut stmt = conn.prepare(&list_sql).map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map([], |row| row_to_vehicle(row))
+        .query_map(rusqlite::params![limit, offset], |row| row_to_vehicle(row))
         .map_err(|e| e.to_string())?;
-    let list: Vec<Vehicle> = rows.filter_map(|r| r.ok()).collect();
-    Ok(list)
+    let items: Vec<Vehicle> = rows.filter_map(|r| r.ok()).collect();
+
+    Ok(ListVehiclesResult { items, total })
 }
 
 #[tauri::command]
@@ -330,6 +368,25 @@ pub fn vehiculos_process_exit(
         ..vehicle
     };
     Ok(updated)
+}
+
+#[tauri::command]
+pub fn vehiculos_find_by_ticket(
+    state: State<AppState>,
+    ticket_code: String,
+) -> Result<Option<Vehicle>, String> {
+    state.check_permission(permissions::VEHICULOS_ENTRIES_READ)?;
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+    let result = conn.query_row(
+        "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE ticket_code = ?1 AND status = 'active' LIMIT 1",
+        params![ticket_code.trim()],
+        |row| row_to_vehicle(row),
+    );
+    match result {
+        Ok(v) => Ok(Some(v)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 #[tauri::command]

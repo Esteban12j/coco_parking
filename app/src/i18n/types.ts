@@ -25,6 +25,8 @@ export interface Translations {
     error: string;
     ticket: string;
     time: string;
+    prev: string;
+    next: string;
   };
   nav: {
     vehicles: string;
@@ -61,6 +63,7 @@ export interface Translations {
     scannerReady: string;
     noActiveVehicles: string;
     scanTicketToRegister: string;
+    pageOfFormat: string;
     longStay: string;
     hasDebt: string;
     /** Placa opcional para bicicletas/monopatines */

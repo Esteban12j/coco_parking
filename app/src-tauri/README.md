@@ -131,7 +131,12 @@ Para confirmar la ruta que usa tu instalación: abre la app → Dev Console → 
 
 ```ts
 import { invoke } from "@tauri-apps/api/core";
-const vehicles = await invoke<Vehicle[]>("vehiculos_list_vehicles");
+type ListVehiclesResult = { items: Vehicle[]; total: number };
+const { items, total } = await invoke<ListVehiclesResult>("vehiculos_list_vehicles", {
+  limit: 50,
+  offset: 0,
+  status: "active",
+});
 ```
 
 ## Barcode scanner (pistol / HID)

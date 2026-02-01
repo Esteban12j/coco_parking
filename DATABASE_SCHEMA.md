@@ -174,7 +174,7 @@ Se usa una tabla **`schema_version`** para saber hasta qué versión está aplic
 |-----------|-------------------|--------|
 | **INSERT** | `vehiculos_register_entry` | Nueva fila al registrar entrada (ticket, placa, tipo, entry_time, status=active). |
 | **UPDATE** | `vehiculos_process_exit` | Rellena exit_time, status=completed, total_amount, debt al procesar salida. |
-| **SELECT** | `vehiculos_list_vehicles` | Lista todos (orden por entry_time). |
+| **SELECT** | `vehiculos_list_vehicles` | Lista paginada (limit, offset, opcional status); devuelve `{ items, total }`. Orden por entry_time DESC. |
 | **SELECT** | `vehiculos_find_by_plate` | Busca activo por placa. |
 | **SELECT** | `vehiculos_get_plate_debt` | Suma deuda por placa. |
 | **SELECT** | `metricas_get_daily` | Conteos e ingresos por día (activos, completados hoy). |

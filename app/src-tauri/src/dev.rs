@@ -206,6 +206,7 @@ pub fn dev_list_commands(state: State<AppState>) -> Result<Vec<String>, String> 
         "vehiculos_register_entry".to_string(),
         "vehiculos_process_exit".to_string(),
         "vehiculos_find_by_plate".to_string(),
+        "vehiculos_find_by_ticket".to_string(),
         "caja_get_treasury".to_string(),
         "caja_close_shift".to_string(),
         "metricas_get_daily".to_string(),

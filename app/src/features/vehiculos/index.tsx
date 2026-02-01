@@ -23,6 +23,10 @@ export const VehiculosPage = () => {
   const canCheckout = hasPermission("caja:transactions:create");
   const {
     activeVehicles,
+    totalActiveCount,
+    vehiclesPage,
+    setVehiclesPage,
+    vehiclesPageSize,
     handleScan,
     registerEntry,
     processExit,
@@ -35,6 +39,7 @@ export const VehiculosPage = () => {
     clearRegisterError,
     getVehiclesByPlate,
     deleteExistingAndRetryRegister,
+    isTauri,
   } = useParkingStore();
 
   const [viewMode, setViewMode] = useState<ViewMode>("scanner");
@@ -67,9 +72,9 @@ export const VehiculosPage = () => {
     };
   }, []);
 
-  const handleScanInput = (code: string) => {
+  const handleScanInput = async (code: string) => {
     setCurrentTicket(code);
-    const existing = handleScan(code);
+    const existing = await handleScan(code);
     if (existing) {
       setSelectedVehicle(existing);
       setViewMode(canCheckout ? "checkout" : "scanner");
@@ -218,12 +223,12 @@ export const VehiculosPage = () => {
       </section>
 
       <section className="space-y-4 mt-8">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <h2 className="text-lg font-semibold">
             {t("vehicles.vehiclesInParking")}
           </h2>
           <span className="text-sm text-muted-foreground">
-            {activeVehicles.length} {t("vehicles.active")}
+            {totalActiveCount} {t("vehicles.active")}
           </span>
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
@@ -231,6 +236,33 @@ export const VehiculosPage = () => {
             vehicles={activeVehicles}
             onSelect={handleVehicleSelect}
           />
+          {isTauri && totalActiveCount > vehiclesPageSize && (
+            <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setVehiclesPage((p) => Math.max(1, p - 1))}
+                disabled={vehiclesPage <= 1}
+              >
+                {t("common.prev")}
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                {t("vehicles.pageOfFormat")
+                  .replace("{{current}}", String(vehiclesPage))
+                  .replace("{{total}}", String(Math.ceil(totalActiveCount / vehiclesPageSize)))}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setVehiclesPage((p) => p + 1)}
+                disabled={
+                  vehiclesPage >= Math.ceil(totalActiveCount / vehiclesPageSize)
+                }
+              >
+                {t("common.next")}
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 

@@ -15,6 +15,8 @@ export const en: Translations = {
     error: "Error",
     ticket: "Ticket",
     time: "Time",
+    prev: "Previous",
+    next: "Next",
   },
   auth: {
     title: "Sign in",
@@ -61,6 +63,7 @@ export const en: Translations = {
     scannerReady: "Scanner ready. Scan a code or type the ticket number.",
     noActiveVehicles: "No active vehicles",
     scanTicketToRegister: "Scan a ticket to register entry",
+    pageOfFormat: "Page {{current}} of {{total}}",
     longStay: "Long stay",
     hasDebt: "Has debt",
     vehiclePlateOptional: "Plate (cars, motorcycles, trucks only; bicycles have no plate)",

@@ -24,13 +24,13 @@ describe("useParkingStore", () => {
     expect(result.current.activeVehicles).toEqual([]);
   });
 
-  it("handleScan with unknown code returns undefined (entry flow)", () => {
+  it("handleScan with unknown code returns undefined (entry flow)", async () => {
     const { result } = renderHook(() => useParkingStore(), {
       wrapper: createWrapper(),
     });
-    let scanned: ReturnType<typeof result.current.handleScan> = null;
-    act(() => {
-      scanned = result.current.handleScan("TK999");
+    let scanned: Awaited<ReturnType<typeof result.current.handleScan>> = undefined;
+    await act(async () => {
+      scanned = await result.current.handleScan("TK999");
     });
     expect(scanned).toBeUndefined();
     expect(result.current.scanResult).toEqual({ type: "entry" });
@@ -52,16 +52,16 @@ describe("useParkingStore", () => {
     expect(result.current.scanResult?.type).toBe("entry");
   });
 
-  it("handleScan with existing ticket returns vehicle (checkout flow)", () => {
+  it("handleScan with existing ticket returns vehicle (checkout flow)", async () => {
     const { result } = renderHook(() => useParkingStore(), {
       wrapper: createWrapper(),
     });
     act(() => {
       result.current.registerEntry("XYZ-789", "motorcycle", undefined, "TK002");
     });
-    let found: ReturnType<typeof result.current.handleScan>;
-    act(() => {
-      found = result.current.handleScan("TK002");
+    let found: Awaited<ReturnType<typeof result.current.handleScan>>;
+    await act(async () => {
+      found = await result.current.handleScan("TK002");
     });
     expect(found).toBeDefined();
     expect(found!.ticketCode).toBe("TK002");

@@ -64,12 +64,23 @@ export const useParkingStore = () => {
 
   const [localVehicles, setLocalVehicles] = useState<Vehicle[]>(() => []);
   const [scanResult, setScanResult] = useState<{ type: 'entry' | 'exit'; vehicle?: Vehicle } | null>(null);
+  const [vehiclesPage, setVehiclesPage] = useState(1);
+  const [vehiclesPageSize] = useState(20);
 
+  type ListVehiclesResponse = { items: VehicleFromBackend[]; total: number };
   const vehiclesQuery = useQuery({
-    queryKey: ['parking', 'vehicles'],
-    queryFn: async (): Promise<Vehicle[]> => {
-      const list = await invokeTauri<VehicleFromBackend[]>('vehiculos_list_vehicles');
-      return (list ?? []).map(vehicleFromBackend);
+    queryKey: ['parking', 'vehicles', vehiclesPage, vehiclesPageSize, 'active'],
+    queryFn: async (): Promise<{ items: Vehicle[]; total: number }> => {
+      const res = await invokeTauri<ListVehiclesResponse>('vehiculos_list_vehicles', {
+        limit: vehiclesPageSize,
+        offset: (vehiclesPage - 1) * vehiclesPageSize,
+        status: 'active',
+      });
+      if (!res) return { items: [], total: 0 };
+      return {
+        items: (res.items ?? []).map(vehicleFromBackend),
+        total: res.total ?? 0,
+      };
     },
     enabled: tauri,
   });
@@ -92,7 +103,9 @@ export const useParkingStore = () => {
     enabled: tauri,
   });
 
-  const vehicles = tauri ? (vehiclesQuery.data ?? []) : localVehicles; // Tauri: backend (SQLite); web: solo memoria, sin persistencia
+  const vehiclesPageData = tauri ? vehiclesQuery.data : null;
+  const vehicles = tauri ? (vehiclesPageData?.items ?? []) : localVehicles;
+  const totalActiveCount = tauri ? (vehiclesPageData?.total ?? 0) : localVehicles.filter((v) => v.status === 'active').length;
   const metricsData = tauri ? metricsQuery.data : null;
   const treasuryData = tauri ? treasuryQuery.data : null;
 
@@ -115,6 +128,7 @@ export const useParkingStore = () => {
   };
 
   const invalidateParking = useCallback(() => {
+    setVehiclesPage(1);
     queryClient.invalidateQueries({ queryKey: ['parking'] });
     queryClient.refetchQueries({ queryKey: ['parking'] });
   }, [queryClient]);
@@ -311,7 +325,24 @@ export const useParkingStore = () => {
   );
 
   const handleScan = useCallback(
-    (code: string) => {
+    async (code: string): Promise<Vehicle | undefined> => {
+      if (tauri) {
+        try {
+          const v = await invokeTauri<VehicleFromBackend | null>('vehiculos_find_by_ticket', {
+            ticketCode: code.trim(),
+          });
+          const activeVehicle = v ? vehicleFromBackend(v) : undefined;
+          if (activeVehicle) {
+            setScanResult({ type: 'exit', vehicle: activeVehicle });
+          } else {
+            setScanResult({ type: 'entry' });
+          }
+          return activeVehicle ?? undefined;
+        } catch {
+          setScanResult({ type: 'entry' });
+          return undefined;
+        }
+      }
       const activeVehicle = findActiveVehicle(code);
       if (activeVehicle) {
         setScanResult({ type: 'exit', vehicle: activeVehicle });
@@ -320,7 +351,7 @@ export const useParkingStore = () => {
       }
       return activeVehicle ?? undefined;
     },
-    [findActiveVehicle]
+    [tauri, findActiveVehicle]
   );
 
   /** En Tauri usa backend (vehiculos_find_by_plate); en web busca en la lista local. */
@@ -476,6 +507,10 @@ export const useParkingStore = () => {
   return {
     vehicles,
     activeVehicles,
+    totalActiveCount,
+    vehiclesPage,
+    setVehiclesPage,
+    vehiclesPageSize,
     todaysSessions,
     scanResult,
     metrics,
