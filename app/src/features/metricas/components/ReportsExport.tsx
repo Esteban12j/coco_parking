@@ -39,6 +39,7 @@ import type {
   ReportFilters,
 } from "@/types/parking";
 import { cn, generatePrefixedId } from "@/lib/utils";
+import { useMyPermissions } from "@/hooks/useMyPermissions";
 
 const REPORT_ID_LENGTH = 25;
 
@@ -51,6 +52,7 @@ const REPORT_TYPES: { value: ReportTypeKey; labelKey: string }[] = [
   { value: "completed_vehicles", labelKey: "metrics.reports.typeCompletedVehicles" },
   { value: "shift_closures", labelKey: "metrics.reports.typeShiftClosures" },
   { value: "transactions_with_vehicle", labelKey: "metrics.reports.typeTransactionsWithVehicle" },
+  { value: "debtors", labelKey: "metrics.reports.typeDebtors" },
 ];
 
 function formatDateLocal(d: Date): string {
@@ -82,6 +84,7 @@ function getColumnLabelKey(key: string): string {
 export const ReportsExport = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { hasPermission } = useMyPermissions();
   const [reportType, setReportType] = useState<ReportTypeKey>("transactions");
   const today = formatDateLocal(new Date());
   const [dateFrom, setDateFrom] = useState(today);
@@ -146,7 +149,8 @@ export const ReportsExport = () => {
   const [exportingPdf, setExportingPdf] = useState(false);
 
   const handleExportCsv = useCallback(async () => {
-    if (!isTauri || !reportData || reportData.rows.length === 0) return;
+    if (!isTauri || !reportData) return;
+    if (reportType !== "debtors" && reportData.rows.length === 0) return;
     const filename = `${generateReportId()}.csv`;
     const path = await save({
       defaultPath: filename,
@@ -183,7 +187,8 @@ export const ReportsExport = () => {
   ]);
 
   const handleExportPdf = useCallback(async () => {
-    if (!isTauri || !reportData || reportData.rows.length === 0) return;
+    if (!isTauri || !reportData) return;
+    if (reportType !== "debtors" && reportData.rows.length === 0) return;
     const filename = `${generateReportId()}.pdf`;
     let path: string | null = null;
     try {
@@ -245,6 +250,10 @@ export const ReportsExport = () => {
     );
   };
 
+  const reportTypesFiltered = hasPermission("caja:debtors:read")
+    ? REPORT_TYPES
+    : REPORT_TYPES.filter((r) => r.value !== "debtors");
+  const showDateFilters = reportType !== "debtors";
   const showPaymentFilter =
     reportType === "transactions" || reportType === "transactions_with_vehicle";
   const showVehicleFilter =
@@ -282,7 +291,7 @@ export const ReportsExport = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {REPORT_TYPES.map(({ value, labelKey }) => (
+                    {reportTypesFiltered.map(({ value, labelKey }) => (
                       <SelectItem key={value} value={value}>
                         {t(labelKey)}
                       </SelectItem>
@@ -290,22 +299,26 @@ export const ReportsExport = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>{t("metrics.reports.dateFrom")}</Label>
-                <Input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("metrics.reports.dateTo")}</Label>
-                <Input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                />
-              </div>
+              {showDateFilters && (
+                <>
+                  <div className="space-y-2">
+                    <Label>{t("metrics.reports.dateFrom")}</Label>
+                    <Input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("metrics.reports.dateTo")}</Label>
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
               {showPaymentFilter && (
                 <div className="space-y-2">
                   <Label>{t("metrics.reports.paymentMethod")}</Label>
@@ -376,7 +389,7 @@ export const ReportsExport = () => {
                   <Button
                     variant="outline"
                     onClick={() => void handleExportCsv()}
-                    disabled={exportingCsv}
+                    disabled={exportingCsv || (reportType !== "debtors" && reportData.rows.length === 0)}
                   >
                     <FileDown className="mr-2 h-4 w-4" />
                     {exportingCsv ? t("common.loading") : t("metrics.reports.exportCsv")}
@@ -384,7 +397,7 @@ export const ReportsExport = () => {
                   <Button
                     variant="outline"
                     onClick={() => void handleExportPdf()}
-                    disabled={exportingPdf}
+                    disabled={exportingPdf || (reportType !== "debtors" && reportData.rows.length === 0)}
                   >
                     <FileText className="mr-2 h-4 w-4" />
                     {exportingPdf ? t("common.loading") : t("metrics.reports.exportPdf")}

@@ -180,6 +180,7 @@ export interface Translations {
       typeCompletedVehicles: string;
       typeShiftClosures: string;
       typeTransactionsWithVehicle: string;
+      typeDebtors: string;
       all: string;
       column: {
         id: string;
@@ -204,6 +205,9 @@ export interface Translations {
         discrepancy: string;
         total_transactions: string;
         notes: string;
+        total_debt: string;
+        oldest_exit_time: string;
+        sessions_with_debt: string;
       };
     };
   };

@@ -164,7 +164,7 @@ export const es: Translations = {
     fromBackendNote: "Datos desde el almacén persistente (coherentes con vehículos y caja).",
     reports: {
       title: "Exportar reportes",
-      reportType: "Tipo de reporte",
+      reportType: "Reporte a exportar",
       dateFrom: "Desde",
       dateTo: "Hasta",
       paymentMethod: "Método de pago",
@@ -179,6 +179,7 @@ export const es: Translations = {
       typeCompletedVehicles: "Vehículos completados",
       typeShiftClosures: "Cierres de turno",
       typeTransactionsWithVehicle: "Transacciones + vehículo",
+      typeDebtors: "Deudores",
       all: "Todos",
       column: {
         id: "ID",
@@ -203,6 +204,9 @@ export const es: Translations = {
         discrepancy: "Discrepancia",
         total_transactions: "Transacciones",
         notes: "Notas",
+        total_debt: "Deuda total",
+        oldest_exit_time: "Desde cuándo (salida más antigua)",
+        sessions_with_debt: "Sesiones con deuda",
       },
     },
   },

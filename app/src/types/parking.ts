@@ -149,7 +149,8 @@ export type ReportTypeKey =
   | 'transactions'
   | 'completed_vehicles'
   | 'shift_closures'
-  | 'transactions_with_vehicle';
+  | 'transactions_with_vehicle'
+  | 'debtors';
 
 export interface ReportColumnDef {
   key: string;

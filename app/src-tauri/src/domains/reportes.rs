@@ -17,6 +17,7 @@ pub enum ReportType {
     CompletedVehicles,
     ShiftClosures,
     TransactionsWithVehicle,
+    Debtors,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -86,12 +87,22 @@ fn transactions_with_vehicle_columns() -> Vec<ColumnDef> {
     ]
 }
 
+fn debtors_columns() -> Vec<ColumnDef> {
+    vec![
+        ColumnDef { key: "plate".into(), label: "Plate".into() },
+        ColumnDef { key: "total_debt".into(), label: "Total debt".into() },
+        ColumnDef { key: "oldest_exit_time".into(), label: "Oldest exit (since)".into() },
+        ColumnDef { key: "sessions_with_debt".into(), label: "Sessions with debt".into() },
+    ]
+}
+
 fn all_columns_for_type(report_type: &ReportType) -> Vec<ColumnDef> {
     match report_type {
         ReportType::Transactions => transactions_columns(),
         ReportType::CompletedVehicles => completed_vehicles_columns(),
         ReportType::ShiftClosures => shift_closures_columns(),
         ReportType::TransactionsWithVehicle => transactions_with_vehicle_columns(),
+        ReportType::Debtors => debtors_columns(),
     }
 }
 
@@ -446,6 +457,47 @@ fn run_transactions_with_vehicle(
     Ok(list)
 }
 
+fn run_debtors(
+    conn: &rusqlite::Connection,
+    columns: &[ColumnDef],
+) -> Result<Vec<HashMap<String, serde_json::Value>>, String> {
+    let keys: Vec<String> = columns.iter().map(|c| c.key.clone()).collect();
+    let sql = r#"
+        SELECT plate_upper AS plate,
+               SUM(COALESCE(debt, 0)) AS total_debt,
+               MIN(exit_time) AS oldest_exit_time,
+               COUNT(*) AS sessions_with_debt
+        FROM vehicles
+        WHERE plate_upper IS NOT NULL AND plate_upper != '' AND COALESCE(debt, 0) > 0
+        GROUP BY plate_upper
+        ORDER BY total_debt DESC
+    "#;
+    let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            let mut map = HashMap::new();
+            if keys.contains(&"plate".to_string()) {
+                map.insert("plate".into(), serde_json::json!(row.get::<_, String>(0)?));
+            }
+            if keys.contains(&"total_debt".to_string()) {
+                map.insert("total_debt".into(), serde_json::json!(row.get::<_, f64>(1)?));
+            }
+            if keys.contains(&"oldest_exit_time".to_string()) {
+                map.insert("oldest_exit_time".into(), serde_json::json!(row.get::<_, Option<String>>(2)?));
+            }
+            if keys.contains(&"sessions_with_debt".to_string()) {
+                map.insert("sessions_with_debt".into(), serde_json::json!(row.get::<_, i64>(3)? as i32));
+            }
+            Ok(map)
+        })
+        .map_err(|e| e.to_string())?;
+    let mut list = Vec::new();
+    for row in rows {
+        list.push(row.map_err(|e| e.to_string())?);
+    }
+    Ok(list)
+}
+
 #[tauri::command]
 pub fn reportes_get_column_definitions(report_type: ReportType) -> Vec<ColumnDef> {
     all_columns_for_type(&report_type)
@@ -459,6 +511,9 @@ pub fn reportes_fetch(
     selected_columns: Option<Vec<String>>,
 ) -> Result<ReportData, String> {
     state.check_permission(permissions::METRICAS_REPORTS_EXPORT)?;
+    if report_type == ReportType::Debtors {
+        state.check_permission(permissions::CAJA_DEBTORS_READ)?;
+    }
     let conn = state.db.get().map_err(|e| e.to_string())?;
 
     let all = all_columns_for_type(&report_type);
@@ -499,6 +554,7 @@ pub fn reportes_fetch(
             filters.vehicle_type.as_deref(),
             &columns,
         )?,
+        ReportType::Debtors => run_debtors(&conn, &columns)?,
     };
 
     Ok(ReportData { columns, rows })
@@ -534,6 +590,9 @@ pub fn reportes_write_csv(
     path: String,
 ) -> Result<(), String> {
     state.check_permission(permissions::METRICAS_REPORTS_EXPORT)?;
+    if report_type == ReportType::Debtors {
+        state.check_permission(permissions::CAJA_DEBTORS_READ)?;
+    }
     let conn = state.db.get().map_err(|e| e.to_string())?;
 
     let all = all_columns_for_type(&report_type);
@@ -574,6 +633,7 @@ pub fn reportes_write_csv(
             filters.vehicle_type.as_deref(),
             &columns,
         )?,
+        ReportType::Debtors => run_debtors(&conn, &columns)?,
     };
 
     let header: String = columns.iter().map(|c| c.label.as_str()).collect::<Vec<_>>().join(",");

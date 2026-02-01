@@ -164,7 +164,7 @@ export const en: Translations = {
     fromBackendNote: "Data from persistent store (aligned with vehicles and till).",
     reports: {
       title: "Export reports",
-      reportType: "Report type",
+      reportType: "Report to export",
       dateFrom: "From",
       dateTo: "To",
       paymentMethod: "Payment method",
@@ -179,6 +179,7 @@ export const en: Translations = {
       typeCompletedVehicles: "Completed vehicles",
       typeShiftClosures: "Shift closures",
       typeTransactionsWithVehicle: "Transactions + vehicle",
+      typeDebtors: "Debtors",
       all: "All",
       column: {
         id: "ID",
@@ -203,6 +204,9 @@ export const en: Translations = {
         discrepancy: "Discrepancy",
         total_transactions: "Total transactions",
         notes: "Notes",
+        total_debt: "Total debt",
+        oldest_exit_time: "Since when (oldest exit)",
+        sessions_with_debt: "Sessions with debt",
       },
     },
   },
