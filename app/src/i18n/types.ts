@@ -85,8 +85,10 @@ export interface Translations {
     reportGenerated: string;
     closureHistory: string;
     closedAt: string;
+    expectedCashOnly: string;
     arqueoCash: string;
     arqueoCashPlaceholder: string;
+    arqueoHint: string;
     notes: string;
     notesPlaceholder: string;
     submitCloseShift: string;
@@ -122,6 +124,7 @@ export interface Translations {
     normal: string;
     high: string;
     critical: string;
+    fromBackendNote: string;
   };
   roles: {
     title: string;

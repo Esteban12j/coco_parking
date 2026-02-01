@@ -5,22 +5,70 @@ import {
   DollarSign,
   PieChart,
   LayoutGrid,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import { MetricCard } from "@/components/MetricCard";
 import { useParkingStore } from "@/hooks/useParkingStore";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export const MetricasPage = () => {
   const { t } = useTranslation();
-  const { metrics } = useParkingStore();
+  const {
+    metrics,
+    isLoading,
+    isMetricsError,
+    metricsError,
+    isTauri,
+    invalidateParking,
+  } = useParkingStore();
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">{t("metrics.title")}</h1>
-        <p className="text-muted-foreground">{t("metrics.subtitle")}</p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{t("metrics.title")}</h1>
+          <p className="text-muted-foreground">{t("metrics.subtitle")}</p>
+          {isTauri && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("metrics.fromBackendNote")}
+            </p>
+          )}
+        </div>
+        {isTauri && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => invalidateParking()}
+            disabled={isLoading}
+          >
+            <RefreshCw className={isLoading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+            <span className="ml-2">{t("common.refresh")}</span>
+          </Button>
+        )}
       </div>
+
+      {isLoading && (
+        <div className="mb-6 rounded-lg border border-border bg-muted/30 p-4 text-center text-sm text-muted-foreground">
+          {t("common.loading")}
+        </div>
+      )}
+      {isMetricsError && (
+        <div className="mb-6 flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <span>{metricsError != null ? String(metricsError) : t("common.error")}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto"
+            onClick={() => invalidateParking()}
+          >
+            {t("common.refresh")}
+          </Button>
+        </div>
+      )}
 
       <div className="space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

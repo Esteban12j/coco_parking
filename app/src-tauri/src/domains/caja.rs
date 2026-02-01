@@ -177,14 +177,23 @@ pub fn caja_close_shift(
     state.check_permission(permissions::CAJA_SHIFT_CLOSE)?;
     let conn = state.db.get().map_err(|e| e.to_string())?;
 
-    let today = chrono::Utc::now();
-    let today_str = today.format("%Y-%m-%d").to_string();
+    let now = chrono::Utc::now();
+    let now_rfc = now.to_rfc3339();
+    let today_str = now.format("%Y-%m-%d").to_string();
     let today_prefix = format!("{}%", today_str);
+    let since_str = conn
+        .query_row(
+            "SELECT closed_at FROM shift_closures WHERE closed_at LIKE ?1 AND closed_at < ?2 ORDER BY closed_at DESC LIMIT 1",
+            params![&today_prefix, &now_rfc],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+        .unwrap_or_else(|| format!("{}T00:00:00.000Z", today_str));
 
     let total_transactions: u32 = conn
         .query_row(
-            "SELECT COUNT(*) FROM transactions WHERE created_at LIKE ?1",
-            params![&today_prefix],
+            "SELECT COUNT(*) FROM transactions WHERE created_at > ?1 AND created_at <= ?2",
+            params![&since_str, &now_rfc],
             |row| row.get(0),
         )
         .map_err(|e| e.to_string())?;
@@ -192,22 +201,22 @@ pub fn caja_close_shift(
     let (cash_total, card_total, transfer_total) = if total_transactions > 0 {
         let cash: f64 = conn
             .query_row(
-                "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE created_at LIKE ?1 AND LOWER(method) = 'cash'",
-                params![&today_prefix],
+                "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE created_at > ?1 AND created_at <= ?2 AND LOWER(method) = 'cash'",
+                params![&since_str, &now_rfc],
                 |row| row.get(0),
             )
             .unwrap_or(0.0);
         let card: f64 = conn
             .query_row(
-                "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE created_at LIKE ?1 AND LOWER(method) = 'card'",
-                params![&today_prefix],
+                "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE created_at > ?1 AND created_at <= ?2 AND LOWER(method) = 'card'",
+                params![&since_str, &now_rfc],
                 |row| row.get(0),
             )
             .unwrap_or(0.0);
         let transfer: f64 = conn
             .query_row(
-                "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE created_at LIKE ?1 AND LOWER(method) = 'transfer'",
-                params![&today_prefix],
+                "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE created_at > ?1 AND created_at <= ?2 AND LOWER(method) = 'transfer'",
+                params![&since_str, &now_rfc],
                 |row| row.get(0),
             )
             .unwrap_or(0.0);
@@ -222,7 +231,7 @@ pub fn caja_close_shift(
         .unwrap_or(0.0);
 
     let id = uuid::Uuid::new_v4().to_string();
-    let closed_at = today.to_rfc3339();
+    let closed_at = now_rfc.clone();
 
     conn.execute(
         "INSERT INTO shift_closures (id, closed_at, expected_total, cash_total, card_total, transfer_total, arqueo_cash, discrepancy, total_transactions, notes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",

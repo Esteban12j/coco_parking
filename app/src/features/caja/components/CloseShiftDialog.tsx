@@ -69,12 +69,17 @@ export const CloseShiftDialog = ({
               <span>{t("till.card")}: ${treasury.paymentBreakdown.card.toFixed(2)}</span>
               <span>{t("till.transfer")}: ${treasury.paymentBreakdown.transfer.toFixed(2)}</span>
             </div>
+            <div className="mt-2 flex justify-between text-muted-foreground">
+              <span>{t("till.expectedCashOnly")}</span>
+              <span className="font-medium">${treasury.paymentBreakdown.cash.toFixed(2)}</span>
+            </div>
             <div className="mt-1 text-xs text-muted-foreground">
               {treasury.totalTransactions} {t("till.totalTransactions").toLowerCase()}
             </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="arqueo">{t("till.arqueoCash")}</Label>
+            <p className="text-xs text-muted-foreground">{t("till.arqueoHint")}</p>
             <Input
               id="arqueo"
               type="number"

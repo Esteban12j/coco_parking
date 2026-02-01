@@ -195,6 +195,7 @@ export const CajaPage = () => {
                   <TableRow>
                     <TableHead>{t("till.closedAt")}</TableHead>
                     <TableHead className="text-right">{t("till.expectedCash")}</TableHead>
+                    <TableHead className="text-right">{t("till.expectedCashOnly")}</TableHead>
                     <TableHead className="text-right">{t("till.arqueoCash")}</TableHead>
                     <TableHead className="text-right">{t("till.discrepancy")}</TableHead>
                     <TableHead className="text-right">{t("till.totalTransactions")}</TableHead>
@@ -206,6 +207,9 @@ export const CajaPage = () => {
                       <TableCell>{formatClosedAt(c.closedAt)}</TableCell>
                       <TableCell className="text-right">
                         ${c.expectedTotal.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        ${c.cashTotal.toFixed(2)}
                       </TableCell>
                       <TableCell className="text-right">
                         {c.arqueoCash != null ? `$${c.arqueoCash.toFixed(2)}` : "—"}

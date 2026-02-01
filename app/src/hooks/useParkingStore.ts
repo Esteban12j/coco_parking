@@ -492,6 +492,8 @@ export const useParkingStore = () => {
     isTauri: tauri,
     isTreasuryError: tauri && treasuryQuery.isError,
     treasuryError: treasuryQuery.error,
+    isMetricsError: tauri && metricsQuery.isError,
+    metricsError: metricsQuery.error,
     pendingRegisterConflict,
     clearPendingRegisterConflict,
     registerError,

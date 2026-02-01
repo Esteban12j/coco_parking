@@ -1,5 +1,5 @@
-//! Métricas leen del mismo almacén que vehículos: AppState.db (SQLite).
-//! Evita duplicación y desalineación front/back; no hay cálculo de métricas solo en frontend.
+//! Daily metrics from persistent store (SQLite). Revenue and transaction count
+//! come from table `transactions` so metrics are coherent with Caja (till).
 
 use rusqlite::params;
 use serde::Serialize;
@@ -40,7 +40,7 @@ pub fn metricas_get_daily(state: State<AppState>) -> Result<DailyMetrics, String
 
     let (completed_today, total_revenue): (u32, f64) = conn
         .query_row(
-            "SELECT COUNT(*), COALESCE(SUM(total_amount), 0) FROM vehicles WHERE status = 'completed' AND exit_time LIKE ?1",
+            "SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM transactions WHERE created_at LIKE ?1",
             params![&today_prefix],
             |row| Ok((row.get::<_, u32>(0)?, row.get::<_, f64>(1)?)),
         )
@@ -58,9 +58,10 @@ pub fn metricas_get_daily(state: State<AppState>) -> Result<DailyMetrics, String
         .query_row(
             r#"
             SELECT COALESCE(SUM(
-                (julianday(exit_time) - julianday(entry_time)) * 24 * 60
-            ), 0) FROM vehicles
-            WHERE status = 'completed' AND exit_time LIKE ?1
+                (julianday(v.exit_time) - julianday(v.entry_time)) * 24 * 60
+            ), 0) FROM vehicles v
+            INNER JOIN transactions t ON t.vehicle_id = v.id
+            WHERE t.created_at LIKE ?1
             "#,
             params![&today_prefix],
             |row| row.get(0),
