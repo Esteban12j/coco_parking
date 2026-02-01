@@ -8,7 +8,7 @@
 
 ## 1. Visión del producto
 
-**COCO Parking** es una aplicación de escritorio para la **gestión de un estacionamiento**: registro de entradas/salidas de vehículos, cobro en caja, métricas diarias, roles y permisos, backup y sincronización con Drive.
+**COCO Parking** es una aplicación de escritorio para la **gestión de un estacionamiento**: registro de entradas/salidas de vehículos, cobro en caja, métricas diarias, roles y permisos, y backup local.
 
 - **Tipo:** Desktop (Tauri 2 + React).
 - **Usuarios objetivo:** Operadores de estacionamiento, administradores, posiblemente desarrolladores (consola de desarrollo).
@@ -27,8 +27,8 @@
 
 **Estructura alineada por dominios:**
 
-- **Frontend:** `src/features/{vehiculos,caja,metricas,roles,backup,drive,dev-console}` (páginas y componentes por feature), `hooks/useParkingStore` (TanStack Query + invoke), `types/parking.ts`, `components/layout/AppLayout`, `pages/NotFound`.
-- **Backend:** `src-tauri/src/domains/{vehiculos,caja,metricas,roles,backup,drive}`, `db.rs` (pool y migraciones), `state.rs`, `permissions.rs`, `scanner.rs`, `dev.rs`.
+- **Frontend:** `src/features/{vehiculos,caja,metricas,roles,backup,dev-console}` (páginas y componentes por feature), `hooks/useParkingStore` (TanStack Query + invoke), `types/parking.ts`, `components/layout/AppLayout`, `pages/NotFound`.
+- **Backend:** `src-tauri/src/domains/{vehiculos,caja,metricas,roles,backup}`, `db.rs` (pool y migraciones), `state.rs`, `permissions.rs`, `scanner.rs`, `dev.rs`.
 
 Buena separación front/back y naming consistente entre features y dominios.
 
@@ -42,8 +42,7 @@ Buena separación front/back y naming consistente entre features y dominios.
 | **Caja** | CajaPage (tesorería, carga/error, desglose por método); CheckoutPanel con método de pago (cash/card/transfer) | `caja_get_treasury` (solo tabla transactions), `caja_get_debug`, `caja_close_shift` (placeholder) | Mismo almacén (SQLite, tabla transactions) | Historias 1.3 y 2.1 hechas; tesorería real desde transacciones del día. |
 | **Métricas** | MetricasPage; datos desde useParkingStore → `metricas_get_daily` | `metricas_get_daily` calcula desde vehicles en SQLite | Mismo almacén (SQLite) | Historia 1.3 hecha; pico de horas aún datos mock en UI. |
 | **Roles** | Página roles | `roles_list_roles`, `roles_get_current_user`, `roles_get_my_permissions`, `roles_get_permissions_for_user` | En memoria (admin/developer con todos los permisos) | RBAC en `permissions.rs`; sin usuarios persistentes (Épica 4 pendiente). |
-| **Backup** | Página backup | `backup_create`, `backup_restore`, `backup_list` (placeholders) | No implementado | Épica 5 pendiente. |
-| **Drive** | Página drive | `drive_get_status`, `drive_sync_now`, `drive_set_folder_id` (placeholders) | No | Épica 5 pendiente. |
+| **Backup** | Página backup | `backup_create`, `backup_restore`, `backup_list` | SQLite backup/restore | Épica 5.1 Hecho. |
 | **Dev console** | DevConsolePage (ruta dev-console, condicional COCO_DEV) | `dev_list_commands`, `dev_set_current_user`, `dev_get_db_path`, etc. | — | Aislado; solo desarrollo. |
 
 **Conclusión:** Backend persiste en SQLite (vehicles + transactions). En Tauri el flujo entrada → salida → cobro usa backend como fuente única; `vehiculos_process_exit` inserta en `transactions` con método de pago. Caja y métricas leen del mismo almacén (1.3, 2.1, 6.0 hechas). En modo web sin Tauri: estado en memoria/localStorage para demo.
@@ -97,10 +96,10 @@ Priorización orientativa para los próximos sprints.
 - **US 4.1:** Gestionar usuarios y asignación de roles de forma persistente.
 - **US 4.2:** Ocultar o deshabilitar en frontend acciones para las que el usuario no tenga permiso (según permisos del backend).
 
-### Épica 5: Backup y Drive
+### Épica 5: Backup
 
 - **US 5.1:** Backup real de datos (export/import) con ruta seleccionable.
-- **US 5.2:** Sincronización con Google Drive (o similar) según configuración.
+- **US 5.2:** Eliminada (sincronización Drive no forma parte del producto).
 
 ### Épica 6: Robustez y operación
 
@@ -118,7 +117,7 @@ Priorización orientativa para los próximos sprints.
 | **Duplicación de lógica** | Resuelto (1.3) | Caja y métricas leen solo del backend (mismo almacén); no hay cálculo de tesorería/métricas solo en frontend en Tauri. |
 | **Caja/Métricas sin datos reales** | Resuelto (1.3, 2.1) | `caja_get_treasury` y `metricas_get_daily` usan SQLite; pantalla Caja muestra datos desde transacciones del día. |
 | **Sin persistencia de usuarios** | Media | Solo admin/developer en memoria; no hay CRUD de usuarios ni asignación persistente (Épica 4). |
-| **Cierre de turno / backup / Drive** | Media | `caja_close_shift` y comandos backup/drive son placeholders (Épicas 2, 5). |
+| **Cierre de turno / backup** | Media | `caja_close_shift` implementado; backup real implementado (Épicas 2, 5.1). |
 | **Escáner en Linux** | Baja | Dependencia de grupo `input` o permisos; documentar en README (historia 6.2). |
 | **Tests E2E** | Baja | No hay tests E2E para flujo entrada → salida → caja (historia 6.3). |
 
@@ -130,7 +129,7 @@ Priorización orientativa para los próximos sprints.
 
 - **Sprint 0 (opcional):** Definir y priorizar backlog con stakeholders; acordar “Definition of Done” (tests, revisión, documentación mínima).
 - **Primeros sprints:** Centrarse en **Épica 1** (persistencia y una sola fuente de verdad). Sin esto, caja, métricas y reportes seguirán desalineados.
-- **Después:** Caja (Épica 2) y métricas (Épica 3); luego roles (Épica 4) y backup/Drive (Épica 5).
+- **Después:** Caja (Épica 2) y métricas (Épica 3); luego roles (Épica 4) y backup (Épica 5).
 
 ### Definition of Done sugerida
 
@@ -148,8 +147,8 @@ Priorización orientativa para los próximos sprints.
 
 ### Riesgos de proceso
 
-- **Scope creep:** Muchas pantallas (backup, drive, roles, métricas) con poca profundidad; conviene cerrar el flujo core (vehículos + caja + persistencia) antes de ampliar.
-- **Decisiones pendientes:** Elegir almacenamiento backend (SQLite, archivo JSON, etc.) y política de backup/Drive para no rehacer trabajo.
+- **Scope creep:** Muchas pantallas (backup, roles, métricas) con poca profundidad; conviene cerrar el flujo core (vehículos + caja + persistencia) antes de ampliar.
+- **Decisiones pendientes:** Elegir almacenamiento backend (SQLite, archivo JSON, etc.) y política de backup para no rehacer trabajo.
 
 ---
 
@@ -158,9 +157,9 @@ Priorización orientativa para los próximos sprints.
 | Aspecto | Valoración breve |
 |---------|------------------|
 | **Visión** | Clara: estacionamiento desktop con caja, métricas, roles y backup. |
-| **Arquitectura** | Sólida: Tauri 2 + React, dominios alineados (vehiculos, caja, metricas, roles, backup, drive, dev), permisos en `permissions.rs`. |
+| **Arquitectura** | Sólida: Tauri 2 + React, dominios alineados (vehiculos, caja, metricas, roles, backup, dev), permisos en `permissions.rs`. |
 | **Estado funcional** | Flujo core cerrado: entrada/salida/cobro con persistencia en SQLite; listado y búsqueda desde backend; caja y métricas desde mismo almacén; tesorería real en pantalla Caja (historias 1.1, 1.2, 1.3, 2.1, 6.0 hechas). |
-| **Principal brecha** | Cierre de turno (2.2) y backup/Drive reales pendientes; usuarios/roles persistentes (Épica 4); tests E2E (6.3). |
+| **Principal brecha** | Usuarios/roles persistentes (Épica 4); tests E2E (6.3). Backup real implementado (5.1); Drive eliminado del producto. |
 | **Próximo paso recomendado** | Planificar Sprint 3: historias 2.2 (cierre de turno) y 2.3 (método de pago ya soportado en backend; reforzar en UI si hace falta); o iniciar Épica 3 (métricas/export) o Épica 4 (roles persistentes). |
 
 ---

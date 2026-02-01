@@ -1,6 +1,6 @@
 # Backend (Tauri)
 
-Domains aligned with frontend `src/features/`: `vehiculos`, `caja`, `metricas`, `roles`, `backup`, `drive`.
+Domains aligned with frontend `src/features/`: `vehiculos`, `caja`, `metricas`, `roles`, `backup`.
 
 ## Prerrequisitos en Linux (Ubuntu/Debian/WSL)
 
@@ -42,7 +42,7 @@ Es un problema de drivers gráficos. La ventana de Tauri puede no abrirse o qued
 - `db.rs` – SQLite pool, schema, migrations (vehicles + transactions)
 - `permissions.rs` – granular permission IDs (`domain:resource:action`)
 - `state.rs` – `AppState`: current user + permissions + DB pool
-- `domains/` – one module per domain (vehiculos, caja, metricas, roles, backup, drive)
+- `domains/` – one module per domain (vehiculos, caja, metricas, roles, backup)
 
 ## Persistence (SQLite)
 

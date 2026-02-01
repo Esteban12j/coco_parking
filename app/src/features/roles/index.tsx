@@ -160,9 +160,6 @@ export const RolesPage = () => {
     "backup:list:read",
     "backup:create",
     "backup:restore",
-    "drive:status:read",
-    "drive:sync",
-    "drive:config:modify",
     "dev:console:access",
   ];
 

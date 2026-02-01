@@ -36,7 +36,6 @@ export const ROUTE_REQUIRED_PERMISSION: Record<string, string> = {
   "/metrics": "metricas:dashboard:read",
   "/roles": "roles:users:read",
   "/backup": "backup:list:read",
-  "/drive": "drive:status:read",
   "/dev-console": "dev:console:access",
 };
 

@@ -93,7 +93,7 @@
 | 3 | Cierre de turno + método de pago | 2.2, 2.3 | Previsto |
 | 4 | Métricas y reportes | 3.1, 3.2 | Previsto |
 | 5 | Roles y usuarios persistentes + UI por permisos | 4.1, 4.2 | Previsto |
-| 6+ | Backup, Drive, robustez | Épicas 5 y 6 | Previsto |
+| 6+ | Backup, robustez | Épicas 5 y 6 | Previsto |
 | * | Arquitectura datos y rendimiento (Épica 7) | A criterio de SM/PO | Ver ARQUITECTURA_DATOS_PERFORMANCE.md y PRODUCT_BACKLOG Épica 7. |
 
 ---
@@ -102,7 +102,7 @@
 
 - **Scope creep:** Mantener foco en Épica 1 en Sprint 1–2; no añadir pantallas nuevas sin cerrar flujo core.
 - **Decisiones tardías:** Cerrar en Sprint 0 almacenamiento y política de migración desde localStorage.
-- **Bloqueos:** SM debe facilitar desbloqueo (ej. permisos escáner, acceso a Drive API).
+- **Bloqueos:** SM debe facilitar desbloqueo (ej. permisos escáner).
 
 ---
 

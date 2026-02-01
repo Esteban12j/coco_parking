@@ -27,10 +27,6 @@ pub const BACKUP_LIST_READ: &str = "backup:list:read";
 pub const BACKUP_CREATE: &str = "backup:create";
 pub const BACKUP_RESTORE: &str = "backup:restore";
 
-pub const DRIVE_STATUS_READ: &str = "drive:status:read";
-pub const DRIVE_SYNC: &str = "drive:sync";
-pub const DRIVE_CONFIG_MODIFY: &str = "drive:config:modify";
-
 pub const DEV_CONSOLE_ACCESS: &str = "dev:console:access";
 
 pub fn all_permissions() -> Vec<&'static str> {
@@ -56,9 +52,6 @@ pub fn all_permissions() -> Vec<&'static str> {
         BACKUP_LIST_READ,
         BACKUP_CREATE,
         BACKUP_RESTORE,
-        DRIVE_STATUS_READ,
-        DRIVE_SYNC,
-        DRIVE_CONFIG_MODIFY,
         DEV_CONSOLE_ACCESS,
     ]
 }

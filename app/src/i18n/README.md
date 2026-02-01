@@ -12,4 +12,4 @@
 3. **Register the locale** in `context.tsx`: import the new dictionary and add it to the `dictionaries` object and to `getStoredLocale()` validation (e.g. `if (stored === "fr") return "fr";`).
 4. **Add the option in the UI**: In `AppLayout.tsx`, add a new `<SelectItem value="fr">Français</SelectItem>` (and optionally export `SUPPORTED_LOCALES` from `index.ts` and use it to build the options).
 
-Keys are grouped by feature: `app`, `common`, `nav`, `vehicles`, `till`, `metrics`, `roles`, `backup`, `drive`, `devConsole`, `checkout`, `notFound`. Use the same keys in every locale file.
+Keys are grouped by feature: `app`, `common`, `nav`, `vehicles`, `till`, `metrics`, `roles`, `backup`, `devConsole`, `checkout`, `notFound`. Use the same keys in every locale file.

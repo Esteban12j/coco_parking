@@ -168,6 +168,28 @@ pub fn dev_get_db_path(state: State<AppState>) -> Result<String, String> {
     Ok(state.db_path.to_string_lossy().into_owned())
 }
 
+/// Dev-only: clears all data tables and re-seeds admin/roles so you can test restore. Requires dev:console:access.
+#[tauri::command]
+pub fn dev_clear_database(state: State<AppState>) -> Result<String, String> {
+    require_dev_console(&state)?;
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+    conn.execute("PRAGMA foreign_keys = OFF", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM transactions", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM vehicles", []).map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM shift_closures", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM role_permissions", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM users", []).map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM roles", []).map_err(|e| e.to_string())?;
+    conn.execute("PRAGMA foreign_keys = ON", [])
+        .map_err(|e| e.to_string())?;
+    crate::db::seed_users_roles(&conn).map_err(|e| e.to_string())?;
+    Ok("Database cleared. Admin user (admin/admin) re-seeded. Use Backup > Restore to load a backup.".to_string())
+}
+
 /// List of invokable command names (for dev console). Requires dev:console:access.
 #[tauri::command]
 pub fn dev_list_commands(state: State<AppState>) -> Result<Vec<String>, String> {
@@ -178,6 +200,7 @@ pub fn dev_list_commands(state: State<AppState>) -> Result<Vec<String>, String> 
         "auth_get_session".to_string(),
         "dev_get_db_path".to_string(),
         "dev_get_db_snapshot".to_string(),
+        "dev_clear_database".to_string(),
         "caja_get_debug".to_string(),
         "vehiculos_list_vehicles".to_string(),
         "vehiculos_register_entry".to_string(),
@@ -200,8 +223,5 @@ pub fn dev_list_commands(state: State<AppState>) -> Result<Vec<String>, String> 
         "backup_create".to_string(),
         "backup_restore".to_string(),
         "backup_list".to_string(),
-        "drive_get_status".to_string(),
-        "drive_sync_now".to_string(),
-        "drive_set_folder_id".to_string(),
     ])
 }

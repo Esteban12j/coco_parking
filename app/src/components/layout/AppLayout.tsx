@@ -1,7 +1,7 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { NavLink } from "react-router-dom";
 import { useEffect } from "react";
-import { Car, DollarSign, BarChart3, Shield, Database, Cloud, Terminal, Languages, HardDrive, Cpu, LogOut } from "lucide-react";
+import { Car, DollarSign, BarChart3, Shield, Database, Terminal, Languages, HardDrive, Cpu, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
 import { useParkingStore } from "@/hooks/useParkingStore";
@@ -34,12 +34,11 @@ const navRoutes = [
   { to: "/metrics", key: "nav.metrics" as const, icon: BarChart3, permission: "metricas:dashboard:read" },
   { to: "/roles", key: "nav.roles" as const, icon: Shield, permission: "roles:users:read" },
   { to: "/backup", key: "nav.backup" as const, icon: Database, permission: "backup:list:read" },
-  { to: "/drive", key: "nav.drive" as const, icon: Cloud, permission: "drive:status:read" },
 ];
 
 const devNavRoute = { to: "/dev-console", key: "nav.devConsole" as const, icon: Terminal, permission: PERMISSION_DEV_CONSOLE };
 
-const ALLOWED_FALLBACK_ORDER = ["/vehicles", "/till", "/metrics", "/roles", "/backup", "/drive"];
+const ALLOWED_FALLBACK_ORDER = ["/vehicles", "/till", "/metrics", "/roles", "/backup"];
 
 export const AppLayout = () => {
   const { t, locale, setLocale } = useTranslation();

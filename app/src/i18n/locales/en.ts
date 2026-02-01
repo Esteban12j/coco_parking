@@ -32,7 +32,6 @@ export const en: Translations = {
     metrics: "Metrics",
     roles: "Roles",
     backup: "Backup",
-    drive: "Drive",
     devConsole: "Dev Console",
   },
   vehicles: {
@@ -211,11 +210,15 @@ export const en: Translations = {
     title: "Backup",
     subtitle: "Backups and data restore.",
     inDevelopment: "Backup module in development.",
-  },
-  drive: {
-    title: "Drive",
-    subtitle: "Sync with Google Drive or other storage.",
-    inDevelopment: "Drive module in development.",
+    exportButton: "Export backup",
+    restoreButton: "Restore from file",
+    exportSuccess: "Backup exported successfully.",
+    restoreSuccess: "Data restored successfully.",
+    restoreConfirm: "Restore data?",
+    restoreConfirmDetail: "All current data will be replaced by the selected file. This action cannot be undone.",
+    exportDescription: "Export all store data to a file at the path you choose.",
+    restoreDescription: "Restore data from a backup file. Replaces current data.",
+    error: "Operation failed.",
   },
   devConsole: {
     title: "Dev Console",

@@ -32,7 +32,6 @@ export const es: Translations = {
     metrics: "Métricas",
     roles: "Roles",
     backup: "Backup",
-    drive: "Drive",
     devConsole: "Consola Dev",
   },
   vehicles: {
@@ -211,11 +210,15 @@ export const es: Translations = {
     title: "Backup",
     subtitle: "Respaldos y restauración de datos.",
     inDevelopment: "Módulo de backup en desarrollo.",
-  },
-  drive: {
-    title: "Drive",
-    subtitle: "Sincronización con Google Drive u otro almacenamiento.",
-    inDevelopment: "Módulo de conexión Drive en desarrollo.",
+    exportButton: "Exportar backup",
+    restoreButton: "Restaurar desde archivo",
+    exportSuccess: "Backup exportado correctamente.",
+    restoreSuccess: "Datos restaurados correctamente.",
+    restoreConfirm: "¿Restaurar datos?",
+    restoreConfirmDetail: "Se reemplazarán todos los datos actuales por los del archivo seleccionado. Esta acción no se puede deshacer.",
+    exportDescription: "Exporta todos los datos del almacén a un archivo en la ruta que elijas.",
+    restoreDescription: "Restaura los datos desde un archivo de backup. Reemplaza los datos actuales.",
+    error: "Error en la operación.",
   },
   devConsole: {
     title: "Consola de desarrollo",

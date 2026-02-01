@@ -53,7 +53,7 @@ Un ítem se considera **Hecho (Done)** cuando cumple **todas** las condiciones s
 | **Persistencia / base de datos** | Esquema o formato documentado; migración o compatibilidad considerada si aplica. |
 | **Nuevo comando Tauri** | Permisos comprobados en `permissions.rs`; frontend usa el comando correctamente. |
 | **Nueva pantalla o flujo** | Navegación y textos (i18n) coherentes; accesibilidad básica si se define en el proyecto. |
-| **Backup / Drive** | Flujo de error y mensajes al usuario definidos y probados. |
+| **Backup** | Flujo de error y mensajes al usuario definidos y probados. |
 
 ---
 

@@ -19,7 +19,6 @@ import { CajaPage } from "@/features/caja";
 import { MetricasPage } from "@/features/metricas";
 import { RolesPage } from "@/features/roles";
 import { BackupPage } from "@/features/backup";
-import { DrivePage } from "@/features/drive";
 import { DevConsolePage } from "@/features/dev-console";
 import { LoginPage } from "@/pages/Login";
 import NotFound from "./pages/NotFound";
@@ -78,7 +77,6 @@ const App = () => (
                 <Route path="metrics" element={<MetricasPage />} />
                 <Route path="roles" element={<RolesPage />} />
                 <Route path="backup" element={<BackupPage />} />
-                <Route path="drive" element={<DrivePage />} />
                 <Route path="dev-console" element={<DevConsolePage />} />
               </Route>
               <Route path="*" element={<NotFound />} />

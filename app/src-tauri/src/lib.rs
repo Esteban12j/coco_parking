@@ -10,6 +10,7 @@ mod state;
 
 use tauri::Manager;
 use dev::{
+    dev_clear_database,
     dev_get_current_user_id,
     dev_get_db_path,
     dev_get_db_snapshot,
@@ -20,7 +21,6 @@ use dev::{
 use domains::{
     backup::{backup_create, backup_list, backup_restore},
     caja::{caja_close_shift, caja_get_debug, caja_get_treasury, caja_list_shift_closures},
-    drive::{drive_get_status, drive_set_folder_id, drive_sync_now},
     metricas::metricas_get_daily,
     reportes::{reportes_fetch, reportes_get_column_definitions, reportes_write_csv},
     roles::{
@@ -52,8 +52,22 @@ use domains::{
     },
 };
 
+fn load_dotenv() {
+    if dotenvy::dotenv().is_ok() {
+        return;
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        if cwd.ends_with("src-tauri") {
+            if let Some(parent) = cwd.parent() {
+                let _ = dotenvy::from_path(parent.join(".env"));
+            }
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    load_dotenv();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -72,6 +86,7 @@ pub fn run() {
             dev_login_as_developer,
             dev_get_current_user_id,
             dev_set_current_user,
+            dev_clear_database,
             dev_get_db_path,
             dev_get_db_snapshot,
             dev_list_commands,
@@ -109,9 +124,6 @@ pub fn run() {
             backup_create,
             backup_restore,
             backup_list,
-            drive_get_status,
-            drive_sync_now,
-            drive_set_folder_id,
         ])
         .run(tauri::generate_context!())
         .expect("error while running COCO Parking");

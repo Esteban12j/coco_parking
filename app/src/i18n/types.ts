@@ -32,7 +32,6 @@ export interface Translations {
     metrics: string;
     roles: string;
     backup: string;
-    drive: string;
     devConsole: string;
   };
   vehicles: {
@@ -212,11 +211,15 @@ export interface Translations {
     title: string;
     subtitle: string;
     inDevelopment: string;
-  };
-  drive: {
-    title: string;
-    subtitle: string;
-    inDevelopment: string;
+    exportButton: string;
+    restoreButton: string;
+    exportSuccess: string;
+    restoreSuccess: string;
+    restoreConfirm: string;
+    restoreConfirmDetail: string;
+    exportDescription: string;
+    restoreDescription: string;
+    error: string;
   };
   devConsole: {
     title: string;
