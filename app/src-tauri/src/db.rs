@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>;
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 3;
+const SCHEMA_VERSION: i64 = 4;
 
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
@@ -106,6 +106,29 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
         )
         .map_err(|e| e.to_string())?;
         conn.execute("INSERT INTO schema_version (version) VALUES (3)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 4 {
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS shift_closures (
+                id TEXT PRIMARY KEY,
+                closed_at TEXT NOT NULL,
+                expected_total REAL NOT NULL,
+                cash_total REAL NOT NULL,
+                card_total REAL NOT NULL,
+                transfer_total REAL NOT NULL,
+                arqueo_cash REAL,
+                discrepancy REAL NOT NULL,
+                total_transactions INTEGER NOT NULL,
+                notes TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_shift_closures_closed_at ON shift_closures(closed_at);
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (4)", [])
             .map_err(|e| e.to_string())?;
     }
 

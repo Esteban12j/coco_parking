@@ -83,6 +83,14 @@ export interface Translations {
     closeShiftConfirm: string;
     shiftClosed: string;
     reportGenerated: string;
+    closureHistory: string;
+    closedAt: string;
+    arqueoCash: string;
+    arqueoCashPlaceholder: string;
+    notes: string;
+    notesPlaceholder: string;
+    submitCloseShift: string;
+    noClosuresYet: string;
   };
   metrics: {
     title: string;

@@ -1,19 +1,45 @@
-import { DollarSign, Users, TrendingUp, Wallet, RefreshCw, AlertCircle } from "lucide-react";
+import { useState } from "react";
+import { DollarSign, Users, TrendingUp, Wallet, RefreshCw, AlertCircle, History } from "lucide-react";
 import { MetricCard } from "@/components/MetricCard";
 import { useParkingStore } from "@/hooks/useParkingStore";
-import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { CloseShiftDialog } from "./components/CloseShiftDialog";
+
+function formatClosedAt(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  } catch {
+    return iso;
+  }
+}
 
 export const CajaPage = () => {
   const { t } = useTranslation();
+  const [closeShiftDialogOpen, setCloseShiftDialogOpen] = useState(false);
   const {
     treasury,
+    shiftClosures,
+    shiftClosuresLoading,
     isLoading,
     isTreasuryError,
     treasuryError,
     isTauri,
     invalidateParking,
+    closeShift,
+    isClosingShift,
   } = useParkingStore();
   const totalBreakdown =
     treasury.paymentBreakdown.cash +
@@ -130,21 +156,71 @@ export const CajaPage = () => {
           <p className="text-sm text-muted-foreground mb-4">
             {t("till.closeShiftDescription")}
           </p>
-          <Button
-            variant="coco"
-            size="lg"
-            onClick={() => {
-              if (window.confirm(t("till.closeShiftConfirm"))) {
-                toast({
-                  title: t("till.shiftClosed"),
-                  description: t("till.reportGenerated"),
-                });
-              }
-            }}
-          >
-            {t("till.closeShift")}
-          </Button>
+          {isTauri && (
+            <>
+              <Button
+                variant="coco"
+                size="lg"
+                onClick={() => setCloseShiftDialogOpen(true)}
+                disabled={isLoading}
+              >
+                {t("till.closeShift")}
+              </Button>
+              <CloseShiftDialog
+                open={closeShiftDialogOpen}
+                onOpenChange={setCloseShiftDialogOpen}
+                treasury={treasury}
+                onSubmit={(arqueoCash, notes) =>
+                  closeShift(arqueoCash, notes, () => setCloseShiftDialogOpen(false))
+                }
+                isSubmitting={isClosingShift}
+              />
+            </>
+          )}
         </div>
+
+        {isTauri && (
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <History className="h-5 w-5" />
+              {t("till.closureHistory")}
+            </h3>
+            {shiftClosuresLoading ? (
+              <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+            ) : shiftClosures.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("till.noClosuresYet")}</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("till.closedAt")}</TableHead>
+                    <TableHead className="text-right">{t("till.expectedCash")}</TableHead>
+                    <TableHead className="text-right">{t("till.arqueoCash")}</TableHead>
+                    <TableHead className="text-right">{t("till.discrepancy")}</TableHead>
+                    <TableHead className="text-right">{t("till.totalTransactions")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {shiftClosures.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell>{formatClosedAt(c.closedAt)}</TableCell>
+                      <TableCell className="text-right">
+                        ${c.expectedTotal.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {c.arqueoCash != null ? `$${c.arqueoCash.toFixed(2)}` : "—"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        ${c.discrepancy.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">{c.totalTransactions}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

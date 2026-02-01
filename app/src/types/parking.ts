@@ -48,6 +48,20 @@ export interface TreasuryData {
   };
 }
 
+/** Registro persistido de cierre de turno (resumen, arqueo opcional, diferencia). */
+export interface ShiftClosure {
+  id: string;
+  closedAt: string;
+  expectedTotal: number;
+  cashTotal: number;
+  cardTotal: number;
+  transferTotal: number;
+  arqueoCash: number | null;
+  discrepancy: number;
+  totalTransactions: number;
+  notes: string | null;
+}
+
 export type UserRole = 'operator' | 'admin' | 'developer';
 
 export interface User {

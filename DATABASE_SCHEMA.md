@@ -118,6 +118,27 @@ Se usa una tabla **`schema_version`** para saber hasta qué versión está aplic
 
 ---
 
+### 4.3 Tabla `shift_closures`
+
+**Propósito:** Registro de cada cierre de turno: resumen del día (totales por método de pago), arqueo opcional (efectivo contado) y diferencia.
+
+| Columna             | Tipo  | Nullable | Descripción |
+|---------------------|-------|----------|-------------|
+| `id`                | TEXT  | PK       | UUID del cierre. |
+| `closed_at`         | TEXT  | NOT NULL | Fecha/hora del cierre (ISO/RFC3339, UTC). |
+| `expected_total`    | REAL  | NOT NULL | Suma de transacciones del día (cash+card+transfer). |
+| `cash_total`        | REAL  | NOT NULL | Suma cobrada en efectivo. |
+| `card_total`        | REAL  | NOT NULL | Suma cobrada con tarjeta. |
+| `transfer_total`    | REAL  | NOT NULL | Suma cobrada por transferencia. |
+| `arqueo_cash`       | REAL  | SÍ       | Efectivo contado en caja (arqueo); NULL si no se registró. |
+| `discrepancy`       | REAL  | NOT NULL | Diferencia: `arqueo_cash - cash_total` (0 si no hay arqueo). |
+| `total_transactions`| INTEGER | NOT NULL | Número de transacciones del día. |
+| `notes`             | TEXT  | SÍ       | Notas opcionales del cajero. |
+
+**Índices:** `closed_at`. Quién escribe/lee: ver sección 6.
+
+---
+
 ## 5. Diagrama de tablas y relación
 
 ```
@@ -168,6 +189,13 @@ Se usa una tabla **`schema_version`** para saber hasta qué versión está aplic
 | **SELECT** | `caja_get_treasury` | Conteo y suma por método (cash/card/transfer) del día (created_at LIKE 'YYYY-MM-DD%'). |
 | **SELECT** | `caja_get_debug` | Conteos y últimas 5 transacciones para depuración. |
 | **SELECT** | `dev_get_db_snapshot` | Últimas filas para depuración. |
+
+### `shift_closures`
+
+| Operación | Comando / código | Acción |
+|-----------|-------------------|--------|
+| **INSERT** | `caja_close_shift` | Una fila por cada cierre de turno (resumen, arqueo opcional, discrepancy, notes). |
+| **SELECT** | `caja_list_shift_closures` | Historial de cierres ordenados por `closed_at` DESC. |
 
 ### `schema_version`
 

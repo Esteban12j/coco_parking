@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { invoke } from '@tauri-apps/api/core';
-import { Vehicle, VehicleType, DailyMetrics, TreasuryData, PlateConflict, PendingRegisterConflict } from '@/types/parking';
+import { Vehicle, VehicleType, DailyMetrics, TreasuryData, ShiftClosure, PlateConflict, PendingRegisterConflict } from '@/types/parking';
 import { toast } from '@/hooks/use-toast';
 import { useTranslation } from '@/i18n';
 
@@ -82,6 +82,12 @@ export const useParkingStore = () => {
   const treasuryQuery = useQuery({
     queryKey: ['parking', 'treasury'],
     queryFn: () => invoke<TreasuryData>('caja_get_treasury'),
+    enabled: tauri,
+  });
+
+  const shiftClosuresQuery = useQuery({
+    queryKey: ['parking', 'shiftClosures'],
+    queryFn: async () => invoke<ShiftClosure[]>('caja_list_shift_closures', { limit: 50 }),
     enabled: tauri,
   });
 
@@ -172,6 +178,36 @@ export const useParkingStore = () => {
     onError: (err) => {
       toast({
         title: 'Error al procesar salida',
+        description: String(err),
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const closeShiftMutation = useMutation({
+    mutationFn: async (args: {
+      arqueoCash?: number | null;
+      notes?: string | null;
+      onSuccess?: () => void;
+    }) => {
+      const result = await invoke<ShiftClosure>('caja_close_shift', {
+        arqueoCash: args.arqueoCash ?? undefined,
+        notes: args.notes ?? undefined,
+      });
+      return { result, onSuccess: args.onSuccess };
+    },
+    onSuccess: (data) => {
+      invalidateParking();
+      queryClient.invalidateQueries({ queryKey: ['parking', 'shiftClosures'] });
+      toast({
+        title: t('till.shiftClosed'),
+        description: t('till.reportGenerated'),
+      });
+      data.onSuccess?.();
+    },
+    onError: (err) => {
+      toast({
+        title: t('till.closeShift'),
         description: String(err),
         variant: 'destructive',
       });
@@ -355,6 +391,14 @@ export const useParkingStore = () => {
           };
         })());
 
+  const closeShift = useCallback(
+    (arqueoCash?: number | null, notes?: string | null, onSuccess?: () => void) => {
+      if (!tauri) return;
+      closeShiftMutation.mutate({ arqueoCash, notes, onSuccess });
+    },
+    [tauri, closeShiftMutation]
+  );
+
   const clearScanResult = useCallback(() => setScanResult(null), []);
 
   const getVehiclesByPlate = useCallback(
@@ -426,6 +470,8 @@ export const useParkingStore = () => {
       .catch(() => {});
   }, [tauri, vehiclesQuery.dataUpdatedAt]);
 
+  const shiftClosures = tauri ? (shiftClosuresQuery.data ?? []) : [];
+
   return {
     vehicles,
     activeVehicles,
@@ -433,6 +479,7 @@ export const useParkingStore = () => {
     scanResult,
     metrics,
     treasury,
+    shiftClosures,
     handleScan,
     registerEntry,
     processExit,
@@ -454,5 +501,8 @@ export const useParkingStore = () => {
     deleteExistingAndRetryRegister,
     plateConflicts,
     resolvePlateConflict,
+    closeShift,
+    isClosingShift: closeShiftMutation.isPending,
+    shiftClosuresLoading: tauri && shiftClosuresQuery.isLoading,
   };
 };

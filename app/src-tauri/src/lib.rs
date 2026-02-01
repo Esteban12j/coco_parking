@@ -18,7 +18,7 @@ use dev::{
 };
 use domains::{
     backup::{backup_create, backup_list, backup_restore},
-    caja::{caja_close_shift, caja_get_debug, caja_get_treasury},
+    caja::{caja_close_shift, caja_get_debug, caja_get_treasury, caja_list_shift_closures},
     drive::{drive_get_status, drive_set_folder_id, drive_sync_now},
     metricas::metricas_get_daily,
     roles::{
@@ -73,6 +73,7 @@ pub fn run() {
             caja_get_treasury,
             caja_get_debug,
             caja_close_shift,
+            caja_list_shift_closures,
             metricas_get_daily,
             roles_list_roles,
             roles_get_current_user,
