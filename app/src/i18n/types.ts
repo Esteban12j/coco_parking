@@ -47,6 +47,20 @@ export interface Translations {
     sessionsWithDebt: string;
     noDebtors: string;
     fromBackendNote: string;
+    detailTitle: string;
+    detailSubtitle: string;
+    clickPlateToViewDetail: string;
+    ticket: string;
+    entryTime: string;
+    exitTime: string;
+    debt: string;
+    totalAmount: string;
+    payments: string;
+    whenPaid: string;
+    amount: string;
+    method: string;
+    noSessions: string;
+    noPayments: string;
   };
   vehicles: {
     title: string;

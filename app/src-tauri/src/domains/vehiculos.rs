@@ -253,6 +253,98 @@ pub fn vehiculos_get_plate_debt(state: State<AppState>, plate: String) -> Result
     Ok(debt)
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DebtSessionEntry {
+    pub id: String,
+    pub ticket_code: String,
+    pub entry_time: String,
+    pub exit_time: Option<String>,
+    pub debt: f64,
+    pub total_amount: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DebtTransactionEntry {
+    pub created_at: String,
+    pub amount: f64,
+    pub method: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DebtDetailByPlateResult {
+    pub sessions: Vec<DebtSessionEntry>,
+    pub transactions: Vec<DebtTransactionEntry>,
+}
+
+#[tauri::command]
+pub fn vehiculos_get_debt_detail_by_plate(
+    state: State<AppState>,
+    plate: String,
+) -> Result<DebtDetailByPlateResult, String> {
+    state.check_permission(permissions::CAJA_DEBTORS_READ)?;
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+    let key = normalize_plate_for_index(&plate);
+
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT id, ticket_code, entry_time, exit_time, COALESCE(debt, 0) AS debt, total_amount
+            FROM vehicles
+            WHERE plate_upper = ?1 AND COALESCE(debt, 0) > 0
+            ORDER BY entry_time DESC
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+    let session_rows = stmt
+        .query_map(params![key], |row| {
+            Ok(DebtSessionEntry {
+                id: row.get("id")?,
+                ticket_code: row.get("ticket_code")?,
+                entry_time: row.get("entry_time")?,
+                exit_time: row.get("exit_time")?,
+                debt: row.get::<_, f64>("debt")?,
+                total_amount: row.get("total_amount")?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    let sessions: Vec<DebtSessionEntry> = session_rows.filter_map(|r| r.ok()).collect();
+    let vehicle_ids: Vec<String> = sessions.iter().map(|s| s.id.clone()).collect();
+
+    let transactions: Vec<DebtTransactionEntry> = if vehicle_ids.is_empty() {
+        Vec::new()
+    } else {
+        let placeholders: String = vehicle_ids
+            .iter()
+            .enumerate()
+            .map(|(i, _)| format!("?{}", i + 1))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let sql = format!(
+            "SELECT created_at, amount, method FROM transactions WHERE vehicle_id IN ({}) ORDER BY created_at DESC",
+            placeholders
+        );
+        let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(rusqlite::params_from_iter(vehicle_ids.iter()), |row| {
+                Ok(DebtTransactionEntry {
+                    created_at: row.get("created_at")?,
+                    amount: row.get("amount")?,
+                    method: row.get("method")?,
+                })
+            })
+            .map_err(|e| e.to_string())?;
+        rows.filter_map(|r| r.ok()).collect()
+    };
+
+    Ok(DebtDetailByPlateResult {
+        sessions,
+        transactions,
+    })
+}
+
 /// Tipos que llevan placa (única por vehículo). Bicicletas/monopatines no tienen placa.
 fn vehicle_type_has_plate(v: &VehicleType) -> bool {
     matches!(v, VehicleType::Car | VehicleType::Motorcycle | VehicleType::Truck)

@@ -114,6 +114,29 @@ export interface ListDebtorsResult {
   total: number;
 }
 
+/** Session with debt for debt-detail-by-plate drill-down. */
+export interface DebtSessionEntry {
+  id: string;
+  ticketCode: string;
+  entryTime: string;
+  exitTime: string | null;
+  debt: number;
+  totalAmount: number | null;
+}
+
+/** Payment (transaction) for debt-detail-by-plate drill-down. */
+export interface DebtTransactionEntry {
+  createdAt: string;
+  amount: number;
+  method: string;
+}
+
+/** Debt detail for a single plate: sessions with debt and their payments. */
+export interface DebtDetailByPlateResult {
+  sessions: DebtSessionEntry[];
+  transactions: DebtTransactionEntry[];
+}
+
 /** Datos del registro que falló por conflicto de placa; para que el cliente elija eliminar el erróneo y reintentar. */
 export interface PendingRegisterConflict {
   plate: string;

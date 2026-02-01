@@ -12,8 +12,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { invokeTauri } from "@/lib/tauriInvoke";
-import type { DebtorEntry, ListDebtorsResult } from "@/types/parking";
+import type {
+  DebtorEntry,
+  DebtDetailByPlateResult,
+  ListDebtorsResult,
+} from "@/types/parking";
 import { useParkingStore } from "@/hooks/useParkingStore";
 
 const DEBTORS_PAGE_SIZE = 20;
@@ -35,6 +46,7 @@ export const DebtorsPage = () => {
   const { t } = useTranslation();
   const { isTauri } = useParkingStore();
   const [page, setPage] = useState(1);
+  const [selectedPlate, setSelectedPlate] = useState<string | null>(null);
 
   const totalDebtQuery = useQuery({
     queryKey: ["parking", "totalDebt"],
@@ -50,6 +62,15 @@ export const DebtorsPage = () => {
         offset: (page - 1) * DEBTORS_PAGE_SIZE,
       }),
     enabled: isTauri,
+  });
+
+  const debtDetailQuery = useQuery({
+    queryKey: ["parking", "debtDetail", selectedPlate],
+    queryFn: (): Promise<DebtDetailByPlateResult> =>
+      invokeTauri("vehiculos_get_debt_detail_by_plate", {
+        plate: selectedPlate ?? "",
+      }),
+    enabled: isTauri && selectedPlate !== null && selectedPlate.length > 0,
   });
 
   const totalDebt = totalDebtQuery.data ?? 0;
@@ -121,6 +142,11 @@ export const DebtorsPage = () => {
 
         <div className="bg-card border border-border rounded-xl p-6">
           <h3 className="font-semibold mb-4">{t("debtors.title")}</h3>
+          {isTauri && (
+            <p className="text-xs text-muted-foreground mb-3">
+              {t("debtors.clickPlateToViewDetail")}
+            </p>
+          )}
           {debtors.length === 0 && !isLoading ? (
             <p className="text-sm text-muted-foreground">{t("debtors.noDebtors")}</p>
           ) : (
@@ -136,7 +162,11 @@ export const DebtorsPage = () => {
                 </TableHeader>
                 <TableBody>
                   {debtors.map((row: DebtorEntry) => (
-                    <TableRow key={row.plate}>
+                    <TableRow
+                      key={row.plate}
+                      className={isTauri ? "cursor-pointer hover:bg-muted/50" : undefined}
+                      onClick={() => isTauri && setSelectedPlate(row.plate)}
+                    >
                       <TableCell className="font-medium">{row.plate}</TableCell>
                       <TableCell className="text-right">
                         ${row.totalDebt.toFixed(2)}
@@ -178,6 +208,85 @@ export const DebtorsPage = () => {
           )}
         </div>
       </div>
+
+      <Dialog open={selectedPlate !== null} onOpenChange={(open) => !open && setSelectedPlate(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("debtors.detailTitle")}</DialogTitle>
+            <DialogDescription>
+              {selectedPlate != null
+                ? t("debtors.detailSubtitle").replace("{{plate}}", selectedPlate)
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {debtDetailQuery.isLoading && (
+            <p className="text-sm text-muted-foreground py-4">{t("common.loading")}</p>
+          )}
+          {debtDetailQuery.error != null && (
+            <p className="text-sm text-destructive py-4">{String(debtDetailQuery.error)}</p>
+          )}
+          {debtDetailQuery.data != null && !debtDetailQuery.isLoading && (
+            <div className="space-y-6">
+              <div>
+                <h4 className="font-medium mb-2">{t("debtors.sessionsWithDebt")}</h4>
+                {debtDetailQuery.data.sessions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{t("debtors.noSessions")}</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("debtors.ticket")}</TableHead>
+                        <TableHead>{t("debtors.entryTime")}</TableHead>
+                        <TableHead>{t("debtors.exitTime")}</TableHead>
+                        <TableHead className="text-right">{t("debtors.debt")}</TableHead>
+                        <TableHead className="text-right">{t("debtors.totalAmount")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {debtDetailQuery.data.sessions.map((s) => (
+                        <TableRow key={s.id}>
+                          <TableCell className="font-mono text-sm">{s.ticketCode}</TableCell>
+                          <TableCell>{formatSinceWhen(s.entryTime)}</TableCell>
+                          <TableCell>{formatSinceWhen(s.exitTime ?? null)}</TableCell>
+                          <TableCell className="text-right">${s.debt.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                            {s.totalAmount != null ? `$${s.totalAmount.toFixed(2)}` : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+              <div>
+                <h4 className="font-medium mb-2">{t("debtors.payments")}</h4>
+                {debtDetailQuery.data.transactions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{t("debtors.noPayments")}</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("debtors.whenPaid")}</TableHead>
+                        <TableHead className="text-right">{t("debtors.amount")}</TableHead>
+                        <TableHead>{t("debtors.method")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {debtDetailQuery.data.transactions.map((tx, idx) => (
+                        <TableRow key={`${tx.createdAt}-${idx}`}>
+                          <TableCell>{formatSinceWhen(tx.createdAt)}</TableCell>
+                          <TableCell className="text-right">${tx.amount.toFixed(2)}</TableCell>
+                          <TableCell className="capitalize">{tx.method}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
