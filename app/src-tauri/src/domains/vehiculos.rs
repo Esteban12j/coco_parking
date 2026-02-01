@@ -511,7 +511,7 @@ pub fn vehiculos_process_exit(
         .with_timezone(&chrono::Utc);
     let duration_minutes = (exit_ts - entry_ts).num_minutes().max(0) as f64;
     let hours = (duration_minutes / 60.0).ceil().max(1.0);
-    let rate = vehicle.special_rate.unwrap_or_else(|| rate_for_type(&vehicle.vehicle_type));
+    let rate = rate_for_type(&vehicle.vehicle_type);
     let parking_cost = hours * rate;
     let debt = vehicle.debt.unwrap_or(0.0);
     let total_with_debt = parking_cost + debt;

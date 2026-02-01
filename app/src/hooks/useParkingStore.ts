@@ -5,14 +5,7 @@ import { Vehicle, VehicleType, DailyMetrics, TreasuryData, ShiftClosure, PlateCo
 import { toast } from '@/hooks/use-toast';
 import { useTranslation } from '@/i18n';
 import { generatePrefixedId } from '@/lib/utils';
-
-/** En Tauri la fuente de verdad es el backend (SQLite). En modo web sin backend: solo estado en memoria, sin persistencia. */
-const RATES: Record<VehicleType, number> = {
-  car: 50,
-  motorcycle: 30,
-  truck: 80,
-  bicycle: 15,
-};
+import { getDefaultRate } from '@/lib/defaultRates';
 
 // Backend returns ISO strings; frontend expects Date
 type VehicleFromBackend = Omit<Vehicle, 'entryTime' | 'exitTime'> & {
@@ -307,7 +300,7 @@ export const useParkingStore = () => {
       const durationMs = now.getTime() - new Date(vehicle.entryTime).getTime();
       const durationMinutes = Math.ceil(durationMs / (1000 * 60));
       const hours = Math.ceil(durationMinutes / 60);
-      const rate = vehicle.specialRate ?? RATES[vehicle.vehicleType];
+      const rate = getDefaultRate(vehicle.vehicleType);
       const parkingCost = hours * rate;
       const totalWithDebt = parkingCost + (vehicle.debt ?? 0);
       let finalAmount = totalWithDebt;

@@ -1,7 +1,7 @@
 # Product Backlog — COCO Parking
 
 **Última actualización:** 1 de febrero de 2025  
-**Fuente:** Análisis Scrum, Consultoría Datos, Análisis Deuda, feedback de producto (métricas, UI, seguridad, historial, tema, instalador).  
+**Fuente:** Análisis Scrum, Consultoría Datos, Análisis Deuda, feedback de producto (métricas, UI, seguridad, historial, tema, instalador, tarifas default/personalizada).  
 **Prioridad:** 1 = más alta.
 
 ---
@@ -19,11 +19,12 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 
 ---
 
-## Priorización v1 (Épicas 9–15)
+## Priorización v1 (Épicas 9–16)
 
 | Prioridad | Épica | Objetivo | Responsable típico |
 |-----------|--------|----------|--------------------|
 | **P0** | 15. Instalador Windows | Build e instalador para Windows; verificación de instalación | DevOps / Tech Lead |
+| **P1** | **16. Tarifas (default + personalizada)** | Por defecto tarifa del sistema; opción tarifa personalizada (buscar o crear); sin editar tarifas base ni fijar por vehículo | Tech Lead / Frontend |
 | **P1** | 9. Seguridad | Bloqueo inyección SQL/HTML/XSS; validación y documentación | Arquitecto / Ciberseguridad |
 | **P1** | 10. Métricas UI y datos reales | Horas pico reales, layout Métricas, mapa de calor por tiempo, rango fechas | Tech Lead / Frontend |
 | **P1** | 11. Tema y tipografía | Fondo no blanco sólido, modo suave, tipografía legible/ajustable | UI/UX |
@@ -100,6 +101,19 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 
 ---
 
+## Épica 16: Tarifas — por defecto y personalizada
+
+**Objetivo:** El cliente no puede modificar las tarifas base ni asignar una tarifa fija a un vehículo en particular. Por defecto se usa siempre la tarifa por defecto del sistema. Opción de usar una tarifa personalizada: buscador (placa + costo) o crear una en el momento. Prioridad P1 para v1.
+
+**Nota para Scrum Master (16.1):** Historia 16.1 cerrada. Implementación: tarifas por defecto centralizadas en `app/src/lib/defaultRates.ts`; entrada y cierre de sesión usan exclusivamente la tarifa por defecto por tipo de vehículo. Backend ignora `special_rate` en el cálculo de salida. No existe flujo ni permiso para editar tarifas base; no hay asignación tarifa fija por vehículo. Actualizar tablero y resumen por épica.
+
+| ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
+|----|----------|--------|---------|--------|--------------------------|-----|--------|
+| 16.1 | Tarifa por defecto obligatoria | operador/sistema | que por defecto se use siempre la tarifa por defecto del sistema y que el cliente no pueda modificar tarifas base ni dejar fija una tarifa a un vehículo | evitar configuración errónea y mantener coherencia | • No existe flujo ni permiso para que el cliente edite las tarifas base del sistema.<br>• No existe asignación "tarifa fija por vehículo/placa"; cada cálculo usa por defecto la tarifa por defecto.<br>• En registro de entrada o cálculo de costo: valor por defecto = tarifa por defecto del sistema. | 3 | **Hecho** |
+| 16.2 | Opción tarifa personalizada (buscar o crear) | operador | poder elegir "usar tarifa personalizada" y abrir un buscador que muestre brevemente placa y costo, o crear una tarifa personalizada ahí mismo | aplicar un precio acordado puntual sin tocar tarifas base | • En el flujo donde se aplica tarifa (ej. entrada o cierre de sesión): opción "Usar tarifa personalizada" además del valor por defecto.<br>• Al elegir tarifa personalizada: se abre buscador/selector que lista tarifas personalizadas existentes mostrando de forma breve placa (o identificador) y costo; búsqueda por placa o filtro para encontrar la esperada.<br>• Opción "Crear tarifa personalizada aquí": formulario mínimo (ej. placa/ref + monto o descripción breve + costo) para crear y aplicar en el acto, sin acceder a configuración global de tarifas.<br>• Las tarifas personalizadas son de uso puntual o asociadas a sesión/vehículo en curso; no sustituyen la tarifa por defecto del sistema. | 5 | Por hacer |
+
+---
+
 ## Épica 15: Instalador Windows (objetivo v1)
 
 **Objetivo:** Generar instalador para Windows y validar que la instalación funciona. **Prioridad P0**; el backlog v1 culmina aquí.
@@ -130,7 +144,8 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 | **13. Historial y búsqueda** | 3 | 11 | Por hacer |
 | 14. Herramientas avanzadas | 1 | 8 | Backlog v1.1 |
 | **15. Instalador Windows** | 2 | 7 | Por hacer |
-| **Total (v1 activo)** | **33** | **~145** | — |
+| **16. Tarifas (default + personalizada)** | 2 | 8 | En curso (16.1 Hecho) |
+| **Total (v1 activo)** | **35** | **~153** | — |
 
 ---
 
@@ -138,7 +153,7 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 
 **Nota para Scrum Master (actualización 9.1):** Historia 9.1 (Bloqueo inyección SQL/HTML/XSS) completada. Backend: postura documentada en `app/SECURITY.md` y `app/README.md` (solo consultas parametrizadas). Frontend: utilidad `escapeForAttribute` en `app/src/lib/escape.ts` para atributos; React escapa texto en nodos; no se usa `dangerouslySetInnerHTML` con input de usuario (chart.tsx solo inyecta CSS interno). CSP opcional aplicada en `app/src-tauri/tauri.conf.json` (`app.security.csp`). Actualizar estado en backlog y en refinamiento.
 
-**Scrum Master:** Resumimos el feedback: seguridad (SQL/HTML/XSS), métricas (horas pico reales, layout, mapa de calor, rango fechas), tema (no blanco sólido, modo suave, tipografía), responsive, historial por placa, búsqueda progresiva, acceso rápido "Vehículos de hoy", y que v1 culmine en instalador Windows.
+**Scrum Master:** Priorización añadida: tarifas. El cliente no puede modificar tarifas base ni fijar una tarifa a un vehículo; por defecto siempre tarifa del sistema. Opción "tarifa personalizada": buscador (placa + costo) o crear en el momento. Épica 16 priorizada P1. Resumimos el feedback: seguridad (SQL/HTML/XSS), métricas (horas pico reales, layout, mapa de calor, rango fechas), tema (no blanco sólido, modo suave, tipografía), responsive, historial por placa, búsqueda progresiva, acceso rápido "Vehículos de hoy", y que v1 culmine en instalador Windows.
 
 **PM:** Priorizamos v1 = instalador Windows listo para probar instalación. Incluimos en v1: seguridad, métricas con datos reales y layout, tema/tipografía, responsive, historial por placa y acceso rápido. Gráficos personalizados / Excel / tablas dinámicas los dejamos para v1.1.
 
@@ -154,7 +169,7 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 
 **DevOps:** Build Tauri para Windows reproducible; documentar pasos y requisitos. Objetivo: instalador listo para probar en Windows.
 
-**Scrum Master:** Quedan épicas 9–15 en backlog; P0 = Épica 15 (Instalador Windows); P1 = 9, 10, 11, 12, 13; P2 = 14 (v1.1). Orden sugerido para sprints: primero 9, 10.2, 11, 12, 13 y 15.1 en paralelo donde se pueda; luego 10.1, 10.3, 10.4 y 15.2.
+**Scrum Master:** Quedan épicas 9–16 en backlog; P0 = Épica 15 (Instalador Windows); P1 = 16 (Tarifas), 9, 10, 11, 12, 13; P2 = 14 (v1.1). Orden sugerido para sprints: 16.1–16.2 (tarifas) junto con 9, 10.2, 11, 12, 13 y 15.1 donde se pueda; luego 10.1, 10.3, 10.4 y 15.2.
 
 ---
 
@@ -175,6 +190,7 @@ Las épicas 1–8 se mantienen como referencia; todas las historias están **Hec
 
 ## Notas para refinamiento
 
+- **Tarifas:** Cliente no edita tarifas base; no hay "tarifa fija por vehículo". Default = tarifa del sistema. Tarifa personalizada = opción en el flujo (buscar por placa/costo o crear ahí).
 - **Windows:** Entorno objetivo de instalación para v1.
 - **Mapa de calor por "estacionamientos":** No existe entidad spot ni asignación vehículo→spot; queda fuera de v1; mapa de calor v1 = por ocupación en el tiempo (hora/día) con rango de fechas.
 - **Herramientas avanzadas (gráficos propios, Excel, tablas dinámicas):** Backlog v1.1; no bloqueante para v1.

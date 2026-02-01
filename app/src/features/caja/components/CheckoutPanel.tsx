@@ -12,19 +12,13 @@ import { Label } from "@/components/ui/label";
 import { Vehicle, VehicleType } from "@/types/parking";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
+import { getDefaultRate } from "@/lib/defaultRates";
 
 interface CheckoutPanelProps {
   vehicle: Vehicle;
   onCheckout: (partialPayment?: number, paymentMethod?: "cash" | "card" | "transfer") => void;
   onCancel: () => void;
 }
-
-const RATES: Record<VehicleType, number> = {
-  car: 50,
-  motorcycle: 30,
-  truck: 80,
-  bicycle: 15,
-};
 
 export const CheckoutPanel = ({
   vehicle,
@@ -66,7 +60,7 @@ export const CheckoutPanel = ({
     return () => clearInterval(interval);
   }, [vehicle.entryTime]);
 
-  const hourlyRate = vehicle.specialRate || RATES[vehicle.vehicleType];
+  const hourlyRate = getDefaultRate(vehicle.vehicleType);
   const hoursCharged = Math.max(
     1,
     Math.ceil((elapsed.hours * 60 + elapsed.minutes) / 60)
