@@ -154,6 +154,91 @@ pub fn vehiculos_list_vehicles(
 }
 
 #[tauri::command]
+pub fn vehiculos_get_total_debt(state: State<AppState>) -> Result<f64, String> {
+    state.check_permission(permissions::CAJA_DEBTORS_READ)?;
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+    let total: f64 = conn
+        .query_row(
+            "SELECT COALESCE(SUM(COALESCE(debt, 0)), 0) FROM vehicles WHERE COALESCE(debt, 0) > 0",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(total)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DebtorEntry {
+    pub plate: String,
+    pub total_debt: f64,
+    pub sessions_with_debt: u32,
+    pub oldest_exit_time: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListDebtorsResult {
+    pub items: Vec<DebtorEntry>,
+    pub total: u32,
+}
+
+#[tauri::command]
+pub fn vehiculos_list_debtors(
+    state: State<AppState>,
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<ListDebtorsResult, String> {
+    state.check_permission(permissions::CAJA_DEBTORS_READ)?;
+    let limit = limit.unwrap_or(DEFAULT_LIST_LIMIT).min(MAX_LIST_LIMIT);
+    let offset = offset.unwrap_or(0);
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+
+    let total: u32 = conn
+        .query_row(
+            r#"
+            SELECT COUNT(*) FROM (
+                SELECT plate_upper FROM vehicles
+                WHERE plate_upper IS NOT NULL AND plate_upper != '' AND COALESCE(debt, 0) > 0
+                GROUP BY plate_upper
+            )
+            "#,
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT plate_upper AS plate,
+                   SUM(COALESCE(debt, 0)) AS total_debt,
+                   COUNT(*) AS sessions_with_debt,
+                   MIN(exit_time) AS oldest_exit_time
+            FROM vehicles
+            WHERE plate_upper IS NOT NULL AND plate_upper != '' AND COALESCE(debt, 0) > 0
+            GROUP BY plate_upper
+            ORDER BY total_debt DESC
+            LIMIT ?1 OFFSET ?2
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(rusqlite::params![limit, offset], |row| {
+            Ok(DebtorEntry {
+                plate: row.get("plate")?,
+                total_debt: row.get("total_debt")?,
+                sessions_with_debt: row.get::<_, i64>("sessions_with_debt")? as u32,
+                oldest_exit_time: row.get("oldest_exit_time")?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    let items: Vec<DebtorEntry> = rows.filter_map(|r| r.ok()).collect();
+
+    Ok(ListDebtorsResult { items, total })
+}
+
+#[tauri::command]
 pub fn vehiculos_get_plate_debt(state: State<AppState>, plate: String) -> Result<f64, String> {
     state.check_permission(permissions::VEHICULOS_ENTRIES_READ)?;
     let conn = state.db.get().map_err(|e| e.to_string())?;

@@ -1,7 +1,7 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { NavLink } from "react-router-dom";
 import { useEffect } from "react";
-import { Car, DollarSign, BarChart3, Shield, Database, Terminal, Languages, HardDrive, Cpu, LogOut } from "lucide-react";
+import { Car, DollarSign, BarChart3, Shield, Database, Terminal, Languages, HardDrive, Cpu, LogOut, FileWarning } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
 import { useParkingStore } from "@/hooks/useParkingStore";
@@ -31,6 +31,7 @@ import type { Locale } from "@/i18n";
 const navRoutes = [
   { to: "/vehicles", key: "nav.vehicles" as const, icon: Car, permission: "vehiculos:entries:read" },
   { to: "/till", key: "nav.till" as const, icon: DollarSign, permission: "caja:treasury:read" },
+  { to: "/debtors", key: "nav.debtors" as const, icon: FileWarning, permission: "caja:debtors:read" },
   { to: "/metrics", key: "nav.metrics" as const, icon: BarChart3, permission: "metricas:dashboard:read" },
   { to: "/roles", key: "nav.roles" as const, icon: Shield, permission: "roles:users:read" },
   { to: "/backup", key: "nav.backup" as const, icon: Database, permission: "backup:list:read" },
@@ -38,7 +39,7 @@ const navRoutes = [
 
 const devNavRoute = { to: "/dev-console", key: "nav.devConsole" as const, icon: Terminal, permission: PERMISSION_DEV_CONSOLE };
 
-const ALLOWED_FALLBACK_ORDER = ["/vehicles", "/till", "/metrics", "/roles", "/backup"];
+const ALLOWED_FALLBACK_ORDER = ["/vehicles", "/till", "/debtors", "/metrics", "/roles", "/backup"];
 
 export const AppLayout = () => {
   const { t, locale, setLocale } = useTranslation();

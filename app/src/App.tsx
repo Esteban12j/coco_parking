@@ -19,6 +19,7 @@ import { CajaPage } from "@/features/caja";
 import { MetricasPage } from "@/features/metricas";
 import { RolesPage } from "@/features/roles";
 import { BackupPage } from "@/features/backup";
+import { DebtorsPage } from "@/features/debtors";
 import { DevConsolePage } from "@/features/dev-console";
 import { LoginPage } from "@/pages/Login";
 import NotFound from "./pages/NotFound";
@@ -88,6 +89,7 @@ const App = () => (
                 <Route index element={<Navigate to="/vehicles" replace />} />
                 <Route path="vehicles" element={<VehiculosPage />} />
                 <Route path="till" element={<CajaPage />} />
+                <Route path="debtors" element={<DebtorsPage />} />
                 <Route path="metrics" element={<MetricasPage />} />
                 <Route path="roles" element={<RolesPage />} />
                 <Route path="backup" element={<BackupPage />} />

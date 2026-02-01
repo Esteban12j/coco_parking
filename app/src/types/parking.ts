@@ -100,6 +100,20 @@ export interface PlateConflict {
   vehicles: Vehicle[];
 }
 
+/** Debtor row: plate, total debt, sessions count, oldest exit time. */
+export interface DebtorEntry {
+  plate: string;
+  totalDebt: number;
+  sessionsWithDebt: number;
+  oldestExitTime: string | null;
+}
+
+/** Paginated list of debtors. */
+export interface ListDebtorsResult {
+  items: DebtorEntry[];
+  total: number;
+}
+
 /** Datos del registro que falló por conflicto de placa; para que el cliente elija eliminar el erróneo y reintentar. */
 export interface PendingRegisterConflict {
   plate: string;

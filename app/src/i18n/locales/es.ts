@@ -31,10 +31,22 @@ export const es: Translations = {
   nav: {
     vehicles: "Vehículos",
     till: "Caja",
+    debtors: "Deudores",
     metrics: "Métricas",
     roles: "Roles",
     backup: "Backup",
     devConsole: "Consola Dev",
+  },
+  debtors: {
+    title: "Deudores",
+    subtitle: "Total de deuda pendiente y lista de placas con deuda.",
+    totalOutstandingDebt: "Deuda pendiente total",
+    plate: "Placa",
+    totalDebt: "Deuda total",
+    sinceWhen: "Desde cuándo",
+    sessionsWithDebt: "Sesiones con deuda",
+    noDebtors: "No hay deudores.",
+    fromBackendNote: "Datos desde el backend (vehículos con debt > 0).",
   },
   vehicles: {
     title: "Administrador de Vehículos",

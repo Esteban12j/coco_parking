@@ -31,10 +31,22 @@ export interface Translations {
   nav: {
     vehicles: string;
     till: string;
+    debtors: string;
     metrics: string;
     roles: string;
     backup: string;
     devConsole: string;
+  };
+  debtors: {
+    title: string;
+    subtitle: string;
+    totalOutstandingDebt: string;
+    plate: string;
+    totalDebt: string;
+    sinceWhen: string;
+    sessionsWithDebt: string;
+    noDebtors: string;
+    fromBackendNote: string;
   };
   vehicles: {
     title: string;

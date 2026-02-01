@@ -33,6 +33,7 @@ export function useMyPermissions(enabled = true) {
 export const ROUTE_REQUIRED_PERMISSION: Record<string, string> = {
   "/vehicles": "vehiculos:entries:read",
   "/till": "caja:treasury:read",
+  "/debtors": "caja:debtors:read",
   "/metrics": "metricas:dashboard:read",
   "/roles": "roles:users:read",
   "/backup": "backup:list:read",

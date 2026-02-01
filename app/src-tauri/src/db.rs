@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>;
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 8;
+const SCHEMA_VERSION: i64 = 9;
 
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
@@ -215,6 +215,29 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     }
 
+    if current < 9 {
+        use crate::permissions;
+        let perm: &str = permissions::CAJA_DEBTORS_READ;
+        for role_id in ["role_admin", "role_operator"] {
+            let exists: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM role_permissions WHERE role_id = ?1 AND permission = ?2",
+                    [role_id, perm],
+                    |r| r.get(0),
+                )
+                .map_err(|e| e.to_string())?;
+            if exists == 0 {
+                conn.execute(
+                    "INSERT INTO role_permissions (role_id, permission) VALUES (?1, ?2)",
+                    [role_id, perm],
+                )
+                .map_err(|e| e.to_string())?;
+            }
+        }
+        conn.execute("INSERT INTO schema_version (version) VALUES (9)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
     Ok(())
 }
 
@@ -246,6 +269,7 @@ pub fn seed_users_roles(conn: &Connection) -> Result<(), String> {
             permissions::VEHICULOS_ENTRIES_CREATE,
             permissions::VEHICULOS_ENTRIES_MODIFY,
             permissions::CAJA_TREASURY_READ,
+            permissions::CAJA_DEBTORS_READ,
             permissions::CAJA_TRANSACTIONS_READ,
             permissions::CAJA_TRANSACTIONS_CREATE,
             permissions::CAJA_TRANSACTIONS_MODIFY,
