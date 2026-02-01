@@ -136,32 +136,15 @@ export const RolesPage = () => {
     },
   });
 
+  const allPermissionsQuery = useQuery({
+    queryKey: ["roles", "allPermissions"],
+    queryFn: () => invokeTauri<string[]>("roles_list_all_permissions"),
+    enabled: tauri && canEditPermissions,
+  });
+  const allPermissions = allPermissionsQuery.data ?? [];
+
   const users = usersQuery.data ?? [];
   const roles = rolesQuery.data ?? [];
-  const allPermissions = [
-    "vehiculos:entries:read",
-    "vehiculos:entries:create",
-    "vehiculos:entries:modify",
-    "vehiculos:entries:delete",
-    "caja:treasury:read",
-    "caja:transactions:read",
-    "caja:transactions:create",
-    "caja:transactions:modify",
-    "caja:shift:close",
-    "metricas:dashboard:read",
-    "metricas:reports:export",
-    "roles:users:read",
-    "roles:users:create",
-    "roles:users:modify",
-    "roles:users:delete",
-    "roles:users:assign",
-    "roles:permissions:read",
-    "roles:permissions:modify",
-    "backup:list:read",
-    "backup:create",
-    "backup:restore",
-    "dev:console:access",
-  ];
 
   if (!tauri) {
     return (
@@ -570,6 +553,7 @@ function RolePermissionsDialog({
   role,
   currentPermissions,
   allPermissions,
+  isAllPermissionsLoading,
   onClose,
   onSubmit,
   isPending,
@@ -577,6 +561,7 @@ function RolePermissionsDialog({
   role: Role;
   currentPermissions: string[];
   allPermissions: string[];
+  isAllPermissionsLoading: boolean;
   onClose: () => void;
   onSubmit: (permissions: string[]) => void;
   isPending: boolean;
@@ -613,7 +598,10 @@ function RolePermissionsDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-2 max-h-96 overflow-y-auto">
-            {allPermissions.map((p) => (
+            {isAllPermissionsLoading ? (
+              <p className="text-sm text-muted-foreground py-4">{t("common.loading")}</p>
+            ) : (
+            allPermissions.map((p) => (
               <div key={p} className="flex items-center space-x-2">
                 <Checkbox
                   id={p}
@@ -627,7 +615,8 @@ function RolePermissionsDialog({
                   {p}
                 </label>
               </div>
-            ))}
+            ))
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>

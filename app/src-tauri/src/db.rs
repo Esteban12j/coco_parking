@@ -216,28 +216,33 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     }
 
     if current < 9 {
-        use crate::permissions;
-        let perm: &str = permissions::CAJA_DEBTORS_READ;
-        for role_id in ["role_admin", "role_operator"] {
-            let exists: i64 = conn
-                .query_row(
-                    "SELECT COUNT(*) FROM role_permissions WHERE role_id = ?1 AND permission = ?2",
-                    [role_id, perm],
-                    |r| r.get(0),
-                )
-                .map_err(|e| e.to_string())?;
-            if exists == 0 {
-                conn.execute(
-                    "INSERT INTO role_permissions (role_id, permission) VALUES (?1, ?2)",
-                    [role_id, perm],
-                )
-                .map_err(|e| e.to_string())?;
-            }
-        }
         conn.execute("INSERT INTO schema_version (version) VALUES (9)", [])
             .map_err(|e| e.to_string())?;
     }
 
+    sync_role_permissions_from_code(conn)?;
+    Ok(())
+}
+
+fn sync_role_permissions_from_code(conn: &Connection) -> Result<(), String> {
+    use crate::permissions;
+    let admin_role_id = "role_admin";
+    for perm in permissions::all_permissions() {
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM role_permissions WHERE role_id = ?1 AND permission = ?2",
+                [admin_role_id, perm],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if exists == 0 {
+            conn.execute(
+                "INSERT INTO role_permissions (role_id, permission) VALUES (?1, ?2)",
+                [admin_role_id, perm],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
     Ok(())
 }
 
@@ -264,19 +269,7 @@ pub fn seed_users_roles(conn: &Connection) -> Result<(), String> {
             )
             .map_err(|e| e.to_string())?;
         }
-        let operator_perms = [
-            permissions::VEHICULOS_ENTRIES_READ,
-            permissions::VEHICULOS_ENTRIES_CREATE,
-            permissions::VEHICULOS_ENTRIES_MODIFY,
-            permissions::CAJA_TREASURY_READ,
-            permissions::CAJA_DEBTORS_READ,
-            permissions::CAJA_TRANSACTIONS_READ,
-            permissions::CAJA_TRANSACTIONS_CREATE,
-            permissions::CAJA_TRANSACTIONS_MODIFY,
-            permissions::CAJA_SHIFT_CLOSE,
-            permissions::METRICAS_DASHBOARD_READ,
-        ];
-        for perm in operator_perms {
+        for perm in permissions::operator_permissions() {
             conn.execute(
                 "INSERT INTO role_permissions (role_id, permission) VALUES (?1, ?2)",
                 [operator_role_id, perm],

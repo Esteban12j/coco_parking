@@ -1,5 +1,11 @@
 // Granular permissions by feature. Backend commands check these; frontend can hide UI by permission.
 // Domain pattern: domain:resource:action (e.g. vehiculos:entries:read, dev:console:access).
+//
+// When adding a new permission: (1) add the const; (2) add it to all_permissions() so admin
+// always has it (synced on every app start). Other roles (operator, etc.) do not get it
+// automatically—the admin must assign it via Roles > Edit permissions. The frontend list
+// of permissions is loaded from the backend (roles_list_all_permissions), so new permissions
+// appear in the UI unchecked for non-admin roles until the admin enables them.
 
 pub const VEHICULOS_ENTRIES_READ: &str = "vehiculos:entries:read";
 pub const VEHICULOS_ENTRIES_CREATE: &str = "vehiculos:entries:create";
@@ -55,5 +61,20 @@ pub fn all_permissions() -> Vec<&'static str> {
         BACKUP_CREATE,
         BACKUP_RESTORE,
         DEV_CONSOLE_ACCESS,
+    ]
+}
+
+pub fn operator_permissions() -> Vec<&'static str> {
+    vec![
+        VEHICULOS_ENTRIES_READ,
+        VEHICULOS_ENTRIES_CREATE,
+        VEHICULOS_ENTRIES_MODIFY,
+        CAJA_TREASURY_READ,
+        CAJA_DEBTORS_READ,
+        CAJA_TRANSACTIONS_READ,
+        CAJA_TRANSACTIONS_CREATE,
+        CAJA_TRANSACTIONS_MODIFY,
+        CAJA_SHIFT_CLOSE,
+        METRICAS_DASHBOARD_READ,
     ]
 }

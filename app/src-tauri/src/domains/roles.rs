@@ -377,6 +377,15 @@ pub fn roles_get_permissions_for_user(
 }
 
 #[tauri::command]
+pub fn roles_list_all_permissions(state: State<AppState>) -> Result<Vec<String>, String> {
+    state.check_permission(permissions::ROLES_PERMISSIONS_READ)?;
+    Ok(permissions::all_permissions()
+        .into_iter()
+        .map(String::from)
+        .collect())
+}
+
+#[tauri::command]
 pub fn roles_get_role_permissions(
     state: State<AppState>,
     role_id: String,
