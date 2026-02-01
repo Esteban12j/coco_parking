@@ -16,6 +16,10 @@ fn rate_for_type(vehicle_type: &VehicleType) -> f64 {
     }
 }
 
+fn normalize_plate_for_index(plate: &str) -> String {
+    plate.trim().to_uppercase()
+}
+
 fn vehicle_type_to_str(v: &VehicleType) -> &'static str {
     match v {
         VehicleType::Car => "car",
@@ -153,10 +157,11 @@ pub fn vehiculos_list_vehicles(
 pub fn vehiculos_get_plate_debt(state: State<AppState>, plate: String) -> Result<f64, String> {
     state.check_permission(permissions::VEHICULOS_ENTRIES_READ)?;
     let conn = state.db.get().map_err(|e| e.to_string())?;
+    let key = normalize_plate_for_index(&plate);
     let debt: f64 = conn
         .query_row(
-            "SELECT COALESCE(SUM(COALESCE(debt, 0)), 0) FROM vehicles WHERE UPPER(plate) = UPPER(?1) AND COALESCE(debt, 0) > 0",
-            params![plate],
+            "SELECT COALESCE(SUM(COALESCE(debt, 0)), 0) FROM vehicles WHERE plate_upper = ?1 AND COALESCE(debt, 0) > 0",
+            params![key],
             |row| row.get(0),
         )
         .map_err(|e| e.to_string())?;
@@ -220,10 +225,9 @@ pub fn vehiculos_register_entry(
 
     // Para tipos con placa: una placa = un solo tipo de vehículo (no puede ser moto y auto a la vez).
     if vehicle_type_has_plate(&vehicle_type) && !plate_upper.is_empty() {
-        // No puede haber otro activo con la misma placa.
         let plate_in_use: Option<i64> = conn
             .query_row(
-                "SELECT 1 FROM vehicles WHERE UPPER(plate) = ?1 AND status = 'active' LIMIT 1",
+                "SELECT 1 FROM vehicles WHERE plate_upper = ?1 AND status = 'active' LIMIT 1",
                 params![&plate_upper],
                 |row| row.get(0),
             )
@@ -231,10 +235,9 @@ pub fn vehiculos_register_entry(
         if plate_in_use.is_some() {
             return Err("Esa placa ya tiene un vehículo activo en el estacionamiento. Una placa solo puede estar asociada a un vehículo a la vez.".to_string());
         }
-        // Si la placa ya existe (activa o completada), debe ser del mismo tipo: no permitir auto con placa de moto ni viceversa.
         let existing_type: Option<String> = conn
             .query_row(
-                "SELECT vehicle_type FROM vehicles WHERE UPPER(plate) = ?1 ORDER BY entry_time DESC LIMIT 1",
+                "SELECT vehicle_type FROM vehicles WHERE plate_upper = ?1 ORDER BY entry_time DESC LIMIT 1",
                 params![&plate_upper],
                 |row| row.get(0),
             )
@@ -264,7 +267,7 @@ pub fn vehiculos_register_entry(
 
     let debt: f64 = if !plate_upper.is_empty() {
         conn.query_row(
-            "SELECT COALESCE(SUM(COALESCE(debt, 0)), 0) FROM vehicles WHERE UPPER(plate) = ?1 AND COALESCE(debt, 0) > 0",
+            "SELECT COALESCE(SUM(COALESCE(debt, 0)), 0) FROM vehicles WHERE plate_upper = ?1 AND COALESCE(debt, 0) > 0",
             params![&plate_upper],
             |row| row.get(0),
         )
@@ -274,11 +277,12 @@ pub fn vehiculos_register_entry(
     };
 
     conn.execute(
-        "INSERT INTO vehicles (id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate) VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL, 'active', NULL, ?7, NULL)",
+        "INSERT INTO vehicles (id, ticket_code, plate, plate_upper, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL, 'active', NULL, ?8, NULL)",
         params![
             id,
             code,
             plate_upper,
+            plate_upper.clone(),
             vehicle_type_to_str(&vehicle_type),
             observations,
             entry_time,
@@ -396,9 +400,10 @@ pub fn vehiculos_find_by_plate(
 ) -> Result<Option<Vehicle>, String> {
     state.check_permission(permissions::VEHICULOS_ENTRIES_READ)?;
     let conn = state.db.get().map_err(|e| e.to_string())?;
+    let key = normalize_plate_for_index(&plate);
     let result = conn.query_row(
-        "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE UPPER(plate) = UPPER(?1) AND status = 'active' LIMIT 1",
-        params![plate],
+        "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE plate_upper = ?1 AND status = 'active' LIMIT 1",
+        params![key],
         |row| row_to_vehicle(row),
     );
     match result {
@@ -416,13 +421,14 @@ pub fn vehiculos_get_vehicles_by_plate(
 ) -> Result<Vec<Vehicle>, String> {
     state.check_permission(permissions::VEHICULOS_ENTRIES_READ)?;
     let conn = state.db.get().map_err(|e| e.to_string())?;
+    let key = normalize_plate_for_index(&plate);
     let mut stmt = conn
         .prepare(
-            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE UPPER(plate) = UPPER(?1) ORDER BY entry_time DESC",
+            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE plate_upper = ?1 ORDER BY entry_time DESC",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map(params![plate.trim()], |row| row_to_vehicle(row))
+        .query_map(params![key], |row| row_to_vehicle(row))
         .map_err(|e| e.to_string())?;
     let list: Vec<Vehicle> = rows.filter_map(|r| r.ok()).collect();
     Ok(list)
@@ -461,9 +467,9 @@ pub fn vehiculos_get_plate_conflicts(state: State<AppState>) -> Result<Vec<Plate
     let mut stmt = conn
         .prepare(
             r#"
-            SELECT UPPER(plate) AS p FROM vehicles
-            WHERE TRIM(plate) != ''
-            GROUP BY UPPER(plate)
+            SELECT plate_upper AS p FROM vehicles
+            WHERE plate_upper IS NOT NULL AND plate_upper != ''
+            GROUP BY plate_upper
             HAVING COUNT(DISTINCT vehicle_type) > 1
             "#,
         )
@@ -476,7 +482,7 @@ pub fn vehiculos_get_plate_conflicts(state: State<AppState>) -> Result<Vec<Plate
     for plate in plates {
         let mut stmt = conn
             .prepare(
-                "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE UPPER(plate) = ?1 ORDER BY entry_time DESC",
+                "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE plate_upper = ?1 ORDER BY entry_time DESC",
             )
             .map_err(|e| e.to_string())?;
         let rows = stmt
@@ -502,12 +508,12 @@ pub fn vehiculos_resolve_plate_conflict(
 ) -> Result<(), String> {
     state.check_permission(permissions::VEHICULOS_ENTRIES_DELETE)?;
     let conn = state.db.get().map_err(|e| e.to_string())?;
-    let plate_upper = plate.trim().to_uppercase();
+    let key = normalize_plate_for_index(&plate);
     let mut stmt = conn
-        .prepare("SELECT id FROM vehicles WHERE UPPER(plate) = ?1")
+        .prepare("SELECT id FROM vehicles WHERE plate_upper = ?1")
         .map_err(|e| e.to_string())?;
     let ids: Vec<String> = stmt
-        .query_map(params![&plate_upper], |row| row.get::<_, String>(0))
+        .query_map(params![&key], |row| row.get::<_, String>(0))
         .map_err(|e| e.to_string())?
         .filter_map(|r| r.ok())
         .collect();

@@ -87,6 +87,7 @@ Se usa una tabla **`schema_version`** para saber hasta qué versión está aplic
 | `id`           | TEXT   | PK       | UUID del vehículo (único por registro). |
 | `ticket_code`  | TEXT   | NOT NULL | Código de ticket o código de barras (ej. TK1738…). Sin UNIQUE en BD: la misma tarjeta puede reutilizarse tras cerrar turno; en aplicación solo puede haber un registro activo por ticket. |
 | `plate`        | TEXT   | NOT NULL | Placa (mayúsculas). Vacía (`""`) para bicicletas/monopatines (no llevan placa). Para auto/moto/camión es obligatoria; en aplicación: solo un activo por placa y, si la placa ya existe (activa o completada), el tipo de vehículo debe coincidir (no se puede registrar un auto con la placa de una moto ni viceversa). |
+| `plate_upper`  | TEXT   | SÍ       | Placa normalizada (TRIM + UPPERCASE) para búsqueda indexada. Se rellena en INSERT y en migración 8 para filas existentes. |
 | `vehicle_type` | TEXT   | NOT NULL | `car`, `motorcycle`, `truck`, `bicycle`. |
 | `observations` | TEXT   | SÍ       | Notas opcionales (daños, accesorios, etc.). |
 | `entry_time`   | TEXT   | NOT NULL | Hora de entrada en ISO/RFC3339 (UTC). |
@@ -96,7 +97,7 @@ Se usa una tabla **`schema_version`** para saber hasta qué versión está aplic
 | `debt`         | REAL   | SÍ       | Deuda pendiente (pago parcial); 0 o NULL si no hay. |
 | `special_rate` | REAL   | SÍ       | Tarifa especial por hora; NULL = tarifa por tipo. |
 
-**Índices:** `ticket_code`, `plate`, `status`, `entry_time`.
+**Índices:** `ticket_code`, `plate`, `plate_upper`, `status`, `entry_time`, `(status, exit_time)` (compuesto para consultas “completados hoy” y reportes por fecha).
 
 ---
 

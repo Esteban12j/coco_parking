@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>;
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 7;
+const SCHEMA_VERSION: i64 = 8;
 
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
@@ -201,6 +201,20 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     }
 
+    if current < 8 {
+        conn.execute_batch(
+            r#"
+            ALTER TABLE vehicles ADD COLUMN plate_upper TEXT;
+            UPDATE vehicles SET plate_upper = UPPER(TRIM(COALESCE(plate, ''))) WHERE plate_upper IS NULL;
+            CREATE INDEX IF NOT EXISTS idx_vehicles_plate_upper ON vehicles(plate_upper);
+            CREATE INDEX IF NOT EXISTS idx_vehicles_status_exit_time ON vehicles(status, exit_time);
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (8)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
     Ok(())
 }
 
@@ -289,10 +303,11 @@ mod tests {
         let conn = pool.get().expect("get conn");
 
         conn.execute(
-            "INSERT INTO vehicles (id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate) VALUES (?1, ?2, ?3, ?4, NULL, ?5, NULL, 'active', NULL, NULL, NULL)",
+            "INSERT INTO vehicles (id, ticket_code, plate, plate_upper, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate) VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, NULL, 'active', NULL, NULL, NULL)",
             rusqlite::params![
                 "test-id-1",
                 "TK001",
+                "ABC123",
                 "ABC123",
                 "car",
                 chrono::Utc::now().to_rfc3339(),
