@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
 import { Shield, Plus, Pencil, Trash2, Key, Lock } from "lucide-react";
 import { useTranslation } from "@/i18n";
+import { useMyPermissions } from "@/hooks/useMyPermissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -43,6 +44,11 @@ export const RolesPage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const tauri = isTauri();
+  const { hasPermission } = useMyPermissions();
+  const canCreateUser = hasPermission("roles:users:create");
+  const canModifyUser = hasPermission("roles:users:modify");
+  const canDeleteUser = hasPermission("roles:users:delete");
+  const canEditPermissions = hasPermission("roles:permissions:read") && hasPermission("roles:permissions:modify");
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<AuthUser | null>(null);
@@ -188,10 +194,12 @@ export const RolesPage = () => {
             <CardTitle>{t("roles.users")}</CardTitle>
             <CardDescription>{t("roles.subtitle")}</CardDescription>
           </div>
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            {t("roles.addUser")}
-          </Button>
+          {canCreateUser && (
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              {t("roles.addUser")}
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {usersQuery.isLoading ? (
@@ -220,34 +228,40 @@ export const RolesPage = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setEditUser(u)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setPasswordUser(u)}
-                        >
-                          <Key className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive"
-                          onClick={() => {
-                            if (window.confirm(t("roles.confirmDeleteUser"))) {
-                              deleteUserMutation.mutate(u.id);
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canModifyUser && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => setEditUser(u)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => setPasswordUser(u)}
+                            >
+                              <Key className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        {canDeleteUser && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => {
+                              if (window.confirm(t("roles.confirmDeleteUser"))) {
+                                deleteUserMutation.mutate(u.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -275,6 +289,7 @@ export const RolesPage = () => {
                   key={r.id}
                   variant="outline"
                   onClick={() => setPermissionsRole(r)}
+                  disabled={!canEditPermissions}
                 >
                   {r.name}
                   <Lock className="h-4 w-4 ml-2" />

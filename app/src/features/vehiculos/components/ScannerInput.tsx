@@ -7,12 +7,14 @@ interface ScannerInputProps {
   onScan: (code: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  disabled?: boolean;
 }
 
 export const ScannerInput = ({
   onScan,
   placeholder,
   autoFocus = true,
+  disabled = false,
 }: ScannerInputProps) => {
   const { t } = useTranslation();
   const resolvedPlaceholder = placeholder ?? t("vehicles.scanPlaceholder");
@@ -37,7 +39,7 @@ export const ScannerInput = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (value.trim()) {
+    if (!disabled && value.trim()) {
       onScan(value.trim());
       setValue("");
     }
@@ -55,11 +57,13 @@ export const ScannerInput = ({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder={resolvedPlaceholder}
+          disabled={disabled}
           className="scanner-input scanner-pulse h-14 pl-12 pr-12 text-lg bg-card border-border rounded-xl shadow-sm focus:border-primary"
         />
         <button
           type="submit"
-          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          disabled={disabled}
+          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:pointer-events-none"
         >
           <Search className="h-5 w-5" />
         </button>

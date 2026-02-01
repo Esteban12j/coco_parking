@@ -2,6 +2,7 @@ import { useState } from "react";
 import { DollarSign, Users, TrendingUp, Wallet, RefreshCw, AlertCircle, History } from "lucide-react";
 import { MetricCard } from "@/components/MetricCard";
 import { useParkingStore } from "@/hooks/useParkingStore";
+import { useMyPermissions } from "@/hooks/useMyPermissions";
 import { useTranslation } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +29,9 @@ function formatClosedAt(iso: string): string {
 
 export const CajaPage = () => {
   const { t } = useTranslation();
+  const { hasPermission } = useMyPermissions();
   const [closeShiftDialogOpen, setCloseShiftDialogOpen] = useState(false);
+  const canCloseShift = hasPermission("caja:shift:close");
   const {
     treasury,
     shiftClosures,
@@ -156,7 +159,7 @@ export const CajaPage = () => {
           <p className="text-sm text-muted-foreground mb-4">
             {t("till.closeShiftDescription")}
           </p>
-          {isTauri && (
+          {isTauri && canCloseShift && (
             <>
               <Button
                 variant="coco"
@@ -176,6 +179,9 @@ export const CajaPage = () => {
                 isSubmitting={isClosingShift}
               />
             </>
+          )}
+          {isTauri && !canCloseShift && (
+            <p className="text-sm text-muted-foreground">{t("till.closeShiftDescription")}</p>
           )}
         </div>
 

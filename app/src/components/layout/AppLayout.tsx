@@ -1,14 +1,17 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { NavLink } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { invoke } from "@tauri-apps/api/core";
+import { useEffect } from "react";
 import { Car, DollarSign, BarChart3, Shield, Database, Cloud, Terminal, Languages, HardDrive, Cpu, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
 import { useParkingStore } from "@/hooks/useParkingStore";
 import { useSession } from "@/hooks/useSession";
-
-const DEV_CONSOLE_PERMISSION = "dev:console:access";
+import {
+  useMyPermissions,
+  ROUTE_REQUIRED_PERMISSION,
+  getRequiredPermissionForPath,
+  PERMISSION_DEV_CONSOLE,
+} from "@/hooks/useMyPermissions";
 import {
   Select,
   SelectContent,
@@ -26,26 +29,40 @@ import {
 import type { Locale } from "@/i18n";
 
 const navRoutes = [
-  { to: "/vehicles", key: "nav.vehicles" as const, icon: Car },
-  { to: "/till", key: "nav.till" as const, icon: DollarSign },
-  { to: "/metrics", key: "nav.metrics" as const, icon: BarChart3 },
-  { to: "/roles", key: "nav.roles" as const, icon: Shield },
-  { to: "/backup", key: "nav.backup" as const, icon: Database },
-  { to: "/drive", key: "nav.drive" as const, icon: Cloud },
+  { to: "/vehicles", key: "nav.vehicles" as const, icon: Car, permission: "vehiculos:entries:read" },
+  { to: "/till", key: "nav.till" as const, icon: DollarSign, permission: "caja:treasury:read" },
+  { to: "/metrics", key: "nav.metrics" as const, icon: BarChart3, permission: "metricas:dashboard:read" },
+  { to: "/roles", key: "nav.roles" as const, icon: Shield, permission: "roles:users:read" },
+  { to: "/backup", key: "nav.backup" as const, icon: Database, permission: "backup:list:read" },
+  { to: "/drive", key: "nav.drive" as const, icon: Cloud, permission: "drive:status:read" },
 ];
 
-const devNavRoute = { to: "/dev-console", key: "nav.devConsole" as const, icon: Terminal };
+const devNavRoute = { to: "/dev-console", key: "nav.devConsole" as const, icon: Terminal, permission: PERMISSION_DEV_CONSOLE };
+
+const ALLOWED_FALLBACK_ORDER = ["/vehicles", "/till", "/metrics", "/roles", "/backup", "/drive"];
 
 export const AppLayout = () => {
   const { t, locale, setLocale } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { isTauri: tauri } = useParkingStore();
   const { user, logout } = useSession();
-  const { data: myPermissions } = useQuery({
-    queryKey: ["auth", "myPermissions"],
-    queryFn: () => invoke<string[]>("roles_get_my_permissions"),
-    enabled: tauri && !!user,
-  });
-  const canAccessDevConsole = myPermissions?.includes(DEV_CONSOLE_PERMISSION) ?? false;
+  const { hasPermission } = useMyPermissions(!!user);
+
+  const visibleNavRoutes =
+    tauri && user ? navRoutes.filter((r) => hasPermission(r.permission)) : navRoutes;
+  const canAccessDevConsole = import.meta.env.DEV && hasPermission(PERMISSION_DEV_CONSOLE);
+
+  useEffect(() => {
+    if (!tauri || !user) return;
+    const required = getRequiredPermissionForPath(location.pathname);
+    if (required && !hasPermission(required)) {
+      const firstAllowed = ALLOWED_FALLBACK_ORDER.find(
+        (path) => ROUTE_REQUIRED_PERMISSION[path] && hasPermission(ROUTE_REQUIRED_PERMISSION[path])
+      );
+      navigate(firstAllowed ?? "/vehicles", { replace: true });
+    }
+  }, [tauri, user, location.pathname, hasPermission, navigate]);
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -105,7 +122,7 @@ export const AppLayout = () => {
           </div>
         </div>
         <nav className="p-2 flex-1">
-          {navRoutes.map(({ to, key, icon: Icon }) => (
+          {visibleNavRoutes.map(({ to, key, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -122,7 +139,7 @@ export const AppLayout = () => {
               {t(key)}
             </NavLink>
           ))}
-          {import.meta.env.DEV && canAccessDevConsole && (
+          {canAccessDevConsole && (
             <NavLink
               to={devNavRoute.to}
               className={({ isActive }) =>

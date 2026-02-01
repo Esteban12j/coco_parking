@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
 import { Terminal, User, Play, AlertTriangle, UserCog, ShieldX } from "lucide-react";
+import { useMyPermissions, PERMISSION_DEV_CONSOLE } from "@/hooks/useMyPermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,15 +17,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 
-const DEV_CONSOLE_PERMISSION = "dev:console:access";
-
 export const DevConsolePage = () => {
   const { t } = useTranslation();
-  const { data: myPermissions } = useQuery({
-    queryKey: ["auth", "myPermissions"],
-    queryFn: () => invoke<string[]>("roles_get_my_permissions"),
-  });
-  const canAccess = myPermissions?.includes(DEV_CONSOLE_PERMISSION) ?? false;
+  const { hasPermission, isLoading } = useMyPermissions();
+  const canAccess = hasPermission(PERMISSION_DEV_CONSOLE);
 
   const [currentUser, setCurrentUser] = useState<string>("—");
   const [commands, setCommands] = useState<string[]>([]);
@@ -76,13 +72,13 @@ export const DevConsolePage = () => {
     }
   }, [canAccess]);
 
-  if (myPermissions !== undefined && !canAccess) {
+  if (!isLoading && !canAccess) {
     return (
       <div className="container mx-auto px-4 py-12 flex flex-col items-center justify-center min-h-[50vh]">
         <ShieldX className="h-16 w-16 text-destructive mb-4" />
         <h2 className="text-xl font-semibold mb-2">{t("devConsole.devModeNotAvailable")}</h2>
         <p className="text-muted-foreground text-center max-w-md">
-          {t("devConsole.devModeNotAvailableDesc")}. Requiere permiso <code className="text-xs bg-muted px-1 rounded">dev:console:access</code>.
+          {t("devConsole.devModeNotAvailableDesc")}. Requiere permiso <code className="text-xs bg-muted px-1 rounded">{PERMISSION_DEV_CONSOLE}</code>.
         </p>
       </div>
     );

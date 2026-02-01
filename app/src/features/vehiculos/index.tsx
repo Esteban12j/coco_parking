@@ -6,6 +6,7 @@ import { ActiveVehiclesGrid } from "./components/ActiveVehiclesGrid";
 import { CheckoutPanel } from "@/features/caja/components/CheckoutPanel";
 import { RegisterConflictDialog } from "./components/RegisterConflictDialog";
 import { useParkingStore } from "@/hooks/useParkingStore";
+import { useMyPermissions } from "@/hooks/useMyPermissions";
 import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,9 @@ type ViewMode = "scanner" | "entry" | "checkout" | "manual-search";
 
 export const VehiculosPage = () => {
   const { t } = useTranslation();
+  const { hasPermission } = useMyPermissions();
+  const canCreateEntry = hasPermission("vehiculos:entries:create");
+  const canCheckout = hasPermission("caja:transactions:create");
   const {
     activeVehicles,
     handleScan,
@@ -68,9 +72,9 @@ export const VehiculosPage = () => {
     const existing = handleScan(code);
     if (existing) {
       setSelectedVehicle(existing);
-      setViewMode("checkout");
+      setViewMode(canCheckout ? "checkout" : "scanner");
     } else {
-      setViewMode("entry");
+      setViewMode(canCreateEntry ? "entry" : "scanner");
     }
   };
 
@@ -144,7 +148,7 @@ export const VehiculosPage = () => {
       <section className="py-6">
         {viewMode === "scanner" && (
           <div className="space-y-6">
-            <ScannerInput onScan={handleScanInput} />
+            <ScannerInput onScan={handleScanInput} disabled={!canCreateEntry && !canCheckout} />
             <div className="flex items-center justify-center gap-2">
               <span className="text-sm text-muted-foreground">
                 {t("vehicles.lostTicket")}
@@ -193,7 +197,7 @@ export const VehiculosPage = () => {
           </div>
         )}
 
-        {viewMode === "entry" && (
+        {viewMode === "entry" && canCreateEntry && (
           <VehicleEntryForm
             ticketCode={currentTicket}
             existingDebt={0}
@@ -204,7 +208,7 @@ export const VehiculosPage = () => {
           />
         )}
 
-        {viewMode === "checkout" && selectedVehicle && (
+        {viewMode === "checkout" && selectedVehicle && canCheckout && (
           <CheckoutPanel
             vehicle={selectedVehicle}
             onCheckout={handleCheckout}
