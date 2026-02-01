@@ -26,6 +26,8 @@ rusqlite = { version = "0.33", features = ["bundled"] }
 r2d2 = "0.8"
 r2d2_sqlite = "0.26"
 rand = "0.8"
+argon2 = { version = "0.5", features = ["std"] }
+password-hash = "0.5"
 
 [features]
 default = ["custom-protocol"]

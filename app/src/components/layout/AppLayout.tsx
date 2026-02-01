@@ -1,9 +1,14 @@
 import { Outlet } from "react-router-dom";
 import { NavLink } from "react-router-dom";
-import { Car, DollarSign, BarChart3, Shield, Database, Cloud, Terminal, Languages, HardDrive, Cpu } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { invoke } from "@tauri-apps/api/core";
+import { Car, DollarSign, BarChart3, Shield, Database, Cloud, Terminal, Languages, HardDrive, Cpu, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
 import { useParkingStore } from "@/hooks/useParkingStore";
+import { useSession } from "@/hooks/useSession";
+
+const DEV_CONSOLE_PERMISSION = "dev:console:access";
 import {
   Select,
   SelectContent,
@@ -11,6 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { Locale } from "@/i18n";
 
 const navRoutes = [
@@ -26,7 +38,14 @@ const devNavRoute = { to: "/dev-console", key: "nav.devConsole" as const, icon: 
 
 export const AppLayout = () => {
   const { t, locale, setLocale } = useTranslation();
-  const { isTauri } = useParkingStore();
+  const { isTauri: tauri } = useParkingStore();
+  const { user, logout } = useSession();
+  const { data: myPermissions } = useQuery({
+    queryKey: ["auth", "myPermissions"],
+    queryFn: () => invoke<string[]>("roles_get_my_permissions"),
+    enabled: tauri && !!user,
+  });
+  const canAccessDevConsole = myPermissions?.includes(DEV_CONSOLE_PERMISSION) ?? false;
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -41,6 +60,24 @@ export const AppLayout = () => {
               <p className="text-xs text-muted-foreground">{t("app.tagline")}</p>
             </div>
           </div>
+          {tauri && user && (
+            <div className="mt-3 pt-3 border-t border-border">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-start text-xs font-normal h-8">
+                    <span className="truncate">{user.displayName || user.username}</span>
+                    <span className="text-muted-foreground ml-1">({user.roleName})</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuItem onClick={() => void logout()}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    {t("auth.signOut")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
           <div className="mt-3 pt-3 border-t border-border">
             <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
               <SelectTrigger className="h-8 text-xs gap-1.5">
@@ -54,7 +91,7 @@ export const AppLayout = () => {
             </Select>
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            {isTauri ? (
+            {tauri ? (
               <>
                 <HardDrive className="h-3 w-3 text-green-600 shrink-0" />
                 <span>SQLite</span>
@@ -85,7 +122,7 @@ export const AppLayout = () => {
               {t(key)}
             </NavLink>
           ))}
-          {import.meta.env.DEV && (
+          {import.meta.env.DEV && canAccessDevConsole && (
             <NavLink
               to={devNavRoute.to}
               className={({ isActive }) =>

@@ -1,6 +1,7 @@
 use serde::Serialize;
 use tauri::State;
 
+use crate::permissions;
 use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
@@ -46,35 +47,59 @@ fn require_dev_mode() -> Result<(), String> {
     }
 }
 
-/// Login as "developer" role (full access). Dev mode only.
+fn require_dev_console(state: &AppState) -> Result<(), String> {
+    require_dev_mode()?;
+    state.check_permission(permissions::DEV_CONSOLE_ACCESS)?;
+    Ok(())
+}
+
+/// Login as "developer" (tries DB user "admin" first, then sets dev full access). Dev mode + dev:console:access only.
 #[tauri::command]
 pub fn dev_login_as_developer(state: State<AppState>) -> Result<String, String> {
-    require_dev_mode()?;
+    require_dev_console(&state)?;
+    if crate::domains::roles::load_permissions_for_user(
+        &*state.db.get().map_err(|e| e.to_string())?,
+        "user_admin",
+    )
+    .is_ok()
+    {
+        let _ = crate::domains::roles::load_user_into_state(&*state, "user_admin");
+        return Ok("Logged in as admin (from DB)".to_string());
+    }
     state.set_current_user(Some("developer".to_string()));
-    Ok("Logged in as developer".to_string())
+    let all = crate::permissions::all_permissions()
+        .into_iter()
+        .map(String::from)
+        .collect::<Vec<_>>();
+    state.set_current_user_permissions(all);
+    Ok("Logged in as developer (in-memory)".to_string())
 }
 
 /// Returns current user id (for dev console).
 #[tauri::command]
 pub fn dev_get_current_user_id(state: State<AppState>) -> Result<String, String> {
-    require_dev_mode()?;
+    require_dev_console(&state)?;
     Ok(state
         .get_current_user_id()
         .unwrap_or_else(|| "admin".to_string()))
 }
 
-/// Sets current user (for testing). Dev mode only.
+/// Sets current user (for testing). Loads from DB if user exists. Dev mode + dev:console:access only.
 #[tauri::command]
 pub fn dev_set_current_user(state: State<AppState>, user_id: String) -> Result<String, String> {
-    require_dev_mode()?;
+    require_dev_console(&state)?;
+    if crate::domains::roles::load_user_into_state(&*state, &user_id).is_ok() {
+        return Ok(format!("Current user: {} (from DB)", user_id));
+    }
     state.set_current_user(Some(user_id.clone()));
-    Ok(format!("Current user: {}", user_id))
+    state.set_current_user_permissions(Vec::new());
+    Ok(format!("Current user: {} (no DB permissions)", user_id))
 }
 
-/// Dev-only: return snapshot of DB (vehicles + transactions) to confirm persisted data.
+/// Dev-only: return snapshot of DB (vehicles + transactions). Requires dev:console:access.
 #[tauri::command]
 pub fn dev_get_db_snapshot(state: State<AppState>) -> Result<DbSnapshot, String> {
-    require_dev_mode()?;
+    require_dev_console(&state)?;
     let conn = state.db.get().map_err(|e| e.to_string())?;
 
     let vehicles_count: u32 = conn
@@ -136,18 +161,21 @@ pub fn dev_get_db_snapshot(state: State<AppState>) -> Result<DbSnapshot, String>
     })
 }
 
-/// Dev-only: ruta del archivo SQLite que usa toda la app (una sola fuente de datos).
+/// Dev-only: ruta del archivo SQLite. Requires dev:console:access.
 #[tauri::command]
 pub fn dev_get_db_path(state: State<AppState>) -> Result<String, String> {
-    require_dev_mode()?;
+    require_dev_console(&state)?;
     Ok(state.db_path.to_string_lossy().into_owned())
 }
 
-/// List of invokable command names (for dev console).
+/// List of invokable command names (for dev console). Requires dev:console:access.
 #[tauri::command]
-pub fn dev_list_commands() -> Result<Vec<String>, String> {
-    require_dev_mode()?;
+pub fn dev_list_commands(state: State<AppState>) -> Result<Vec<String>, String> {
+    require_dev_console(&*state)?;
     Ok(vec![
+        "auth_login".to_string(),
+        "auth_logout".to_string(),
+        "auth_get_session".to_string(),
         "dev_get_db_path".to_string(),
         "dev_get_db_snapshot".to_string(),
         "caja_get_debug".to_string(),
@@ -159,9 +187,16 @@ pub fn dev_list_commands() -> Result<Vec<String>, String> {
         "caja_close_shift".to_string(),
         "metricas_get_daily".to_string(),
         "roles_list_roles".to_string(),
+        "roles_list_users".to_string(),
+        "roles_create_user".to_string(),
+        "roles_update_user".to_string(),
+        "roles_set_password".to_string(),
+        "roles_delete_user".to_string(),
         "roles_get_current_user".to_string(),
         "roles_get_my_permissions".to_string(),
         "roles_get_permissions_for_user".to_string(),
+        "roles_get_role_permissions".to_string(),
+        "roles_update_role_permissions".to_string(),
         "backup_create".to_string(),
         "backup_restore".to_string(),
         "backup_list".to_string(),

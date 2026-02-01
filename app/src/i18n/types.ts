@@ -5,6 +5,16 @@ export interface Translations {
     name: string;
     tagline: string;
   };
+  auth: {
+    title: string;
+    subtitle: string;
+    username: string;
+    usernamePlaceholder: string;
+    password: string;
+    passwordPlaceholder: string;
+    signIn: string;
+    signOut: string;
+  };
   common: {
     cancel: string;
     search: string;
@@ -173,6 +183,30 @@ export interface Translations {
     title: string;
     subtitle: string;
     inDevelopment: string;
+    users: string;
+    roles: string;
+    addUser: string;
+    editUser: string;
+    deleteUser: string;
+    username: string;
+    displayName: string;
+    role: string;
+    createdAt: string;
+    actions: string;
+    editPermissions: string;
+    permissionsForRole: string;
+    save: string;
+    createUser: string;
+    setPassword: string;
+    newPassword: string;
+    confirmDeleteUser: string;
+    noUsers: string;
+    noRoles: string;
+    userCreated: string;
+    userUpdated: string;
+    userDeleted: string;
+    permissionsUpdated: string;
+    passwordUpdated: string;
   };
   backup: {
     title: string;

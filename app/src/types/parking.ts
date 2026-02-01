@@ -70,6 +70,20 @@ export interface User {
   role: UserRole;
 }
 
+export interface AuthUser {
+  id: string;
+  username: string;
+  displayName: string;
+  roleId: string;
+  roleName: string;
+  createdAt: string;
+}
+
+export interface Role {
+  id: string;
+  name: string;
+}
+
 export interface AuditLog {
   id: string;
   timestamp: Date;

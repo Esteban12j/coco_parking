@@ -1,3 +1,6 @@
+// Granular permissions by feature. Backend commands check these; frontend can hide UI by permission.
+// Domain pattern: domain:resource:action (e.g. vehiculos:entries:read, dev:console:access).
+
 pub const VEHICULOS_ENTRIES_READ: &str = "vehiculos:entries:read";
 pub const VEHICULOS_ENTRIES_CREATE: &str = "vehiculos:entries:create";
 pub const VEHICULOS_ENTRIES_MODIFY: &str = "vehiculos:entries:modify";
@@ -28,6 +31,8 @@ pub const DRIVE_STATUS_READ: &str = "drive:status:read";
 pub const DRIVE_SYNC: &str = "drive:sync";
 pub const DRIVE_CONFIG_MODIFY: &str = "drive:config:modify";
 
+pub const DEV_CONSOLE_ACCESS: &str = "dev:console:access";
+
 pub fn all_permissions() -> Vec<&'static str> {
     vec![
         VEHICULOS_ENTRIES_READ,
@@ -54,5 +59,6 @@ pub fn all_permissions() -> Vec<&'static str> {
         DRIVE_STATUS_READ,
         DRIVE_SYNC,
         DRIVE_CONFIG_MODIFY,
+        DEV_CONSOLE_ACCESS,
     ]
 }

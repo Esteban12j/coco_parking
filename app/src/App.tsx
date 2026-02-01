@@ -7,21 +7,28 @@ import {
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from "react-router-dom";
 import { I18nProvider } from "@/i18n";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { VehiculosPage } from "@/features/vehiculos";
 import { PlateConflictsModal } from "@/features/vehiculos/components/PlateConflictsModal";
 import { useParkingStore } from "@/hooks/useParkingStore";
+import { useSession } from "@/hooks/useSession";
 import { CajaPage } from "@/features/caja";
 import { MetricasPage } from "@/features/metricas";
 import { RolesPage } from "@/features/roles";
 import { BackupPage } from "@/features/backup";
 import { DrivePage } from "@/features/drive";
 import { DevConsolePage } from "@/features/dev-console";
+import { LoginPage } from "@/pages/Login";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+function isTauri(): boolean {
+  return typeof window !== "undefined" && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
+}
 
 function PlateConflictsGate() {
   const { plateConflicts, resolvePlateConflict } = useParkingStore();
@@ -33,6 +40,26 @@ function PlateConflictsGate() {
   );
 }
 
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const { user, isLoading } = useSession();
+  const tauri = isTauri();
+
+  if (!tauri) {
+    return <>{children}</>;
+  }
+  if (isLoading) {
+    return null;
+  }
+  if (!user && location.pathname !== "/login") {
+    return <Navigate to="/login" replace />;
+  }
+  if (user && location.pathname === "/login") {
+    return <Navigate to="/vehicles" replace />;
+  }
+  return <>{children}</>;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <I18nProvider>
@@ -41,20 +68,23 @@ const App = () => (
         <Sonner />
         <PlateConflictsGate />
         <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<AppLayout />}>
-            <Route index element={<Navigate to="/vehicles" replace />} />
-            <Route path="vehicles" element={<VehiculosPage />} />
-            <Route path="till" element={<CajaPage />} />
-            <Route path="metrics" element={<MetricasPage />} />
-            <Route path="roles" element={<RolesPage />} />
-            <Route path="backup" element={<BackupPage />} />
-            <Route path="drive" element={<DrivePage />} />
-            <Route path="dev-console" element={<DevConsolePage />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+          <AuthGate>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/" element={<AppLayout />}>
+                <Route index element={<Navigate to="/vehicles" replace />} />
+                <Route path="vehicles" element={<VehiculosPage />} />
+                <Route path="till" element={<CajaPage />} />
+                <Route path="metrics" element={<MetricasPage />} />
+                <Route path="roles" element={<RolesPage />} />
+                <Route path="backup" element={<BackupPage />} />
+                <Route path="drive" element={<DrivePage />} />
+                <Route path="dev-console" element={<DevConsolePage />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthGate>
+        </BrowserRouter>
     </TooltipProvider>
     </I18nProvider>
   </QueryClientProvider>

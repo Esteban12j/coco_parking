@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>;
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 4;
+const SCHEMA_VERSION: i64 = 6;
 
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
@@ -132,6 +132,121 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     }
 
+    if current < 5 {
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS roles (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE
+            );
+            CREATE TABLE IF NOT EXISTS role_permissions (
+                role_id TEXT NOT NULL,
+                permission TEXT NOT NULL,
+                PRIMARY KEY (role_id, permission),
+                FOREIGN KEY (role_id) REFERENCES roles(id)
+            );
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                role_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (role_id) REFERENCES roles(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+            CREATE INDEX IF NOT EXISTS idx_users_role ON users(role_id);
+            CREATE INDEX IF NOT EXISTS idx_role_permissions_role ON role_permissions(role_id);
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+        seed_users_roles(conn)?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (5)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 6 {
+        use crate::permissions;
+        let admin_role_id = "role_admin";
+        let perm: &str = permissions::DEV_CONSOLE_ACCESS;
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM role_permissions WHERE role_id = ?1 AND permission = ?2",
+                [admin_role_id, perm],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if exists == 0 {
+            conn.execute(
+                "INSERT INTO role_permissions (role_id, permission) VALUES (?1, ?2)",
+                [admin_role_id, perm],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        conn.execute("INSERT INTO schema_version (version) VALUES (6)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+/// Seeds default roles, their permissions, and one admin user. Idempotent (checks before insert).
+pub fn seed_users_roles(conn: &Connection) -> Result<(), String> {
+    use crate::permissions;
+    let admin_role_id = "role_admin";
+    let operator_role_id = "role_operator";
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let role_exists: i64 = conn
+        .query_row("SELECT COUNT(*) FROM roles WHERE id = ?1", [admin_role_id], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    if role_exists == 0 {
+        conn.execute("INSERT INTO roles (id, name) VALUES (?1, ?2)", [admin_role_id, "admin"])
+            .map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO roles (id, name) VALUES (?1, ?2)", [operator_role_id, "operator"])
+            .map_err(|e| e.to_string())?;
+
+        for perm in permissions::all_permissions() {
+            conn.execute(
+                "INSERT INTO role_permissions (role_id, permission) VALUES (?1, ?2)",
+                [admin_role_id, perm],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        let operator_perms = [
+            permissions::VEHICULOS_ENTRIES_READ,
+            permissions::VEHICULOS_ENTRIES_CREATE,
+            permissions::VEHICULOS_ENTRIES_MODIFY,
+            permissions::CAJA_TREASURY_READ,
+            permissions::CAJA_TRANSACTIONS_READ,
+            permissions::CAJA_TRANSACTIONS_CREATE,
+            permissions::CAJA_TRANSACTIONS_MODIFY,
+            permissions::CAJA_SHIFT_CLOSE,
+            permissions::METRICAS_DASHBOARD_READ,
+        ];
+        for perm in operator_perms {
+            conn.execute(
+                "INSERT INTO role_permissions (role_id, permission) VALUES (?1, ?2)",
+                [operator_role_id, perm],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+
+        let admin_user_id = "user_admin";
+        use argon2::password_hash::{PasswordHasher, SaltString};
+        use password_hash::Error as PasswordHashError;
+        let salt = SaltString::from_b64("Y29jb19wYXJraW5nX3NhbHQ")
+            .map_err(|e: PasswordHashError| e.to_string())?;
+        let hash = argon2::Argon2::default()
+            .hash_password(b"admin", &salt)
+            .map_err(|e: PasswordHashError| e.to_string())?
+            .to_string();
+        conn.execute(
+            "INSERT INTO users (id, username, password_hash, display_name, role_id, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params![admin_user_id, "admin", hash, "Administrator", admin_role_id, now],
+        )
+        .map_err(|e| e.to_string())?;
+    }
     Ok(())
 }
 
