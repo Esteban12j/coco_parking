@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { Vehicle, VehicleType, DailyMetrics, TreasuryData, ShiftClosure, PlateConflict, PendingRegisterConflict } from '@/types/parking';
 import { toast } from '@/hooks/use-toast';
 import { useTranslation } from '@/i18n';
+import { generatePrefixedId } from '@/lib/utils';
 
 /** En Tauri la fuente de verdad es el backend (SQLite). En modo web sin backend: solo estado en memoria, sin persistencia. */
 const RATES: Record<VehicleType, number> = {
@@ -246,7 +247,7 @@ export const useParkingStore = () => {
         .filter((v) => v.plate.toUpperCase() === plate.toUpperCase() && v.debt != null && v.debt > 0)
         .reduce((sum, v) => sum + (v.debt ?? 0), 0);
       const newVehicle: Vehicle = {
-        id: crypto.randomUUID(),
+        id: generatePrefixedId("VH", 25),
         ticketCode: code,
         plate: plate.toUpperCase(),
         vehicleType,

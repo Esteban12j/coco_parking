@@ -136,6 +136,7 @@ export interface Translations {
       preview: string;
       exportCsv: string;
       exportPdf: string;
+      savedSuccess: string;
       noData: string;
       typeTransactions: string;
       typeCompletedVehicles: string;

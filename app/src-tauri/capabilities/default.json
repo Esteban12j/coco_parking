@@ -5,6 +5,16 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "shell:allow-open"
+    "shell:allow-open",
+    "dialog:allow-save",
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [
+        {"path": "$HOME/**/*"},
+        {"path": "$DOCUMENT/**/*"},
+        {"path": "$DESKTOP/**/*"},
+        {"path": "$DOWNLOAD/**/*"}
+      ]
+    }
   ]
 }

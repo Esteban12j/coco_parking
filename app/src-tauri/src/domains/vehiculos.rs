@@ -2,6 +2,7 @@ use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
+use crate::id_gen;
 use crate::permissions;
 use crate::state::AppState;
 
@@ -162,7 +163,7 @@ pub fn vehiculos_register_entry(
         plate_trimmed.to_uppercase()
     };
 
-    let id = uuid::Uuid::new_v4().to_string();
+    let id = id_gen::generate_id(id_gen::PREFIX_VEHICLE);
     let entry_time = chrono::Utc::now().to_rfc3339();
 
     let conn = state.db.get().map_err(|e| e.to_string())?;
@@ -314,7 +315,7 @@ pub fn vehiculos_process_exit(
     )
     .map_err(|e| e.to_string())?;
 
-    let tx_id = uuid::Uuid::new_v4().to_string();
+    let tx_id = id_gen::generate_id(id_gen::PREFIX_TRANSACTION);
     conn.execute(
         "INSERT INTO transactions (id, vehicle_id, amount, method, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
         params![tx_id, vehicle.id, final_amount, method, exit_time],

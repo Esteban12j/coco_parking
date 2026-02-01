@@ -5,6 +5,7 @@ use rusqlite::params;
 use serde::Serialize;
 use tauri::State;
 
+use crate::id_gen;
 use crate::permissions;
 use crate::state::AppState;
 
@@ -230,7 +231,7 @@ pub fn caja_close_shift(
         .map(|a| a - cash_total)
         .unwrap_or(0.0);
 
-    let id = uuid::Uuid::new_v4().to_string();
+    let id = id_gen::generate_id(id_gen::PREFIX_SHIFT_CLOSURE);
     let closed_at = now_rfc.clone();
 
     conn.execute(

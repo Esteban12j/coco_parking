@@ -135,6 +135,7 @@ export const en: Translations = {
       preview: "Preview",
       exportCsv: "Export CSV",
       exportPdf: "Export PDF",
+      savedSuccess: "File saved successfully.",
       noData: "No data for the selected range and filters.",
       typeTransactions: "Transactions",
       typeCompletedVehicles: "Completed vehicles",

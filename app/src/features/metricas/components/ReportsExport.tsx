@@ -1,6 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeFile } from "@tauri-apps/plugin-fs";
 import { useTranslation } from "@/i18n";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -33,7 +38,13 @@ import type {
   ReportData,
   ReportFilters,
 } from "@/types/parking";
-import { cn } from "@/lib/utils";
+import { cn, generatePrefixedId } from "@/lib/utils";
+
+const REPORT_ID_LENGTH = 25;
+
+function generateReportId(): string {
+  return generatePrefixedId("HR", REPORT_ID_LENGTH);
+}
 
 const REPORT_TYPES: { value: ReportTypeKey; labelKey: string }[] = [
   { value: "transactions", labelKey: "metrics.reports.typeTransactions" },
@@ -68,18 +79,9 @@ function getColumnLabelKey(key: string): string {
   return `metrics.reports.column.${key}`;
 }
 
-function triggerDownloadCsv(csv: string, filename: string): void {
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 export const ReportsExport = () => {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const [reportType, setReportType] = useState<ReportTypeKey>("transactions");
   const today = formatDateLocal(new Date());
   const [dateFrom, setDateFrom] = useState(today);
@@ -140,27 +142,102 @@ export const ReportsExport = () => {
     }
   }, [isTauri, reportType, dateFrom, dateTo, paymentMethod, vehicleType, selectedColumnKeys]);
 
-  const handleExportCsv = useCallback(() => {
-    if (!reportData || reportData.rows.length === 0) return;
-    const csv = buildCsvFromReportData(reportData, (key) => t(getColumnLabelKey(key)));
-    const filename = `report-${reportType}-${dateFrom}-${dateTo}.csv`;
-    triggerDownloadCsv(csv, filename);
-  }, [reportData, reportType, dateFrom, dateTo, t]);
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
-  const handleExportPdf = useCallback(() => {
-    if (!printRef.current) return;
-    const printContent = printRef.current.innerHTML;
-    const win = window.open("", "_blank");
-    if (!win) return;
-    win.document.write(`
-      <!DOCTYPE html><html><head><title>Report</title>
-      <style>table{border-collapse:collapse;width:100%;}th,td{border:1px solid #333;padding:6px;text-align:left;}th{background:#eee;}</style>
-      </head><body>${printContent}</body></html>
-    `);
-    win.document.close();
-    win.print();
-    win.close();
-  }, []);
+  const handleExportCsv = useCallback(async () => {
+    if (!isTauri || !reportData || reportData.rows.length === 0) return;
+    const filename = `${generateReportId()}.csv`;
+    const path = await save({
+      defaultPath: filename,
+      filters: [{ name: "CSV", extensions: ["csv"] }],
+    });
+    if (path == null) return;
+    setExportingCsv(true);
+    try {
+      const getColumnLabel = (key: string) => t(getColumnLabelKey(key));
+      const csvContent = buildCsvFromReportData(reportData, getColumnLabel);
+      const bytes = new TextEncoder().encode(csvContent);
+      await writeFile(path, bytes);
+      toast({
+        title: t("metrics.reports.exportCsv"),
+        description: t("metrics.reports.savedSuccess"),
+      });
+    } catch (e) {
+      toast({
+        title: t("common.error"),
+        description: String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setExportingCsv(false);
+    }
+  }, [
+    isTauri,
+    reportData,
+    reportType,
+    dateFrom,
+    dateTo,
+    t,
+    toast,
+  ]);
+
+  const handleExportPdf = useCallback(async () => {
+    if (!isTauri || !reportData || reportData.rows.length === 0) return;
+    const filename = `${generateReportId()}.pdf`;
+    let path: string | null = null;
+    try {
+      path = await save({
+        defaultPath: filename,
+      });
+    } catch (dialogError) {
+      toast({
+        title: t("common.error"),
+        description: String(dialogError),
+        variant: "destructive",
+      });
+      return;
+    }
+    if (path == null) return;
+    setExportingPdf(true);
+    try {
+      const headers = reportData.columns.map((c) => t(getColumnLabelKey(c.key)));
+      const body = reportData.rows.map((row) =>
+        reportData.columns.map((col) => {
+          const v = row[col.key];
+          return v === null || v === undefined ? "" : String(v);
+        })
+      );
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      autoTable(doc, {
+        head: [headers],
+        body,
+        margin: { top: 10 },
+      });
+      const arrayBuffer = doc.output("arraybuffer");
+      await writeFile(path, new Uint8Array(arrayBuffer));
+      toast({
+        title: t("metrics.reports.exportPdf"),
+        description: t("metrics.reports.savedSuccess"),
+      });
+    } catch (e) {
+      toast({
+        title: t("common.error"),
+        description: String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setExportingPdf(false);
+    }
+  }, [
+    isTauri,
+    reportData,
+    reportType,
+    dateFrom,
+    dateTo,
+    t,
+    toast,
+  ]);
 
   const toggleColumn = (key: string, checked: boolean) => {
     setSelectedColumnKeys((prev) =>
@@ -296,13 +373,21 @@ export const ReportsExport = () => {
               </Button>
               {reportData && (
                 <>
-                  <Button variant="outline" onClick={handleExportCsv}>
+                  <Button
+                    variant="outline"
+                    onClick={() => void handleExportCsv()}
+                    disabled={exportingCsv}
+                  >
                     <FileDown className="mr-2 h-4 w-4" />
-                    {t("metrics.reports.exportCsv")}
+                    {exportingCsv ? t("common.loading") : t("metrics.reports.exportCsv")}
                   </Button>
-                  <Button variant="outline" onClick={handleExportPdf}>
+                  <Button
+                    variant="outline"
+                    onClick={() => void handleExportPdf()}
+                    disabled={exportingPdf}
+                  >
                     <FileText className="mr-2 h-4 w-4" />
-                    {t("metrics.reports.exportPdf")}
+                    {exportingPdf ? t("common.loading") : t("metrics.reports.exportPdf")}
                   </Button>
                 </>
               )}
