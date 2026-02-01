@@ -139,7 +139,28 @@ const vehicles = await invoke<Vehicle[]>("vehiculos_list_vehicles");
 The backend captures keyboard input via `rdev` and detects barcode scans by timing: a short burst of keys + Enter is treated as a scan. It emits a `barcode-scanned` event with the string; only the Vehicles page (scanner view) consumes it, so the code never goes to other inputs.
 
 - **scanner.rs** – listens in a background thread, buffers keys, on Enter emits to frontend.
-- **Linux**: `rdev` may need read access to `/dev/input/*`. Run the app with the user in the `input` group, or test with elevated permissions.
+
+### Linux: permissions for `/dev/input/*`
+
+On Linux, `rdev` reads from `/dev/input/*`. The user running the app must be in the **`input`** group so the process can access input devices.
+
+**Steps:**
+
+1. Add the user to the `input` group (one-time, requires admin):
+   ```bash
+   sudo usermod -aG input "$USER"
+   ```
+2. Log out and log back in (or reboot). Group membership is applied at login.
+3. Verify: `groups` (or `id -nG`) should list `input`.
+4. Run the app; the scanner listener will then be able to read keyboard events.
+
+**Troubleshooting:**
+
+- **Scanner does not trigger:** Ensure the user is in `input` and you have logged out/in after adding it. Run `groups` to confirm.
+- **Permission denied on `/dev/input/*`:** Same as above. For testing only you can run with elevated permissions (e.g. `sudo -E npm run tauri:dev`); not recommended for normal use.
+- **`[scanner] rdev listen error` in console:** Usually indicates missing read access to input devices; add the user to `input` and re-login.
+
+For deployment and installer notes (offline, new devices), see the **app README** section “Barcode scanner (Linux)”.
 
 ## Dev console
 
