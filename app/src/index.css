@@ -1,0 +1,196 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Eye-Friendly Base Palette */
+    --background: 210 20% 98%; /* #F8F9FA - Soft bone */
+    --foreground: 217 33% 17%; /* #1E293B - Professional blue-black */
+
+    --card: 0 0% 100%; /* Pure white for cards */
+    --card-foreground: 217 33% 17%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 217 33% 17%;
+
+    /* COCO Yellow - Brand Accent */
+    --primary: 49 100% 50%; /* #FFD200 */
+    --primary-foreground: 217 33% 17%;
+
+    --secondary: 214 32% 91%; /* #E2E8F0 */
+    --secondary-foreground: 217 33% 17%;
+
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 214 32% 91%;
+    --accent-foreground: 217 33% 17%;
+
+    /* Status Colors */
+    --destructive: 0 72% 51%; /* #DC2626 - Red alert */
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 84% 39%; /* #059669 - Emerald green */
+    --success-foreground: 0 0% 100%;
+
+    --info: 217 91% 60%; /* #3B82F6 - Blue info */
+    --info-foreground: 0 0% 100%;
+
+    --warning: 45 93% 47%; /* #EAB308 */
+    --warning-foreground: 217 33% 17%;
+
+    /* UI Elements */
+    --border: 213 27% 84%; /* #CBD5E1 */
+    --input: 213 27% 84%;
+    --ring: 49 100% 50%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 217 33% 17%;
+    --sidebar-primary: 49 100% 50%;
+    --sidebar-primary-foreground: 217 33% 17%;
+    --sidebar-accent: 210 20% 96%;
+    --sidebar-accent-foreground: 217 33% 17%;
+    --sidebar-border: 213 27% 84%;
+    --sidebar-ring: 49 100% 50%;
+
+    /* Custom tokens */
+    --scanner-glow: 49 100% 50%;
+    --metric-card: 210 20% 99%;
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 13%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 13%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 49 100% 50%;
+    --primary-foreground: 217 33% 17%;
+
+    --secondary: 217 33% 20%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 20%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 20%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 217 33% 25%;
+    --input: 217 33% 25%;
+    --ring: 49 100% 50%;
+
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 49 100% 50%;
+    --sidebar-primary-foreground: 217 33% 17%;
+    --sidebar-accent: 217 33% 20%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 25%;
+    --sidebar-ring: 49 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  /* Scanner input glow effect */
+  .scanner-input:focus {
+    box-shadow: 0 0 0 3px hsl(var(--scanner-glow) / 0.3);
+  }
+
+  /* Metric card subtle hover */
+  .metric-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px hsl(var(--foreground) / 0.08);
+  }
+
+  /* Status badges */
+  .status-active {
+    @apply bg-success/10 text-success;
+  }
+
+  .status-pending {
+    @apply bg-warning/10 text-warning;
+  }
+
+  .status-inactive {
+    @apply bg-muted text-muted-foreground;
+  }
+
+  /* Large price display */
+  .price-display {
+    @apply text-5xl font-extrabold tracking-tight;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Smooth transitions */
+  .transition-smooth {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  /* Card with subtle border */
+  .card-subtle {
+    @apply bg-card border border-border rounded-lg;
+  }
+
+  /* Pulse animation for scanner */
+  @keyframes scanner-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 hsl(var(--scanner-glow) / 0.4);
+    }
+    50% {
+      box-shadow: 0 0 0 8px hsl(var(--scanner-glow) / 0);
+    }
+  }
+
+  .scanner-pulse {
+    animation: scanner-pulse 2s infinite;
+  }
+
+  /* Fade in animation */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+}

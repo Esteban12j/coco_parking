@@ -1,0 +1,241 @@
+import { useState, useEffect, useRef } from "react";
+import { Search } from "lucide-react";
+import { ScannerInput } from "./components/ScannerInput";
+import { VehicleEntryForm } from "./components/VehicleEntryForm";
+import { ActiveVehiclesGrid } from "./components/ActiveVehiclesGrid";
+import { CheckoutPanel } from "@/features/caja/components/CheckoutPanel";
+import { RegisterConflictDialog } from "./components/RegisterConflictDialog";
+import { useParkingStore } from "@/hooks/useParkingStore";
+import { toast } from "@/hooks/use-toast";
+import { useTranslation } from "@/i18n";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Vehicle } from "@/types/parking";
+import { listen } from "@tauri-apps/api/event";
+
+type ViewMode = "scanner" | "entry" | "checkout" | "manual-search";
+
+export const VehiculosPage = () => {
+  const { t } = useTranslation();
+  const {
+    activeVehicles,
+    handleScan,
+    registerEntry,
+    processExit,
+    findByPlate,
+    getPlateDebt,
+    clearScanResult,
+    pendingRegisterConflict,
+    clearPendingRegisterConflict,
+    registerError,
+    clearRegisterError,
+    getVehiclesByPlate,
+    deleteExistingAndRetryRegister,
+  } = useParkingStore();
+
+  const [viewMode, setViewMode] = useState<ViewMode>("scanner");
+  const [currentTicket, setCurrentTicket] = useState("");
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [manualPlate, setManualPlate] = useState("");
+  const [searchingByPlate, setSearchingByPlate] = useState(false);
+  const handleScanInputRef = useRef<(code: string) => void>(() => {});
+
+  useEffect(() => {
+    handleScanInputRef.current = handleScanInput;
+  });
+
+  const viewModeRef = useRef(viewMode);
+  viewModeRef.current = viewMode;
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<string>("barcode-scanned", (event) => {
+      if (viewModeRef.current !== "scanner") return;
+      const code = typeof event.payload === "string" ? event.payload : String(event.payload ?? "").trim();
+      if (code) handleScanInputRef.current(code);
+    })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch(() => {});
+    return () => {
+      unlisten?.();
+    };
+  }, []);
+
+  const handleScanInput = (code: string) => {
+    setCurrentTicket(code);
+    const existing = handleScan(code);
+    if (existing) {
+      setSelectedVehicle(existing);
+      setViewMode("checkout");
+    } else {
+      setViewMode("entry");
+    }
+  };
+
+  const handleEntrySubmit = (data: {
+    plate: string;
+    vehicleType: Parameters<typeof registerEntry>[1];
+    observations: string;
+  }) => {
+    registerEntry(data.plate, data.vehicleType, data.observations, currentTicket);
+    setViewMode("scanner");
+    setCurrentTicket("");
+    clearScanResult();
+  };
+
+  const handleCheckout = (partialPayment?: number, paymentMethod?: "cash" | "card" | "transfer") => {
+    if (selectedVehicle) {
+      processExit(selectedVehicle.ticketCode, partialPayment, paymentMethod);
+      setSelectedVehicle(null);
+      setViewMode("scanner");
+      clearScanResult();
+    }
+  };
+
+  const handleManualSearch = async () => {
+    if (!manualPlate.trim()) return;
+    setSearchingByPlate(true);
+    try {
+      const vehicle = await findByPlate(manualPlate.trim());
+      if (vehicle) {
+        setSelectedVehicle(vehicle);
+        setViewMode("checkout");
+      } else {
+        toast({
+          title: t("vehicles.vehicleNotFound"),
+          description: t("vehicles.noRecordWithPlate"),
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({
+        title: t("vehicles.vehicleNotFound"),
+        description: t("vehicles.noRecordWithPlate"),
+        variant: "destructive",
+      });
+    } finally {
+      setSearchingByPlate(false);
+      setManualPlate("");
+    }
+  };
+
+  const handleVehicleSelect = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle);
+    setViewMode("checkout");
+  };
+
+  const handleCancel = () => {
+    clearRegisterError();
+    setViewMode("scanner");
+    setCurrentTicket("");
+    setSelectedVehicle(null);
+    clearScanResult();
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">{t("vehicles.title")}</h1>
+        <p className="text-muted-foreground">{t("vehicles.subtitle")}</p>
+      </div>
+
+      <section className="py-6">
+        {viewMode === "scanner" && (
+          <div className="space-y-6">
+            <ScannerInput onScan={handleScanInput} />
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                {t("vehicles.lostTicket")}
+              </span>
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() => setViewMode("manual-search")}
+              >
+                {t("vehicles.searchByPlate")}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {viewMode === "manual-search" && (
+          <div className="max-w-md mx-auto space-y-4 animate-fade-in">
+            <h3 className="text-lg font-semibold text-center">
+              {t("vehicles.manualCheckout")}
+            </h3>
+            <div className="flex gap-2">
+              <Input
+                value={manualPlate}
+                onChange={(e) =>
+                  setManualPlate(e.target.value.toUpperCase())
+                }
+                placeholder={t("vehicles.enterPlate")}
+                className="font-mono uppercase"
+              />
+              <Button
+                variant="coco"
+                onClick={() => void handleManualSearch()}
+                disabled={searchingByPlate}
+              >
+                <Search className="h-4 w-4 mr-2" />
+                {searchingByPlate ? t("common.loading") : t("common.search")}
+              </Button>
+            </div>
+            <Button
+              variant="ghost"
+              onClick={handleCancel}
+              className="w-full"
+            >
+              {t("vehicles.backToScanner")}
+            </Button>
+          </div>
+        )}
+
+        {viewMode === "entry" && (
+          <VehicleEntryForm
+            ticketCode={currentTicket}
+            existingDebt={0}
+            getPlateDebt={getPlateDebt}
+            registerError={registerError}
+            onSubmit={handleEntrySubmit}
+            onCancel={handleCancel}
+          />
+        )}
+
+        {viewMode === "checkout" && selectedVehicle && (
+          <CheckoutPanel
+            vehicle={selectedVehicle}
+            onCheckout={handleCheckout}
+            onCancel={handleCancel}
+          />
+        )}
+      </section>
+
+      <section className="space-y-4 mt-8">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">
+            {t("vehicles.vehiclesInParking")}
+          </h2>
+          <span className="text-sm text-muted-foreground">
+            {activeVehicles.length} {t("vehicles.active")}
+          </span>
+        </div>
+        <div className="bg-card border border-border rounded-xl p-4">
+          <ActiveVehiclesGrid
+            vehicles={activeVehicles}
+            onSelect={handleVehicleSelect}
+          />
+        </div>
+      </section>
+
+      <RegisterConflictDialog
+        pending={pendingRegisterConflict}
+        getVehiclesByPlate={getVehiclesByPlate}
+        onDeleteAndRegister={(id) => void deleteExistingAndRetryRegister(id)}
+        onCancel={clearPendingRegisterConflict}
+      />
+    </div>
+  );
+};

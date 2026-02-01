@@ -1,0 +1,81 @@
+export type VehicleType = 'car' | 'motorcycle' | 'truck' | 'bicycle';
+
+export interface Vehicle {
+  id: string;
+  ticketCode: string;
+  plate: string;
+  vehicleType: VehicleType;
+  observations?: string;
+  entryTime: Date;
+  exitTime?: Date;
+  status: 'active' | 'completed';
+  totalAmount?: number;
+  debt?: number;
+  specialRate?: number;
+}
+
+export interface ParkingSession {
+  id: string;
+  vehicle: Vehicle;
+  startTime: Date;
+  endTime?: Date;
+  duration?: number;
+  amount?: number;
+  paymentMethod?: 'cash' | 'card' | 'transfer';
+  operatorId?: string;
+}
+
+export interface DailyMetrics {
+  totalVehicles: number;
+  activeVehicles: number;
+  occupancyRate: number;
+  totalRevenue: number;
+  averageTicket: number;
+  averageStayMinutes: number;
+  turnoverRate: number;
+}
+
+/** Tesorería: una sola fuente, tabla transactions. */
+export interface TreasuryData {
+  expectedCash: number;
+  actualCash: number;
+  discrepancy: number;
+  totalTransactions: number;
+  paymentBreakdown: {
+    cash: number;
+    card: number;
+    transfer: number;
+  };
+}
+
+export type UserRole = 'operator' | 'admin' | 'developer';
+
+export interface User {
+  id: string;
+  name: string;
+  role: UserRole;
+}
+
+export interface AuditLog {
+  id: string;
+  timestamp: Date;
+  userId: string;
+  action: string;
+  details: string;
+  previousValue?: string;
+  newValue?: string;
+}
+
+/** Conflicto de placa: misma placa con más de un tipo de vehículo (datos incongruentes). */
+export interface PlateConflict {
+  plate: string;
+  vehicles: Vehicle[];
+}
+
+/** Datos del registro que falló por conflicto de placa; para que el cliente elija eliminar el erróneo y reintentar. */
+export interface PendingRegisterConflict {
+  plate: string;
+  vehicleType: VehicleType;
+  observations?: string;
+  ticketCode?: string;
+}

@@ -1,0 +1,214 @@
+import {
+  Car,
+  TrendingUp,
+  Clock,
+  DollarSign,
+  PieChart,
+  LayoutGrid,
+} from "lucide-react";
+import { MetricCard } from "@/components/MetricCard";
+import { useParkingStore } from "@/hooks/useParkingStore";
+import { useTranslation } from "@/i18n";
+import { cn } from "@/lib/utils";
+
+export const MetricasPage = () => {
+  const { t } = useTranslation();
+  const { metrics } = useParkingStore();
+
+  return (
+    <div className="container mx-auto px-4 py-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">{t("metrics.title")}</h1>
+        <p className="text-muted-foreground">{t("metrics.subtitle")}</p>
+      </div>
+
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <MetricCard
+            title={t("metrics.activeVehicles")}
+            value={metrics.activeVehicles}
+            subtitle={t("metrics.ofSpaces")}
+            icon={<Car className="h-5 w-5" />}
+            variant="info"
+          />
+          <MetricCard
+            title={t("metrics.occupancy")}
+            value={`${metrics.occupancyRate.toFixed(0)}%`}
+            icon={<PieChart className="h-5 w-5" />}
+            variant={metrics.occupancyRate > 80 ? "warning" : "default"}
+          />
+          <MetricCard
+            title={t("metrics.revenueToday")}
+            value={`$${metrics.totalRevenue.toFixed(0)}`}
+            subtitle={`${metrics.totalVehicles} ${t("metrics.transactions")}`}
+            icon={<DollarSign className="h-5 w-5" />}
+            variant="success"
+            trend={{ value: 12, isPositive: true }}
+          />
+          <MetricCard
+            title={t("metrics.averageTicket")}
+            value={`$${metrics.averageTicket.toFixed(0)}`}
+            subtitle={`${Math.round(metrics.averageStayMinutes)} ${t("metrics.minAvg")}`}
+            icon={<TrendingUp className="h-5 w-5" />}
+          />
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <Clock className="h-5 w-5 text-muted-foreground" />
+              {t("metrics.peakHours")}
+            </h3>
+            <div className="space-y-3">
+              {[
+                { hour: "8:00 - 10:00", percentage: 85 },
+                { hour: "12:00 - 14:00", percentage: 95 },
+                { hour: "17:00 - 19:00", percentage: 78 },
+                { hour: "20:00 - 22:00", percentage: 45 },
+              ].map((item) => (
+                <div key={item.hour} className="space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span>{item.hour}</span>
+                    <span className="font-medium">{item.percentage}%</span>
+                  </div>
+                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        item.percentage > 80 ? "bg-warning" : "bg-info"
+                      )}
+                      style={{ width: `${item.percentage}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <PieChart className="h-5 w-5 text-muted-foreground" />
+              {t("metrics.revenueBreakdown")}
+            </h3>
+            <div className="space-y-4">
+              {[
+                {
+                  label: t("metrics.cars"),
+                  amount: metrics.totalRevenue * 0.65,
+                  color: "bg-info",
+                },
+                {
+                  label: t("metrics.motorcycles"),
+                  amount: metrics.totalRevenue * 0.2,
+                  color: "bg-success",
+                },
+                {
+                  label: t("metrics.trucks"),
+                  amount: metrics.totalRevenue * 0.1,
+                  color: "bg-warning",
+                },
+                {
+                  label: t("metrics.bicycles"),
+                  amount: metrics.totalRevenue * 0.05,
+                  color: "bg-muted-foreground",
+                },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center gap-3"
+                >
+                  <div
+                    className={cn("w-3 h-3 rounded-full", item.color)}
+                  />
+                  <span className="flex-1 text-sm">{item.label}</span>
+                  <span className="font-medium">
+                    ${item.amount.toFixed(0)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-muted-foreground" />
+              {t("metrics.keyMetrics")}
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <p className="text-xs text-muted-foreground">RevPAS</p>
+                <p className="text-xl font-bold">
+                  ${(metrics.totalRevenue / 50).toFixed(2)}
+                </p>
+                <p className="text-xs text-muted-foreground">{t("metrics.perSpace")}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <p className="text-xs text-muted-foreground">{t("metrics.turnover")}</p>
+                <p className="text-xl font-bold">
+                  {metrics.turnoverRate.toFixed(1)}x
+                </p>
+                <p className="text-xs text-muted-foreground">{t("metrics.turnoverRate")}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <p className="text-xs text-muted-foreground">{t("metrics.avgTime")}</p>
+                <p className="text-xl font-bold">
+                  {Math.round(metrics.averageStayMinutes)}m
+                </p>
+                <p className="text-xs text-muted-foreground">{t("metrics.stay")}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <p className="text-xs text-muted-foreground">{t("metrics.transactionsLabel")}</p>
+                <p className="text-xl font-bold">
+                  {metrics.totalVehicles}
+                </p>
+                <p className="text-xs text-muted-foreground">{t("metrics.today")}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <LayoutGrid className="h-5 w-5 text-muted-foreground" />
+              {t("metrics.heatMap")}
+            </h3>
+            <div className="grid grid-cols-10 gap-1">
+              {Array.from({ length: 50 }).map((_, i) => {
+                const intensity = Math.random();
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      "aspect-square rounded transition-colors",
+                      intensity > 0.7
+                        ? "bg-destructive/70"
+                        : intensity > 0.4
+                          ? "bg-warning/70"
+                          : intensity > 0.2
+                            ? "bg-success/50"
+                            : "bg-secondary"
+                    )}
+                    title={`${t("metrics.zone")} ${i + 1}`}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-center gap-4 mt-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded bg-secondary" /> {t("metrics.free")}
+              </span>
+              <span className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded bg-success/50" /> {t("metrics.normal")}
+              </span>
+              <span className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded bg-warning/70" /> {t("metrics.high")}
+              </span>
+              <span className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded bg-destructive/70" /> {t("metrics.critical")}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

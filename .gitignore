@@ -1,0 +1,31 @@
+# Base de referencia (no se trabaja aquí)
+smart-parking-insights/
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+src-tauri/target/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Tauri
+src-tauri/Cargo.lock
+
+#smart-parking-insights
+smart-parking-insights

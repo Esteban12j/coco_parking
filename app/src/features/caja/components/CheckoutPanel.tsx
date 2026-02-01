@@ -1,0 +1,242 @@
+import { useState, useEffect } from "react";
+import {
+  Clock,
+  Car,
+  CreditCard,
+  Banknote,
+  ArrowRightLeft,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Vehicle, VehicleType } from "@/types/parking";
+import { useTranslation } from "@/i18n";
+import { cn } from "@/lib/utils";
+
+interface CheckoutPanelProps {
+  vehicle: Vehicle;
+  onCheckout: (partialPayment?: number, paymentMethod?: "cash" | "card" | "transfer") => void;
+  onCancel: () => void;
+}
+
+const RATES: Record<VehicleType, number> = {
+  car: 50,
+  motorcycle: 30,
+  truck: 80,
+  bicycle: 15,
+};
+
+export const CheckoutPanel = ({
+  vehicle,
+  onCheckout,
+  onCancel,
+}: CheckoutPanelProps) => {
+  const { t } = useTranslation();
+  const vehicleLabels: Record<VehicleType, string> = {
+    car: t("checkout.car"),
+    motorcycle: t("checkout.motorcycle"),
+    truck: t("checkout.truck"),
+    bicycle: t("checkout.bicycle"),
+  };
+  const [elapsed, setElapsed] = useState({
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  });
+  const [paymentMethod, setPaymentMethod] = useState<
+    "cash" | "card" | "transfer"
+  >("cash");
+  const [partialAmount, setPartialAmount] = useState<string>("");
+  const [showPartial, setShowPartial] = useState(false);
+
+  useEffect(() => {
+    const calculateElapsed = () => {
+      const now = new Date();
+      const entry = new Date(vehicle.entryTime);
+      const diff = now.getTime() - entry.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor(
+        (diff % (1000 * 60 * 60)) / (1000 * 60)
+      );
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setElapsed({ hours, minutes, seconds });
+    };
+    calculateElapsed();
+    const interval = setInterval(calculateElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [vehicle.entryTime]);
+
+  const hourlyRate = vehicle.specialRate || RATES[vehicle.vehicleType];
+  const hoursCharged = Math.max(
+    1,
+    Math.ceil((elapsed.hours * 60 + elapsed.minutes) / 60)
+  );
+  const parkingCost = hoursCharged * hourlyRate;
+  const totalWithDebt = parkingCost + (vehicle.debt || 0);
+
+  const handleCheckout = () => {
+    if (showPartial && partialAmount) {
+      onCheckout(parseFloat(partialAmount), paymentMethod);
+    } else {
+      onCheckout(undefined, paymentMethod);
+    }
+  };
+
+  return (
+    <div className="animate-fade-in bg-card border border-border rounded-xl p-6 max-w-lg mx-auto shadow-sm">
+      <div className="text-center mb-6">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-info/10 text-info mb-3">
+          <Clock className="h-6 w-6" />
+        </div>
+        <h2 className="text-xl font-semibold">{t("checkout.title")}</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          {t("common.ticket")}:{" "}
+          <span className="font-mono font-medium">{vehicle.ticketCode}</span>
+        </p>
+      </div>
+
+      <div className="bg-secondary/50 rounded-lg p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Car className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="font-mono font-semibold text-lg">{vehicle.plate}</p>
+              <p className="text-sm text-muted-foreground">
+                {vehicleLabels[vehicle.vehicleType]}
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-muted-foreground">{t("common.time")}</p>
+            <p className="font-mono font-semibold">
+              {String(elapsed.hours).padStart(2, "0")}:
+              {String(elapsed.minutes).padStart(2, "0")}:
+              {String(elapsed.seconds).padStart(2, "0")}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3 mb-6">
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">{t("checkout.hourlyRate")}</span>
+          <span className="font-medium">${hourlyRate.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">{t("checkout.hoursCharged")}</span>
+          <span className="font-medium">
+            {hoursCharged} hr{hoursCharged > 1 ? "s" : ""}
+          </span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">{t("checkout.parkingCost")}</span>
+          <span className="font-medium">${parkingCost.toFixed(2)}</span>
+        </div>
+        {vehicle.debt && vehicle.debt > 0 && (
+          <div className="flex justify-between text-sm text-warning">
+            <span>{t("checkout.pendingDebt")}</span>
+            <span className="font-medium">+ ${vehicle.debt.toFixed(2)}</span>
+          </div>
+        )}
+        <div className="border-t border-border pt-3">
+          <div className="flex justify-between items-center">
+            <span className="font-semibold">{t("checkout.totalToPay")}</span>
+            <span className="price-display text-foreground">
+              ${totalWithDebt.toFixed(2)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3 mb-6">
+        <Label>{t("checkout.paymentMethod")}</Label>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            {
+              method: "cash" as const,
+              label: t("till.cash"),
+              icon: <Banknote className="h-4 w-4" />,
+            },
+            {
+              method: "card" as const,
+              label: t("till.card"),
+              icon: <CreditCard className="h-4 w-4" />,
+            },
+            {
+              method: "transfer" as const,
+              label: t("till.transfer"),
+              icon: <ArrowRightLeft className="h-4 w-4" />,
+            },
+          ].map(({ method, label, icon }) => (
+            <button
+              key={method}
+              type="button"
+              onClick={() => setPaymentMethod(method)}
+              className={cn(
+                "flex items-center justify-center gap-2 p-3 rounded-lg border transition-all",
+                paymentMethod === method
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-card hover:bg-accent"
+              )}
+            >
+              {icon}
+              <span className="text-sm font-medium">{label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <button
+          type="button"
+          onClick={() => setShowPartial(!showPartial)}
+          className="text-sm text-info hover:underline"
+        >
+          {showPartial ? t("checkout.hidePartialPayment") : t("checkout.payPartially")}
+        </button>
+        {showPartial && (
+          <div className="mt-3 space-y-2">
+            <Label htmlFor="partial">{t("checkout.amountToPay")}</Label>
+            <Input
+              id="partial"
+              type="number"
+              value={partialAmount}
+              onChange={(e) => setPartialAmount(e.target.value)}
+              placeholder={`Max: $${totalWithDebt.toFixed(2)}`}
+              min={0}
+              max={totalWithDebt}
+            />
+            {partialAmount &&
+              parseFloat(partialAmount) < totalWithDebt && (
+                <p className="text-xs text-warning">
+                  {t("checkout.remainingDebt")} $
+                  {(
+                    totalWithDebt - parseFloat(partialAmount)
+                  ).toFixed(2)}
+                </p>
+              )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          className="flex-1"
+        >
+          {t("common.cancel")}
+        </Button>
+        <Button
+          type="button"
+          variant="coco"
+          onClick={handleCheckout}
+          className="flex-1"
+        >
+          {t("checkout.charge")}
+        </Button>
+      </div>
+    </div>
+  );
+};

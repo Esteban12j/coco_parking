@@ -1,0 +1,30 @@
+[package]
+name = "coco-parking"
+version = "0.1.0"
+description = "COCO Parking - Smart Parking Dashboard"
+authors = ["COCO Parking"]
+edition = "2021"
+rust-version = "1.70"
+
+[lib]
+name = "coco_parking_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+rdev = "0.5"
+rusqlite = { version = "0.33", features = ["bundled"] }
+r2d2 = "0.8"
+r2d2_sqlite = "0.26"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

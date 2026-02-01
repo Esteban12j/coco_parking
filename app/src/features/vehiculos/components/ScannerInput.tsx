@@ -1,0 +1,72 @@
+import { useState, useRef, useEffect } from "react";
+import { Search, Scan } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useTranslation } from "@/i18n";
+
+interface ScannerInputProps {
+  onScan: (code: string) => void;
+  placeholder?: string;
+  autoFocus?: boolean;
+}
+
+export const ScannerInput = ({
+  onScan,
+  placeholder,
+  autoFocus = true,
+}: ScannerInputProps) => {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("vehicles.scanPlaceholder");
+  const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [autoFocus]);
+
+  useEffect(() => {
+    const handleClick = () => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    };
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, []);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (value.trim()) {
+      onScan(value.trim());
+      setValue("");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="relative w-full max-w-2xl mx-auto">
+      <div className="relative">
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+          <Scan className="h-5 w-5" />
+        </div>
+        <Input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={resolvedPlaceholder}
+          className="scanner-input scanner-pulse h-14 pl-12 pr-12 text-lg bg-card border-border rounded-xl shadow-sm focus:border-primary"
+        />
+        <button
+          type="submit"
+          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          <Search className="h-5 w-5" />
+        </button>
+      </div>
+      <p className="text-center text-sm text-muted-foreground mt-2">
+        {t("vehicles.scannerReady")}
+      </p>
+    </form>
+  );
+};
