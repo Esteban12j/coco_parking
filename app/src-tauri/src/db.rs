@@ -348,4 +348,68 @@ mod tests {
 
         std::fs::remove_file(&db_path).ok();
     }
+
+    /// Integration test: full core flow entry → exit → caja at DB level.
+    /// Ensures a registered vehicle, when processed as exit with payment, appears in treasury.
+    #[test]
+    fn integration_entry_exit_caja_flow() {
+        let dir = std::env::temp_dir().join("coco_parking_e2e");
+        std::fs::create_dir_all(&dir).unwrap();
+        let db_path = dir.join("e2e.db");
+        let _ = std::fs::remove_file(&db_path);
+
+        let pool = open_pool(&db_path).expect("open_pool");
+        let conn = pool.get().expect("get conn");
+
+        let vehicle_id = crate::id_gen::generate_id(crate::id_gen::PREFIX_VEHICLE);
+        let ticket_code = "TK-E2E-001";
+        let plate = "E2EPLATE";
+        let entry_time = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO vehicles (id, ticket_code, plate, plate_upper, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate) VALUES (?1, ?2, ?3, ?4, 'car', NULL, ?5, NULL, 'active', NULL, 0, NULL)",
+            rusqlite::params![vehicle_id, ticket_code, plate, plate, entry_time],
+        )
+        .expect("insert vehicle");
+
+        let exit_time = chrono::Utc::now().to_rfc3339();
+        let total_amount = 50.0;
+        let method = "cash";
+        conn.execute(
+            "UPDATE vehicles SET exit_time = ?1, status = 'completed', total_amount = ?2, debt = 0 WHERE id = ?3",
+            rusqlite::params![exit_time, total_amount, vehicle_id],
+        )
+        .expect("update vehicle on exit");
+
+        let tx_id = crate::id_gen::generate_id(crate::id_gen::PREFIX_TRANSACTION);
+        conn.execute(
+            "INSERT INTO transactions (id, vehicle_id, amount, method, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![tx_id, vehicle_id, total_amount, method, exit_time],
+        )
+        .expect("insert transaction");
+
+        let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+        let today_prefix = format!("{}%", today);
+        let (total_transactions, cash, card, transfer): (i64, f64, f64, f64) = conn
+            .query_row(
+                r#"
+                SELECT
+                    COUNT(*) AS cnt,
+                    COALESCE(SUM(CASE WHEN LOWER(method) = 'cash' THEN amount ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN LOWER(method) = 'card' THEN amount ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN LOWER(method) = 'transfer' THEN amount ELSE 0 END), 0)
+                FROM transactions
+                WHERE created_at LIKE ?1
+                "#,
+                rusqlite::params![&today_prefix],
+                |row| Ok((row.get::<_, i64>(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .expect("treasury query");
+
+        assert_eq!(total_transactions, 1, "one transaction today");
+        assert_eq!(cash, 50.0, "cash amount matches payment");
+        assert_eq!(card + transfer, 0.0, "no card/transfer");
+        assert!((cash + card + transfer - total_amount).abs() < 0.01, "expected_cash matches");
+
+        std::fs::remove_file(&db_path).ok();
+    }
 }

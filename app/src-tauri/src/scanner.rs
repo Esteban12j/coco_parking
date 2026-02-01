@@ -97,7 +97,7 @@ pub fn spawn_barcode_listener(handle: AppHandle) {
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+    use std::time::{Duration, Instant, SystemTime};
 
     use rdev::{Event, EventType, Key};
 

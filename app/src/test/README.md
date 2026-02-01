@@ -22,6 +22,11 @@ Mocks live in `test/mocks/tauri.ts` and are loaded in `setup.ts`.
 - Use `mockInvoke.mockResolvedValue(...)` (or `mockRejectedValue`) before calling code that uses `invokeTauri` / backend commands (e.g. `vehiculos_list_vehicles`). The app uses `@/lib/tauriInvoke` which calls `invoke` from `@tauri-apps/api/core`, so mocking that module affects all Tauri calls.
 - Reset with `mockInvoke.mockReset()` in `beforeEach` if needed.
 
+## Integration: entry → exit → caja (Story 6.3)
+
+- **Frontend**: `src/test/entry-exit-caja.integration.test.ts` — mocks Tauri `invoke`, runs register entry → process exit → treasury via `useParkingStore`, asserts the three commands are invoked. Run: `npm run test` or `npx vitest run src/test/entry-exit-caja.integration.test.ts`.
+- **Backend**: `src-tauri/src/db.rs` — test `integration_entry_exit_caja_flow` — temp DB, insert vehicle, update + insert transaction, query treasury for today. Run from repo root: `cd app/src-tauri && cargo test integration_entry_exit_caja_flow`.
+
 ## Where tests live
 
 - `src/**/*.test.ts` or `*.spec.ts`: next to the code or in `src/test/` (e.g. `barcode-scanner.test.ts`).
