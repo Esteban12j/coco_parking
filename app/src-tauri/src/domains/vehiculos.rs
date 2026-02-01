@@ -357,6 +357,15 @@ pub fn vehiculos_process_exit(
     )
     .map_err(|e| e.to_string())?;
 
+    if new_debt == 0.0 && !vehicle.plate.is_empty() {
+        let plate_key = normalize_plate_for_index(&vehicle.plate);
+        conn.execute(
+            "UPDATE vehicles SET debt = 0 WHERE plate_upper = ?1 AND id != ?2 AND COALESCE(debt, 0) > 0",
+            params![&plate_key, &vehicle.id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
     let tx_id = id_gen::generate_id(id_gen::PREFIX_TRANSACTION);
     conn.execute(
         "INSERT INTO transactions (id, vehicle_id, amount, method, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",

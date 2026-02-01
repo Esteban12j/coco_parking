@@ -1,8 +1,10 @@
 # Product Backlog — COCO Parking
 
 **Última actualización:** 1 de febrero de 2025  
-**Fuente:** Análisis Scrum (ANALISIS_SCRUM.md), Consultoría Datos (CONSULTORIA_DATOS.md)  
+**Fuente:** Análisis Scrum (ANALISIS_SCRUM.md), Consultoría Datos (CONSULTORIA_DATOS.md), Análisis Deuda (ANALISIS_DEUDA_FRONTEND_BD.md)  
 **Prioridad:** 1 = más alta.
+
+**Para el Scrum Master — Deudores (1 feb 2025):** Se realizó un **análisis de visibilidad de deudores** (quién debe, cuánto, desde cuándo, cuándo pagaron, cuánto han pagado; deuda total general y por placa). Las **bases de datos están preparadas** (no se requieren cambios de esquema). El frontend actual **no** ofrece lista de deudores ni deuda total. Se ha añadido la **Épica 8: Deudores** con historias 8.1–8.3. **Acción requerida:** Actualizar el tablero con la nueva épica e **elegir la priorización** de las tareas (sprint actual o siguientes). Ver **[ANALISIS_DEUDA_FRONTEND_BD.md](./ANALISIS_DEUDA_FRONTEND_BD.md)** para detalle y alcance recomendado.
 
 **Avance:** Historias 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2, 4.1, 4.2, 5.1, 6.0, 6.1 y 6.2 **Hecho**. (5.2 Sincronización Drive fue eliminada del producto; solo se mantiene backup local.) 1.1: Backend persiste entradas/salidas en SQLite; `vehiculos_register_entry` y `vehiculos_process_exit` persisten; `vehiculos_process_exit` inserta en tabla `transactions` con método de pago; reinicio no pierde datos. 1.2: `vehiculos_list_vehicles` y `vehiculos_find_by_plate` en backend; frontend Tauri consume solo backend para listado y búsqueda. 1.3: `caja_get_treasury` y `metricas_get_daily` usan AppState.db (SQLite); en Tauri no hay cálculo de tesorería/métricas en frontend. 2.1: Pantalla Caja muestra esperado/ingresado desde transacciones; datos vía `caja_get_treasury`; carga/error y nota “según transacciones del día”; desglose por método de pago; CheckoutPanel permite elegir método y backend persiste en `transactions`. 2.2: Tabla `shift_closures` (migración 4); `caja_close_shift(arqueo_cash?, notes?)` persiste resumen; `caja_list_shift_closures(limit?)` para historial; pantalla Caja: diálogo cierre con arqueo opcional, sección historial de cierres. 2.3: Cada transacción de salida permite elegir método de pago (efectivo/tarjeta/transferencia); se persiste en `transactions.method`; tesorería y pantalla Caja muestran desglose por tipo de pago; cierres de turno incluyen totales por método. 6.0: Caja usa una sola fuente (store → backend); sin query duplicada; tesorería desde tabla `transactions`.
 
@@ -99,6 +101,20 @@ Las historias están ordenadas por épica y prioridad dentro de la épica. Los p
 
 **Nota para Scrum (1 feb 2025):** La **prioridad** de esta épica (y si se planifica en el próximo sprint o más adelante) queda a criterio del **profesional Scrum / Product Owner**. Puede ser prioridad alta si se espera alto volumen de registros o múltiples puestos; media si el volumen se mantiene bajo.
 
+---
+
+## Épica 8: Deudores (prioridad a criterio de SM/PO)
+
+**Objetivo:** Que el cajero/admin pueda ver quiénes deben, cuánto deben (total general y por placa), desde cuándo, y opcionalmente cuándo pagaron y cuánto han pagado. Base: [ANALISIS_DEUDA_FRONTEND_BD.md](./ANALISIS_DEUDA_FRONTEND_BD.md). **Las bases de datos están preparadas** (no se requieren cambios de esquema).
+
+| ID   | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
+|------|----------|--------|---------|--------|--------------------------|-----|--------|
+| 8.1  | Lista de deudores y deuda total | cajero/admin | ver el total de deuda pendiente (general) y una lista de placas con deuda (quién debe, cuánto, desde cuándo) | saber cuánto me deben en total y a quién cobrar | • Backend: comando que devuelva el total de deuda pendiente (SUM(debt) en vehicles con debt > 0).<br>• Backend: comando que devuelva lista de deudores (plate, totalDebt, sessionsWithDebt, oldestExitTime) con paginación (limit/offset).<br>• Frontend: sección o página "Deudores" (ruta ej. /debtors) con total general y tabla (placa, deuda total, desde cuándo, opcional nº sesiones).<br>• Permiso de lectura para la vista (ej. caja:debtors:read o vehiculos:debtors:read). | 5 | |
+| 8.2  | Detalle de deuda por placa | cajero/admin | al elegir una placa de la lista, ver las sesiones con deuda (entrada/salida, monto de deuda) y los pagos asociados (cuándo pagó, cuánto, método) | entender el historial de esa placa y qué pagó | • Backend: comando o reutilización que devuelva, para una placa, los vehículos con debt > 0 (id, ticket, entry_time, exit_time, debt, total_amount) y las transacciones de esos vehículos (created_at, amount, method).<br>• Frontend: drill-down desde la lista de deudores: al hacer clic en una placa, ver sesiones con deuda y pagos (cuándo pagó, cuánto, método). | 5 | |
+| 8.3  | Reporte o export de deudores | admin | exportar (CSV) o incluir en reportes la lista de deudores (placa, deuda, desde cuándo) | analizar o compartir datos de cobranza | • Incluir tipo de reporte "deudores" (o equivalente) en exportación de Métricas/reportes, o comando de export dedicado.<br>• Columnas: placa, deuda total, desde cuándo (oldest exit), nº sesiones con deuda. | 3 | |
+
+**Para el profesional Scrum / SM (1 feb 2025 — Épica 8):** La **priorización** de la Épica 8 (Deudores) corresponde al **Scrum Master / Product Owner**. Actualizar el tablero con las historias 8.1, 8.2, 8.3 y decidir en qué sprint(s) se planifican. No se requieren cambios en el esquema de BD; solo nuevos comandos backend y nueva vista/sección en frontend.
+
 **Actualización para Scrum (1 feb 2025) – Historia 7.1 Hecho:** Paginación del listado de vehículos implementada. Backend: `vehiculos_list_vehicles` acepta `limit`, `offset` y opcionalmente `status` ('active'|'completed'); devuelve `{ items, total }`. Límite por defecto 50, máximo 500. Se añadió `vehiculos_find_by_ticket` para que el escaneo por ticket funcione con listado paginado. Frontend: listado de activos paginado (20 por página), controles Anterior/Siguiente y "Página X de Y"; no se cargan todos los registros. Por favor actualizar el tablero y el avance de la épica 7.
 
 **Para el profesional Scrum / SM (1 feb 2025 — Historia 7.2):** La historia **7.2 (Optimización de consultas Caja y Métricas)** está **Hecho**. **Actualizar tablero**: mover 7.2 a Hecho. Criterios de aceptación verificados: (1) **`caja_get_treasury`**: una sola query agregada; se obtienen COUNT(*) y SUM por método (cash/card/transfer) con `SUM(CASE WHEN LOWER(method) = '...' THEN amount ELSE 0 END)` en una única consulta a `transactions` filtrada por `created_at LIKE ?`. (2) **`metricas_get_daily`**: reducido a 2 consultas con agregaciones: (a) COUNT de vehículos activos desde `vehicles`; (b) una query con JOIN `vehicles` + `transactions` para el día que devuelve COUNT(*), SUM(amount) y SUM de minutos de estadía en una sola pasada. Con ello se reduce latencia y carga en SQLite.
@@ -118,7 +134,8 @@ Las historias están ordenadas por épica y prioridad dentro de la épica. Los p
 | 5. Backup | 2 | 5 |
 | 6. Robustez y operación | 4 | 12 |
 | 7. Arquitectura de datos y rendimiento | 4 | 13 |
-| **Total** | **20** | **82** |
+| 8. Deudores | 3 | 13 |
+| **Total** | **23** | **95** |
 
 ---
 
@@ -129,6 +146,7 @@ Las historias están ordenadas por épica y prioridad dentro de la épica. Los p
 - **Consultoría datos (CONSULTORIA_DATOS.md):** Valorar migración única de datos legacy (vehículos completados sin fila en `transactions`) para deprecar el fallback de Caja y dejar `transactions` como única fuente.
 - **Épica 7 (ARQUITECTURA_DATOS_PERFORMANCE.md):** Prioridad a criterio de SM/PO. Si se prioriza, puede planificarse después de cerrar flujo core (Épicas 1–2) o en paralelo según capacidad.
 - **Historia 3.2 (Exportar reportes):** No se requieren tablas dinámicas. Las tablas existentes (`vehicles`, `transactions`, `shift_closures`) se cruzan en backend con JOINs para reportes combinados (ej. transacciones + placa/tipo vehículo). Tipos de reporte predefinidos; el usuario elige headers por tipo, filtros y ve vista previa antes de exportar CSV/PDF.
+- **Épica 8 (Deudores — ANALISIS_DEUDA_FRONTEND_BD.md):** El frontend actual no permite ver quiénes son los deudores, qué carros deben, desde cuándo, cuándo pagaron ni cuánto han pagado; tampoco la deuda total general ni granular por placa. Las **bases de datos están preparadas** (vehicles.debt, plate_upper, transactions); no se requieren cambios de esquema. El Scrum Master debe **actualizar el backlog** con la Épica 8 e **elegir la priorización** de las tareas (8.1 lista y total, 8.2 detalle por placa, 8.3 export).
 
 ---
 
