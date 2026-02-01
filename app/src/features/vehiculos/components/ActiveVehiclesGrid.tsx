@@ -3,6 +3,7 @@ import { Car, Bike, Truck, CircleDot, Clock, AlertTriangle } from "lucide-react"
 import { Vehicle, VehicleType } from "@/types/parking";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
+import { escapeForAttribute } from "@/lib/escape";
 
 interface ActiveVehiclesGridProps {
   vehicles: Vehicle[];
@@ -67,6 +68,7 @@ export const ActiveVehiclesGrid = ({
           <button
             key={vehicle.id}
             onClick={() => onSelect(vehicle)}
+            title={escapeForAttribute(vehicle.plate)}
             className={cn(
               "relative p-4 rounded-lg border bg-card text-left transition-all hover:shadow-md hover:-translate-y-0.5",
               isLongStay ? "border-warning/50" : "border-border",

@@ -21,7 +21,12 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self' asset:",
+        "connect-src": "ipc: http://ipc.localhost http://localhost:5173",
+        "img-src": "'self' asset: data: blob:",
+        "style-src": "'self' 'unsafe-inline'"
+      }
     }
   },
   "bundle": {

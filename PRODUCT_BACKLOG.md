@@ -1,181 +1,180 @@
 # Product Backlog — COCO Parking
 
 **Última actualización:** 1 de febrero de 2025  
-**Fuente:** Análisis Scrum (ANALISIS_SCRUM.md), Consultoría Datos (CONSULTORIA_DATOS.md), Análisis Deuda (ANALISIS_DEUDA_FRONTEND_BD.md)  
+**Fuente:** Análisis Scrum, Consultoría Datos, Análisis Deuda, feedback de producto (métricas, UI, seguridad, historial, tema, instalador).  
 **Prioridad:** 1 = más alta.
 
-**Para el Scrum Master — Deudores (1 feb 2025):** Se realizó un **análisis de visibilidad de deudores** (quién debe, cuánto, desde cuándo, cuándo pagaron, cuánto han pagado; deuda total general y por placa). Las **bases de datos están preparadas** (no se requieren cambios de esquema). El frontend actual **no** ofrece lista de deudores ni deuda total. Se ha añadido la **Épica 8: Deudores** con historias 8.1–8.3. **Acción requerida:** Actualizar el tablero con la nueva épica e **elegir la priorización** de las tareas (sprint actual o siguientes). Ver **[ANALISIS_DEUDA_FRONTEND_BD.md](./ANALISIS_DEUDA_FRONTEND_BD.md)** para detalle y alcance recomendado.
+---
 
-**Avance:** Historias 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 3.1, 3.2, 4.1, 4.2, 5.1, 6.0, 6.1, 6.2, **8.1**, **8.2** y **8.3** **Hecho**. (5.2 Sincronización Drive fue eliminada del producto; solo se mantiene backup local.) 1.1: Backend persiste entradas/salidas en SQLite; `vehiculos_register_entry` y `vehiculos_process_exit` persisten; `vehiculos_process_exit` inserta en tabla `transactions` con método de pago; reinicio no pierde datos. 1.2: `vehiculos_list_vehicles` y `vehiculos_find_by_plate` en backend; frontend Tauri consume solo backend para listado y búsqueda. 1.3: `caja_get_treasury` y `metricas_get_daily` usan AppState.db (SQLite); en Tauri no hay cálculo de tesorería/métricas en frontend. 2.1: Pantalla Caja muestra esperado/ingresado desde transacciones; datos vía `caja_get_treasury`; carga/error y nota “según transacciones del día”; desglose por método de pago; CheckoutPanel permite elegir método y backend persiste en `transactions`. 2.2: Tabla `shift_closures` (migración 4); `caja_close_shift(arqueo_cash?, notes?)` persiste resumen; `caja_list_shift_closures(limit?)` para historial; pantalla Caja: diálogo cierre con arqueo opcional, sección historial de cierres. 2.3: Cada transacción de salida permite elegir método de pago (efectivo/tarjeta/transferencia); se persiste en `transactions.method`; tesorería y pantalla Caja muestran desglose por tipo de pago; cierres de turno incluyen totales por método. 6.0: Caja usa una sola fuente (store → backend); sin query duplicada; tesorería desde tabla `transactions`.
+## Objetivo v1 (prioridad máxima)
 
-**Resumen de lo desarrollado (revisión 1 feb 2025):**
-
-| Área | Implementado |
-|------|--------------|
-| **Backend** | SQLite en `app_data_dir/coco_parking.db`; migraciones en `db.rs` (v5: users, roles, role_permissions; v7: drive_config legacy sin uso); dominios vehiculos (list, register, process_exit, find_by_plate, get_vehicles_by_plate, delete, plate_conflicts, resolve_conflict, get_plate_debt, **get_total_debt**, **list_debtors**), caja (get_treasury, get_debug, close_shift, list_shift_closures), metricas (get_daily), roles (list_roles, list_users, create_user, update_user, set_password, delete_user, get_role_permissions, update_role_permissions, get_permissions_for_user — persistidos en BD), auth (login, logout, get_session); **backup** (backup_create(path), backup_restore(path); permisos backup:create, backup:restore, backup:list:read); permiso **caja:debtors:read**; dev_*; scanner HID → evento `barcode-scanned`. |
-| **Frontend** | Rutas: login (Tauri), vehicles, till, **debtors**, metrics, roles, backup, dev-console; useParkingStore, useSession, useMyPermissions; AuthGate; LoginPage; RolesPage; VehiculosPage, CajaPage, **DebtorsPage**, MetricasPage, CheckoutPanel; **Backup (5.1):** BackupPage con Export y Restore según permisos; i18n es/en. **UI según permisos (4.2):** nav oculto por permiso, redirección si ruta sin permiso, botones/acciones ocultos o deshabilitados (Caja cierre turno, Roles CRUD, Vehículos entrada/checkout, Métricas exportar, Backup export/restore); i18n es/en. **Deudores (8.1):** página /debtors con total de deuda y tabla paginada; permiso caja:debtors:read. |
-| **Tests** | Frontend: useParkingStore.test.ts, barcode-scanner.test.ts, example.test.ts, i18n.test.tsx; Backend: db::tests, scanner tests. |
-
-**Nota para Scrum (consultoría datos, 1 feb 2025):** Se realizó una revisión de conexiones a BD, tablas, sincronización y acceso a Caja/Métricas. Cambios aplicados: (1) Backend: `TreasuryData` incluye `dataSource` (`transactions` | `vehiclesLegacy`) cuando Caja usa fallback desde `vehicles`. (2) Frontend: Pantalla Caja usa **una sola fuente** — solo datos del store (`useParkingStore`), sin query duplicada ni fallback entre query y store; se muestra aviso cuando los datos vienen de `vehiclesLegacy`. (3) Documento **CONSULTORIA_DATOS.md** con recomendaciones y nueva historia 6.0. **Actualizar tablero** si se incorpora la historia 6.0 (Caja y métricas: una sola fuente y robustez).
-
-**Nota para Scrum (arquitectura datos y rendimiento, 1 feb 2025):** Se ha realizado un **análisis de arquitectura de datos y rendimiento** (escalabilidad, data-flow, caché, auditoría de queries). Ver **[ARQUITECTURA_DATOS_PERFORMANCE.md](./ARQUITECTURA_DATOS_PERFORMANCE.md)**. Se ha añadido la **Épica 7** (Arquitectura de datos y rendimiento) con historias 7.1–7.4. **La prioridad de esta épica corresponde al profesional Scrum / PO** — puede ser prioridad si se decide que escalabilidad y rendimiento son críticos en los próximos sprints.
-
-**Para el profesional Scrum / SM — actualizar tablero (commit backup + Drive eliminado):** Se ha implementado **backup real (5.1)** y se ha **eliminado la sección Drive** (antes solo placeholder «en desarrollo»). **Acciones:** (1) Mover **5.1 (Backup real)** a Hecho en el tablero. (2) Marcar **5.2 (Sincronización Drive)** como Eliminada / fuera de alcance; quitar del tablero activo o archivarla. (3) Actualizar vista de Épica 5 a «Backup» (sin Drive). (4) Comunicar al equipo: respaldo solo local (Export/Restore); no hay integración con nube. Commit de referencia: `feat(backup): implement real export/restore; remove Drive placeholder (5.1)`.
-
-Las historias están ordenadas por épica y prioridad dentro de la épica. Los puntos son orientativos (Fibonacci: 1, 2, 3, 5, 8).
+**El backlog v1 culmina en generar el instalador para Windows y validar que la instalación funciona correctamente.** El programa se instalará en **Windows**. Todas las épicas e historias nuevas están priorizadas para alcanzar este objetivo.
 
 ---
 
-## Épica 1: Fuente única de verdad y persistencia
+## Resumen de avance (Épicas 1–8)
 
-**Objetivo:** Los datos de vehículos y operaciones viven en el backend; frontend solo consume y presenta.
-
-| ID   | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
-|------|----------|--------|---------|--------|--------------------------|-----|--------|
-| 1.1  | Persistencia backend | sistema | persistir entradas y salidas de vehículos en el backend (SQLite o archivo) | que no dependan de localStorage y haya una sola fuente de verdad | • Backend escribe/lee entradas y salidas en almacén persistente.<br>• Comandos `register_entry`, `register_exit` persisten y devuelven datos guardados.<br>• Reinicio de app no pierde datos. | 8 | **Hecho** |
-| 1.2  | Listado desde backend | operador | que el listado de vehículos activos y la búsqueda por matrícula vengan del backend | tener datos consistentes en cualquier sesión o ventana | • `vehiculos_list_vehicles` devuelve vehículos realmente persistidos.<br>• Búsqueda por matrícula usa backend y devuelve resultados correctos.<br>• Frontend consume estos datos y deja de usar solo localStorage para el listado principal. | 5 | **Hecho** |
-| 1.3  | Caja y métricas desde mismo almacén | sistema | que caja y métricas lean del mismo almacén que vehículos | evitar duplicación y desalineación front/back | • Comandos de caja y métricas usan el mismo almacén que vehículos.<br>• No hay cálculo duplicado de tesorería o métricas solo en frontend. | 5 | **Hecho** |
+**Hecho:** Historias 1.1–1.3, 2.1–2.3, 3.1–3.2, 4.1–4.2, 5.1, 6.0–6.3, 7.1–7.4, 8.1–8.3, **9.1**. **Eliminada:** 5.2 (Sincronización Drive).  
+Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, permisos, scanner. Frontend: rutas vehicles, till, debtors, metrics, roles, backup, dev-console; permisos en nav y acciones; i18n es/en.
 
 ---
 
-## Épica 2: Caja y cierre de turno
+## Priorización v1 (Épicas 9–15)
 
-| ID   | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
-|------|----------|--------|---------|--------|--------------------------|-----|--------|
-| 2.1  | Tesorería real | cajero | ver tesorería real (esperado vs ingresado) según transacciones del día | conciliar y controlar caja | • Pantalla Caja muestra total esperado e ingresado a partir de transacciones persistidas.<br>• Datos provienen del backend. | 5 | **Hecho** |
-| 2.2  | Cierre de turno | cajero | cerrar turno con resumen y posible arqueo | dejar registrado el cierre y la diferencia | • Comando/flujo de cierre de turno persiste resumen (total, método de pago, arqueo).<br>• Se puede consultar historial de cierres. | 5 | **Hecho** |
-| 2.3  | Método de pago por transacción | cajero | registrar método de pago (efectivo/tarjeta/transferencia) por transacción | tener trazabilidad y reportes por tipo de pago | • Cada transacción de salida permite elegir método de pago.<br>• Se persiste y se refleja en tesorería y reportes. | 3 | **Hecho** |
-
----
-
-## Épica 3: Métricas y reportes
-
-| ID   | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
-|------|----------|--------|---------|--------|--------------------------|-----|--------|
-| 3.1  | Métricas desde datos persistentes | admin | ver métricas diarias calculadas desde datos persistentes | tomar decisiones con datos fiables | • `metricas_get_daily` (o equivalente) calcula desde el almacén persistente.<br>• Pantalla Métricas muestra datos coherentes con vehículos y caja. | 3 | **Hecho** |
-| 3.2  | Exportar reportes | admin | exportar reportes (CSV/PDF) con filtros de fecha | analizar y compartir datos | • Exportación CSV/PDF con rango de fechas.<br>• Contenido alineado con datos persistidos.<br>• **Refinamiento:** Reporte por defecto con headers configurables (selección de columnas por tipo de reporte). Filtros (fechas y según tipo: método de pago, tipo de vehículo, etc.). Vista previa del reporte en pantalla (mismos headers y filtros) antes de exportar; opción de exportar desde la vista previa. Tipos de reporte predefinidos (transacciones, vehículos completados, cierres de turno, transacciones + datos vehículo); las tablas se cruzan vía JOIN en backend — no se requieren tablas dinámicas. | 5 | **Hecho** |
+| Prioridad | Épica | Objetivo | Responsable típico |
+|-----------|--------|----------|--------------------|
+| **P0** | 15. Instalador Windows | Build e instalador para Windows; verificación de instalación | DevOps / Tech Lead |
+| **P1** | 9. Seguridad | Bloqueo inyección SQL/HTML/XSS; validación y documentación | Arquitecto / Ciberseguridad |
+| **P1** | 10. Métricas UI y datos reales | Horas pico reales, layout Métricas, mapa de calor por tiempo, rango fechas | Tech Lead / Frontend |
+| **P1** | 11. Tema y tipografía | Fondo no blanco sólido, modo suave, tipografía legible/ajustable | UI/UX |
+| **P1** | 12. Responsive | Adaptación a distintos tamaños de ventana en escritorio | Frontend |
+| **P1** | 13. Historial y búsqueda | Historial por placa, búsqueda progresiva, acceso rápido "Vehículos de hoy" | Tech Lead / Frontend |
+| **P2** | 14. Herramientas avanzadas | Export datos crudos / Excel / gráficos personalizados (backlog v1.1) | PM / Backlog |
 
 ---
 
-## Épica 4: Roles y usuarios
+## Épica 9: Seguridad (inyección y validación)
 
-| ID   | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
-|------|----------|--------|---------|--------|--------------------------|-----|--------|
-| 4.1  | Usuarios y roles persistentes | admin | gestionar usuarios y asignación de roles de forma persistente | tener equipos y permisos estables | • CRUD de usuarios y asignación de roles persistidos en backend.<br>• Login/identificación usa esos usuarios (o al menos admin puede gestionarlos). | 8 | **Hecho** |
-| 4.2  | UI según permisos | operador/cajero | que en frontend se oculten o deshabiliten acciones para las que no tengo permiso | no ver opciones que no puedo usar | • Rutas o acciones restringidas según permisos devueltos por backend.<br>• Botones/links deshabilitados u ocultos cuando no hay permiso. | 5 | **Hecho** |
+**Objetivo:** Bloqueo frente a inyección SQL, HTML/XSS y postura documentada. Prioridad P1 para v1.
 
----
-
-## Épica 5: Backup
-
-| ID   | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
-|------|----------|--------|---------|--------|--------------------------|-----|--------|
-| 5.1  | Backup real | admin | hacer backup real de datos (export/import) con ruta seleccionable | recuperar ante fallos | • Backup exporta datos del almacén a archivo en ruta elegida.<br>• Restore importa desde archivo y deja datos consistentes. | 5 | **Hecho** |
-| 5.2  | Sincronización Drive | admin | — | — | Eliminada del producto; solo se mantiene backup local (export/restore). | — | **Eliminada** |
+| ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
+|----|----------|--------|---------|--------|--------------------------|-----|--------|
+| 9.1 | Bloqueo inyección SQL/HTML/XSS | sistema / admin | que las entradas de usuario no permitan inyección SQL ni HTML/XSS | evitar explotación y datos corruptos | • Backend: todas las consultas SQL usan parámetros (ya aplicado); documentar postura en README o doc de seguridad.<br>• Frontend: sanitizar o escapar cualquier texto que el usuario introduce y se renderiza (placas, observaciones, notas); no usar dangerouslySetInnerHTML con input de usuario.<br>• Opcional: cabeceras CSP en webview Tauri si aplica. | 3 | **Hecho** |
 
 ---
 
-## Épica 6: Robustez y operación
+## Épica 10: Métricas — UI y datos reales
 
-| ID   | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
-|------|----------|--------|---------|--------|--------------------------|-----|--------|
-| 6.0  | Caja y métricas: una sola fuente y robustez | cajero/admin | que Caja y Métricas usen una sola fuente de datos y se indique el origen cuando sea fallback | conciliar y confiar en los datos | • Caja en frontend usa solo datos del store (sin query duplicada).<br>• Tesorería indica origen (`transactions` vs `vehiclesLegacy`) cuando se use fallback.<br>• Pantalla Caja muestra aviso cuando datos vengan de `vehiclesLegacy`.<br>• Opcional: en error al cargar métricas/tesorería, mostrar mensaje de error en lugar de solo ceros. | 3 | **Hecho** (consultoría 1 feb 2025) |
-| 6.1  | Errores y reintentos Tauri | operador | que las llamadas a Tauri tengan manejo de errores y reintentos | no perder operaciones por fallos puntuales | • Errores de invoke mostrados al usuario de forma clara.<br>• Reintentos configurables donde aplique (ej. red). | 3 | **Hecho** |
-| 6.2  | Documentar permisos escáner | desarrollador/admin | documentar requisitos de permisos en Linux para el escáner (grupo `input`) | facilitar despliegue | • README o docs con pasos para grupo `input` y troubleshooting. | 1 | **Hecho** |
-| 6.3  | Tests E2E/integración | equipo | tests E2E o de integración para flujo entrada → salida → caja | evitar regresiones en el flujo core | • Al menos un test automatizado que cubra entrada, salida y caja (con Tauri/WebDriver o similar). | 5 | **Hecho** |
+**Objetivo:** Horas pico con datos reales, layout correcto en Métricas, mapa de calor con datos reales (por tiempo, no por spots), y rango de fechas para métricas. Prioridad P1 para v1.
 
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 6.3):** La historia **6.3 (Tests E2E/integración)** está **Hecho**. **Actualizar tablero**: mover 6.3 a Hecho. Criterios de aceptación verificados: (1) **Backend (Rust)**: test de integración en `app/src-tauri/src/db.rs` — `integration_entry_exit_caja_flow` — que abre BD temporal, inserta vehículo (entrada), actualiza vehículo e inserta transacción (salida con pago), consulta tesorería del día y comprueba que el importe aparece. Ejecutar con `cargo test integration_entry_exit_caja_flow` desde `app/src-tauri`. (2) **Frontend (Vitest)**: test de integración en `app/src/test/entry-exit-caja.integration.test.ts` que simula entorno Tauri, mockea `invoke` para `vehiculos_register_entry`, `vehiculos_process_exit` y `caja_get_treasury`, ejecuta el flujo (registro → salida con pago) con `useParkingStore` y comprueba que se invocan los tres comandos. Ejecutar con `npm run test` o `npx vitest run src/test/entry-exit-caja.integration.test.ts`.
-
----
-
-## Épica 7: Arquitectura de datos y rendimiento (prioridad a criterio de SM/PO)
-
-**Objetivo:** Escalabilidad, menor latencia y uso eficiente de recursos (BD, CPU, RAM, intercambio Frontend–Backend). Base: [ARQUITECTURA_DATOS_PERFORMANCE.md](./ARQUITECTURA_DATOS_PERFORMANCE.md).
-
-| ID   | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
-|------|----------|--------|---------|--------|--------------------------|-----|--------|
-| 7.1  | Paginación del listado de vehículos | sistema / operador | que el listado de vehículos sea paginado (o con límite) en backend y frontend | soportar crecimiento masivo sin degradar rendimiento | • Backend: `vehiculos_list_vehicles` acepta `limit` (y opcionalmente `offset` o cursor).<br>• Frontend: listado paginado o virtualizado; no cargar todos los registros a la vez. | 5 | **Hecho** |
-| 7.2  | Optimización de consultas Caja y Métricas | sistema | que Caja y Métricas obtengan sus datos en menos consultas a la BD | reducir latencia y carga en SQLite | • `caja_get_treasury`: una sola query agregada (COUNT + SUM por método).<br>• `metricas_get_daily`: reducir a 1–2 consultas con agregaciones. | 3 | **Hecho** |
-| 7.3  | Invalidación selectiva y proyecciones | sistema | que tras una mutación solo se invaliden/refetch las queries afectadas y que el listado pueda pedir solo campos necesarios | minimizar latencia y desperdicio de JSON | • Invalidación selectiva: tras entrada/salida no refetch todo `['parking']`; solo vehicles (y treasury/métricas según corresponda).<br>• Opcional: DTO resumido para listado (proyección) y uso en frontend. | 3 | **Hecho** |
-| 7.4  | Búsqueda por placa e índices | sistema | que la búsqueda por placa use índice y que consultas por estado/fecha sean más eficientes | evitar full scan y preparar crecimiento | • Búsqueda por placa sin impedir índice (normalización de placa o columna `plate_upper`).<br>• Índice compuesto (status, exit_time) en vehicles para consultas “completados hoy”. | 2 | **Hecho** |
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 7.4):** La historia **7.4 (Búsqueda por placa e índices)** está **Hecho**. **Actualizar tablero**: mover 7.4 a Hecho. Criterios de aceptación verificados: (1) **Búsqueda por placa con índice**: se añadió la columna `plate_upper` en `vehicles` (migración 8), índice `idx_vehicles_plate_upper` y normalización en aplicación (`normalize_plate_for_index`). Todas las consultas por placa usan `plate_upper = ?1` con valor normalizado (trim + uppercase), evitando full scan. En INSERT se persiste `plate_upper`. (2) **Índice compuesto (status, exit_time)**: creado `idx_vehicles_status_exit_time` para consultas "completados hoy" y reportes por rango de fecha (reportes y métricas aprovechan el índice).
-
-**Nota para Scrum (1 feb 2025):** La **prioridad** de esta épica (y si se planifica en el próximo sprint o más adelante) queda a criterio del **profesional Scrum / Product Owner**. Puede ser prioridad alta si se espera alto volumen de registros o múltiples puestos; media si el volumen se mantiene bajo.
+| ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
+|----|----------|--------|---------|--------|--------------------------|-----|--------|
+| 10.1 | Horas pico con datos reales | admin | ver horas pico calculadas desde transacciones/entradas reales | tomar decisiones con datos fiables | • Backend: comando o extensión de métricas que devuelva ocupación o número de transacciones por franja horaria (ej. por hora del día) para la fecha o rango indicado.<br>• Frontend: reemplazar datos fijos en el bloque "Horas pico" por datos del backend; mismo formato (franja, porcentaje o cantidad). | 5 | Por hacer |
+| 10.2 | Layout Métricas clave y Exportar reportes | admin | que al abrir la previsualización de reportes no se expanda el bloque de Métricas clave dejando espacio en blanco | no perder contexto visual | • "Métricas clave" y "Exportar reportes" no comparten la misma celda de grid que crece con la previsualización.<br>• Exportar reportes en su propia fila o columna; al expandir la previsualización solo ese bloque crece; Métricas clave mantiene altura estable. | 2 | Por hacer |
+| 10.3 | Mapa de calor por ocupación en el tiempo | admin | ver un mapa de calor con datos reales (ocupación por hora/día) y poder elegir rango de fechas | entender patrones de uso | • Backend: comando que devuelva datos para mapa de calor por tiempo (ej. ocupación o transacciones por hora del día, o por día del mes), con rango de fechas (date_from, date_to).<br>• Frontend: reemplazar el grid actual (datos aleatorios) por visualización con datos reales; selector de rango de fechas; leyenda comprensible (bajo/medio/alto).<br>• Nota: mapa de calor por "estacionamientos" (spots físicos) queda fuera de v1; no existe entidad spot ni asignación de vehículo a spot. | 5 | Por hacer |
+| 10.4 | Rango de fechas para métricas | admin | filtrar métricas y gráficos (horas pico, mapa de calor) por rango de fechas (día, mes, año) | analizar periodos concretos | • Pantalla Métricas: filtro de rango de fechas (desde/hasta) aplicado a horas pico, mapa de calor y, si se desea, a métricas clave (o mantener "hoy" por defecto para KPIs).<br>• Backend: métricas diarias extendidas o nuevo comando que acepte date_from/date_to donde corresponda. | 3 | Por hacer |
 
 ---
 
-## Épica 8: Deudores (prioridad a criterio de SM/PO)
+## Épica 11: Tema, tipografía y accesibilidad visual
 
-**Objetivo:** Que el cajero/admin pueda ver quiénes deben, cuánto deben (total general y por placa), desde cuándo, y opcionalmente cuándo pagaron y cuánto han pagado. Base: [ANALISIS_DEUDA_FRONTEND_BD.md](./ANALISIS_DEUDA_FRONTEND_BD.md). **Las bases de datos están preparadas** (no se requieren cambios de esquema).
+**Objetivo:** Reducir fatiga visual: fondos no sólidos blancos, modo "suave" (no oscuro), tipografía legible y ajustable. Prioridad P1 para v1.
 
-| ID   | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
-|------|----------|--------|---------|--------|--------------------------|-----|--------|
-| 8.1  | Lista de deudores y deuda total | cajero/admin | ver el total de deuda pendiente (general) y una lista de placas con deuda (quién debe, cuánto, desde cuándo) | saber cuánto me deben en total y a quién cobrar | • Backend: comando que devuelva el total de deuda pendiente (SUM(debt) en vehicles con debt > 0).<br>• Backend: comando que devuelva lista de deudores (plate, totalDebt, sessionsWithDebt, oldestExitTime) con paginación (limit/offset).<br>• Frontend: sección o página "Deudores" (ruta ej. /debtors) con total general y tabla (placa, deuda total, desde cuándo, opcional nº sesiones).<br>• Permiso de lectura para la vista (ej. caja:debtors:read o vehiculos:debtors:read). | 5 | **Hecho** |
-| 8.2  | Detalle de deuda por placa | cajero/admin | al elegir una placa de la lista, ver las sesiones con deuda (entrada/salida, monto de deuda) y los pagos asociados (cuándo pagó, cuánto, método) | entender el historial de esa placa y qué pagó | • Backend: comando o reutilización que devuelva, para una placa, los vehículos con debt > 0 (id, ticket, entry_time, exit_time, debt, total_amount) y las transacciones de esos vehículos (created_at, amount, method).<br>• Frontend: drill-down desde la lista de deudores: al hacer clic en una placa, ver sesiones con deuda y pagos (cuándo pagó, cuánto, método). | 5 | **Hecho** |
-| 8.3  | Reporte o export de deudores | admin | exportar (CSV) o incluir en reportes la lista de deudores (placa, deuda, desde cuándo) | analizar o compartir datos de cobranza | • Incluir tipo de reporte "deudores" (o equivalente) en exportación de Métricas/reportes, o comando de export dedicado.<br>• Columnas: placa, deuda total, desde cuándo (oldest exit), nº sesiones con deuda. | 3 | **Hecho** |
-
-**Para el profesional Scrum / SM (1 feb 2025 — Épica 8):** La **priorización** de la Épica 8 (Deudores) corresponde al **Scrum Master / Product Owner**. Actualizar el tablero con las historias 8.1, 8.2, 8.3 y decidir en qué sprint(s) se planifican. No se requieren cambios en el esquema de BD; solo nuevos comandos backend y nueva vista/sección en frontend.
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 8.1):** La historia **8.1 (Lista de deudores y deuda total)** está **Hecho**. **Actualizar tablero**: mover 8.1 a Hecho. Criterios de aceptación verificados: (1) **Backend**: `vehiculos_get_total_debt()` devuelve SUM(debt) en vehicles con debt > 0. (2) **Backend**: `vehiculos_list_debtors(limit?, offset?)` devuelve lista de deudores (plate, totalDebt, sessionsWithDebt, oldestExitTime) con paginación. (3) **Frontend**: página "Deudores" en ruta `/debtors` con total general y tabla (placa, deuda total, desde cuándo, nº sesiones con deuda) y paginación. (4) **Permiso**: `caja:debtors:read` para la vista; rol operator y admin tienen el permiso; nav y ruta protegidos.
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 8.2):** La historia **8.2 (Detalle de deuda por placa)** está **Hecho**. **Actualizar tablero**: mover 8.2 a Hecho. Criterios de aceptación verificados: (1) **Backend**: `vehiculos_get_debt_detail_by_plate(plate)` devuelve para la placa: sesiones con debt > 0 (id, ticket_code, entry_time, exit_time, debt, total_amount) y transacciones de esos vehículos (created_at, amount, method). Permiso `caja:debtors:read`. (2) **Frontend**: en la página Deudores, al hacer clic en una placa se abre un diálogo con: tabla de sesiones con deuda (ticket, entrada, salida, deuda, monto total) y tabla de pagos (cuándo pagó, monto, método). Hint "Click a plate to view sessions and payments" en la lista.
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 8.3):** La historia **8.3 (Reporte o export de deudores)** está **Hecho**. **Actualizar tablero**: mover 8.3 a Hecho. Criterios de aceptación verificados: (1) **Tipo de reporte "deudores" en exportación de Métricas/reportes**: en la sección "Exportar reportes" de la pantalla Métricas se añadió el tipo de reporte "Deudores" (backend `ReportType::Debtors`). (2) **Columnas**: placa, deuda total (total_debt), desde cuándo (oldest_exit_time), nº sesiones con deuda (sessions_with_debt). (3) Vista previa, exportación CSV y PDF disponibles para el reporte Deudores; no se aplican filtros de fecha (lista actual de deudores). (4) Permisos: `metricas:reports:export` y `caja:debtors:read` para previsualizar y exportar el reporte de deudores.
-
-**Actualización para Scrum (1 feb 2025) – Historia 7.1 Hecho:** Paginación del listado de vehículos implementada. Backend: `vehiculos_list_vehicles` acepta `limit`, `offset` y opcionalmente `status` ('active'|'completed'); devuelve `{ items, total }`. Límite por defecto 50, máximo 500. Se añadió `vehiculos_find_by_ticket` para que el escaneo por ticket funcione con listado paginado. Frontend: listado de activos paginado (20 por página), controles Anterior/Siguiente y "Página X de Y"; no se cargan todos los registros. Por favor actualizar el tablero y el avance de la épica 7.
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 7.2):** La historia **7.2 (Optimización de consultas Caja y Métricas)** está **Hecho**. **Actualizar tablero**: mover 7.2 a Hecho. Criterios de aceptación verificados: (1) **`caja_get_treasury`**: una sola query agregada; se obtienen COUNT(*) y SUM por método (cash/card/transfer) con `SUM(CASE WHEN LOWER(method) = '...' THEN amount ELSE 0 END)` en una única consulta a `transactions` filtrada por `created_at LIKE ?`. (2) **`metricas_get_daily`**: reducido a 2 consultas con agregaciones: (a) COUNT de vehículos activos desde `vehicles`; (b) una query con JOIN `vehicles` + `transactions` para el día que devuelve COUNT(*), SUM(amount) y SUM de minutos de estadía en una sola pasada. Con ello se reduce latencia y carga en SQLite.
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 7.3):** La historia **7.3 (Invalidación selectiva y proyecciones)** está **Hecho**. **Actualizar tablero**: mover 7.3 a Hecho. Criterios de aceptación verificados: (1) **Invalidación selectiva**: en `useParkingStore` ya no se invalida/refetch todo `['parking']` tras mutaciones. Tras **entrada** (`register_entry`): solo se invalidan `['parking','vehicles']` y `['parking','metrics']`. Tras **salida** (`process_exit`): solo vehicles, treasury y metrics. Tras **cierre de turno**: solo `shiftClosures` y treasury. Tras **eliminar vehículo** o **resolver conflicto de placa**: solo vehicles (y metrics en delete). El botón manual «Actualizar» en Caja/Métricas sigue usando `invalidateParking()` (invalida todas las queries bajo `['parking']` sin forzar refetch global). (2) **Proyección (opcional)**: no implementada; el listado sigue usando el DTO completo de `vehiculos_list_vehicles`. Puede abordarse en una historia futura si se requiere reducir payload JSON.
+| ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
+|----|----------|--------|---------|--------|--------------------------|-----|--------|
+| 11.1 | Fondo y tarjetas no blanco sólido | usuario | que el fondo y las tarjetas no sean blanco puro para no cansar la vista | confort visual | • Sustituir blanco sólido (card, background) por tonos claros no sólidos (ej. gray-50, bone, variaciones suaves).<br>• Mantener contraste accesible y tonos claros. | 2 | Por hacer |
+| 11.2 | Modo suave (no oscuro) | usuario | un tema intermedio con tonos más suaves para los ojos, no dark completo | reducir impacto visual | • Añadir tema "suave" (ej. grises claros, tonos neutros) como opción; no sustituir dark actual si existe, sino ofrecer tercera opción o sustituir dark por este modo suave según decisión de producto. | 3 | Por hacer |
+| 11.3 | Tipografía legible y ajustable | usuario | que la tipografía sea legible y, si es posible, ajustable (tamaño o zoom) | accesibilidad | • Tamaño de fuente base suficiente para lectura cómoda.<br>• Opción de ajuste: control de zoom global (ej. 90 %, 100 %, 110 %) o selector de tamaño de fuente (pequeño/medio/grande) persistido en preferencias. | 3 | Por hacer |
 
 ---
 
-## Resumen por épica
+## Épica 12: Responsive en escritorio
 
-| Épica | Historias | Puntos totales |
-|-------|-----------|----------------|
-| 1. Fuente única de verdad | 3 | 18 |
-| 2. Caja y cierre de turno | 3 | 13 |
-| 3. Métricas y reportes | 2 | 8 |
-| 4. Roles y usuarios | 2 | 13 |
-| 5. Backup | 2 | 5 |
-| 6. Robustez y operación | 4 | 12 |
-| 7. Arquitectura de datos y rendimiento | 4 | 13 |
-| 8. Deudores | 3 | 13 |
-| **Total** | **23** | **95** |
+**Objetivo:** Que la aplicación de escritorio se adapte correctamente a distintos tamaños de ventana. Prioridad P1 para v1.
+
+| ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
+|----|----------|--------|---------|--------|--------------------------|-----|--------|
+| 12.1 | Layout responsive a tamaño de ventana | usuario | que al redimensionar la ventana el contenido se adapte sin overflow horizontal ni bloques rotos | usabilidad en distintos monitores | • Grids y contenedores usan breakpoints o unidades flexibles (%, min/max, clamp) para adaptarse al ancho de ventana.<br>• Tablas con scroll horizontal si es necesario; navegación y acciones accesibles en ventanas pequeñas.<br>• Revisión en ventana pequeña, estándar y grande. | 3 | Por hacer |
+
+---
+
+## Épica 13: Historial y búsqueda por placa
+
+**Objetivo:** Buscar historial de un coche por placa, búsqueda progresiva y acceso rápido a "Vehículos de hoy". Prioridad P1 para v1.
+
+| ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
+|----|----------|--------|---------|--------|--------------------------|-----|--------|
+| 13.1 | Historial por placa | operador/admin | buscar el historial de un coche por su placa (activos + completados) | consultar sesiones y pagos de esa placa | • Pantalla o sección "Historial por placa" (o integrada en Vehículos): campo placa y tabla con todos los vehículos de esa placa (vehiculos_get_vehicles_by_plate).<br>• Columnas: ticket, placa, tipo, entrada, salida, estado, monto/deuda según corresponda; opcional enlace a detalle deuda si aplica. | 5 | Por hacer |
+| 13.2 | Búsqueda progresiva por placa | operador | que al escribir más caracteres de la placa se reduzcan las coincidencias mostradas | encontrar más rápido el vehículo o historial | • En la búsqueda por placa (y donde se liste por placa): consulta al backend con debounce (ej. ≥2 caracteres); resultados que coincidan con el texto introducido; listado que se actualiza al seguir escribiendo. | 3 | Por hacer |
+| 13.3 | Acceso rápido "Vehículos de hoy" | operador | ver desde un solo lugar los vehículos del día (activos y ya pagados) sin ir a Métricas y aplicar filtros | menos clics para una consulta frecuente | • Enlace o sección "Vehículos de hoy" (en nav o en Vehículos) que muestre listado de vehículos con entrada o salida hoy (activos + completados hoy); filtro de fecha "hoy" aplicado por defecto; sin pasar por Métricas ni varios clics. | 3 | Por hacer |
+
+---
+
+## Épica 14: Herramientas avanzadas (backlog v1.1)
+
+**Objetivo:** Valorar herramientas para que el cliente calcule otras métricas: gráficos propios, tablas dinámicas, exportar datos para Excel. **No forma parte del alcance v1**; prioridad P2 / v1.1.
+
+| ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
+|----|----------|--------|---------|--------|--------------------------|-----|--------|
+| 14.1 | Exportar datos crudos o Excel / gráficos personalizados | admin | exportar datos en bruto o crear mis propios gráficos/tablas dinámicas (o llevarlos a Excel) | análisis flexible | • Opción de exportar datos crudos (CSV/Excel) de tablas relacionales con filtros básicos.<br>• Opcional: herramienta interna para gráficos con tablas dinámicas o unión de datos; si no, al menos export suficiente para hacerlo en Excel.<br>• **Alcance:** backlog v1.1; no bloqueante para instalador v1. | 8 | Backlog |
+
+---
+
+## Épica 15: Instalador Windows (objetivo v1)
+
+**Objetivo:** Generar instalador para Windows y validar que la instalación funciona. **Prioridad P0**; el backlog v1 culmina aquí.
+
+| ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
+|----|----------|--------|---------|--------|--------------------------|-----|--------|
+| 15.1 | Build e instalador Windows | DevOps / equipo | que el proyecto genere un instalador para Windows (Tauri) de forma reproducible | entregar al cliente en Windows | • Script o pipeline (CI) que ejecute build Tauri para Windows y genere el artefacto de instalación (ej. .msi o .exe según configuración Tauri).<br>• Documentar requisitos (Node, Rust, versiones) y pasos para generar el instalador.<br>• **Entorno objetivo:** Windows. | 5 | Por hacer |
+| 15.2 | Verificación de instalación en Windows | QA / equipo | tener un checklist para probar que la instalación en Windows funciona correctamente | asegurar que el usuario final puede instalar y usar la app | • Checklist: instalar desde el instalador, arrancar app, login, flujo básico (entrada, salida, caja), permisos, cierre de turno, backup export/restore (opcional).<br>• Documentar resultado y requisitos de sistema (Windows 10/11, etc.). | 2 | Por hacer |
+
+---
+
+## Resumen por épica (incluye v1)
+
+| Épica | Historias | Puntos | Estado |
+|-------|-----------|--------|--------|
+| 1. Fuente única de verdad | 3 | 18 | Hecho |
+| 2. Caja y cierre de turno | 3 | 13 | Hecho |
+| 3. Métricas y reportes | 2 | 8 | Hecho |
+| 4. Roles y usuarios | 2 | 13 | Hecho |
+| 5. Backup | 2 | 5 | Hecho (5.2 Eliminada) |
+| 6. Robustez y operación | 4 | 12 | Hecho |
+| 7. Arquitectura de datos y rendimiento | 4 | 13 | Hecho |
+| 8. Deudores | 3 | 13 | Hecho |
+| **9. Seguridad** | 1 | 3 | Hecho |
+| **10. Métricas UI y datos reales** | 4 | 15 | Por hacer |
+| **11. Tema y tipografía** | 3 | 8 | Por hacer |
+| **12. Responsive** | 1 | 3 | Por hacer |
+| **13. Historial y búsqueda** | 3 | 11 | Por hacer |
+| 14. Herramientas avanzadas | 1 | 8 | Backlog v1.1 |
+| **15. Instalador Windows** | 2 | 7 | Por hacer |
+| **Total (v1 activo)** | **33** | **~145** | — |
+
+---
+
+## Diálogo de producto (resumen de acuerdos)
+
+**Nota para Scrum Master (actualización 9.1):** Historia 9.1 (Bloqueo inyección SQL/HTML/XSS) completada. Backend: postura documentada en `app/SECURITY.md` y `app/README.md` (solo consultas parametrizadas). Frontend: utilidad `escapeForAttribute` en `app/src/lib/escape.ts` para atributos; React escapa texto en nodos; no se usa `dangerouslySetInnerHTML` con input de usuario (chart.tsx solo inyecta CSS interno). CSP opcional aplicada en `app/src-tauri/tauri.conf.json` (`app.security.csp`). Actualizar estado en backlog y en refinamiento.
+
+**Scrum Master:** Resumimos el feedback: seguridad (SQL/HTML/XSS), métricas (horas pico reales, layout, mapa de calor, rango fechas), tema (no blanco sólido, modo suave, tipografía), responsive, historial por placa, búsqueda progresiva, acceso rápido "Vehículos de hoy", y que v1 culmine en instalador Windows.
+
+**PM:** Priorizamos v1 = instalador Windows listo para probar instalación. Incluimos en v1: seguridad, métricas con datos reales y layout, tema/tipografía, responsive, historial por placa y acceso rápido. Gráficos personalizados / Excel / tablas dinámicas los dejamos para v1.1.
+
+**Arquitecto:** SQL ya está parametrizado; documentamos postura y aseguramos validación/sanitización en frontend para XSS. Sin cambios de esquema para v1.
+
+**Tech Lead:** Horas pico y mapa de calor requieren backend por tiempo (franjas horarias/día); mapa por "estacionamientos" no está en modelo, lo dejamos para después. Layout de Métricas: Exportar reportes en fila propia para que no arrastre a Métricas clave.
+
+**Ciberseguridad:** Validar y escapar inputs que se renderizan; no usar HTML crudo de usuario. Documentar en README o doc de seguridad.
+
+**UI/UX:** Fondo y cards en tonos claros no sólidos; tema "suave"; tipografía base legible y control de zoom o tamaño. Responsive en ventana para distintos tamaños.
+
+**QA:** Checklist de instalación en Windows como criterio de cierre v1. Incluir smoke: login, entrada, salida, caja, permisos.
+
+**DevOps:** Build Tauri para Windows reproducible; documentar pasos y requisitos. Objetivo: instalador listo para probar en Windows.
+
+**Scrum Master:** Quedan épicas 9–15 en backlog; P0 = Épica 15 (Instalador Windows); P1 = 9, 10, 11, 12, 13; P2 = 14 (v1.1). Orden sugerido para sprints: primero 9, 10.2, 11, 12, 13 y 15.1 en paralelo donde se pueda; luego 10.1, 10.3, 10.4 y 15.2.
+
+---
+
+## Épicas 1–8 (referencia breve)
+
+Las épicas 1–8 se mantienen como referencia; todas las historias están **Hecho** salvo 5.2 (Eliminada).
+
+- **Épica 1:** Persistencia backend, listado y búsqueda desde backend, caja/métricas mismo almacén.
+- **Épica 2:** Tesorería real, cierre de turno, método de pago por transacción.
+- **Épica 3:** Métricas desde persistencia, exportar reportes CSV/PDF con filtros.
+- **Épica 4:** Usuarios y roles persistentes, UI según permisos.
+- **Épica 5:** Backup real (export/restore); 5.2 Drive eliminada.
+- **Épica 6:** Una sola fuente Caja/Métricas, errores/reintentos Tauri, documentación escáner, tests E2E/integración.
+- **Épica 7:** Paginación vehículos, optimización queries Caja/Métricas, invalidación selectiva, búsqueda por placa e índices.
+- **Épica 8:** Lista deudores y deuda total, detalle por placa, reporte/export deudores.
 
 ---
 
 ## Notas para refinamiento
 
-- **Épica 1** cerrada (1.1, 1.2, 1.3 hechas). Caja y métricas ya leen del mismo almacén que vehículos.
-- Almacenamiento backend: **SQLite** en `app_data_dir/coco_parking.db`; esquema y migraciones en `db.rs` (véase DATABASE_SCHEMA.md).
-- **Consultoría datos (CONSULTORIA_DATOS.md):** Valorar migración única de datos legacy (vehículos completados sin fila en `transactions`) para deprecar el fallback de Caja y dejar `transactions` como única fuente.
-- **Épica 7 (ARQUITECTURA_DATOS_PERFORMANCE.md):** Prioridad a criterio de SM/PO. Si se prioriza, puede planificarse después de cerrar flujo core (Épicas 1–2) o en paralelo según capacidad.
-- **Historia 3.2 (Exportar reportes):** No se requieren tablas dinámicas. Las tablas existentes (`vehicles`, `transactions`, `shift_closures`) se cruzan en backend con JOINs para reportes combinados (ej. transacciones + placa/tipo vehículo). Tipos de reporte predefinidos; el usuario elige headers por tipo, filtros y ve vista previa antes de exportar CSV/PDF.
-- **Épica 8 (Deudores — ANALISIS_DEUDA_FRONTEND_BD.md):** El frontend actual no permite ver quiénes son los deudores, qué carros deben, desde cuándo, cuándo pagaron ni cuánto han pagado; tampoco la deuda total general ni granular por placa. Las **bases de datos están preparadas** (vehicles.debt, plate_upper, transactions); no se requieren cambios de esquema. El Scrum Master debe **actualizar el backlog** con la Épica 8 e **elegir la priorización** de las tareas (8.1 lista y total, 8.2 detalle por placa, 8.3 export).
-
----
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 4.2):** La historia **4.2 (UI según permisos)** está **Hecho**. **Actualizar tablero**: mover 4.2 a Hecho. Criterios de aceptación verificados: (1) **Rutas o acciones restringidas según permisos devueltos por backend**: hook `useMyPermissions()` obtiene permisos vía `roles_get_my_permissions`; en AppLayout los enlaces del nav se filtran por permiso requerido (vehiculos:entries:read, caja:treasury:read, metricas:dashboard:read, roles:users:read, backup:list:read, dev:console:access); si el usuario accede a una ruta sin permiso se redirige a la primera ruta permitida. (2) **Botones/links deshabilitados u ocultos cuando no hay permiso**: Caja — botón "Cierre de Turno" solo si `caja:shift:close`; Roles — "Nuevo usuario" si `roles:users:create`, editar/cambiar contraseña si `roles:users:modify`, eliminar si `roles:users:delete`, editar permisos por rol deshabilitado si no `roles:permissions:read`+`modify`; Vehículos — escáner deshabilitado si no hay create ni checkout, formulario entrada solo si `vehiculos:entries:create`, panel checkout solo si `caja:transactions:create`; Métricas — sección exportar reportes solo si `metricas:reports:export`; Dev console — enlace y página según `dev:console:access`.
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 4.1):** La historia **4.1 (Usuarios y roles persistentes)** está **Hecho**. **Actualizar tablero**: mover 4.1 a Hecho. Criterios de aceptación verificados: (1) **CRUD de usuarios y asignación de roles persistidos en backend**: migración 5 en `db.rs` crea tablas `users`, `roles`, `role_permissions`; comandos `roles_list_users`, `roles_create_user`, `roles_update_user`, `roles_set_password`, `roles_delete_user`; `roles_list_roles` lee desde BD; `roles_get_role_permissions` y `roles_update_role_permissions` para asignar permisos por rol. (2) **Login/identificación usa esos usuarios**: `auth_login(username, password)` verifica contraseña (argon2), carga permisos del rol del usuario en estado y devuelve el usuario; `auth_logout` y `auth_get_session`; en Tauri la app exige login (AuthGate redirige a /login si no hay sesión). (3) **Dashboard de gestión amigable**: pantalla Roles con listado de usuarios (tabla), botón Nuevo usuario (diálogo crear con username, contraseña, nombre para mostrar, rol), editar usuario (displayName, rol), cambiar contraseña, eliminar usuario; sección Roles con botones por rol para "Editar permisos" (diálogo con checkboxes por permiso). Usuario por defecto: admin / admin (cambiar en primer uso).
-
-**Para el profesional Scrum / SM:** La historia **2.1 (Tesorería real)** está **Hecho**. Actualizar tablero (mover 2.1 a Hecho), sprint planning si aplica. Criterios de aceptación verificados: (1) Pantalla Caja muestra **total esperado** e **ingresado** (esperado vs ingresado) a partir de transacciones persistidas del día. (2) Datos provienen del backend: la pantalla consume `caja_get_treasury`; se muestra nota “Datos según transacciones del día desde el backend”, estado de carga y error, y botón Actualizar. Desglose por método de pago con porcentajes reales. La historia 1.3 sigue Hecho según la nota anterior.
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 2.2):** La historia **2.2 (Cierre de turno)** está **Hecho**. **Actualizar tablero**: mover 2.2 a Hecho. Criterios de aceptación verificados: (1) **Comando/flujo de cierre de turno persiste resumen**: tabla `shift_closures` (migración 4 en `db.rs`); comando `caja_close_shift(arqueo_cash?, notes?)` calcula total esperado desde transacciones del día, persiste resumen (expected_total, cash/card/transfer, arqueo opcional, discrepancy, total_transactions, notes). (2) **Historial de cierres**: comando `caja_list_shift_closures(limit?)` devuelve cierres ordenados por fecha; en pantalla Caja, sección "Historial de cierres" con tabla (fecha, total esperado, arqueo, discrepancia, transacciones). Flujo: botón "Cierre de Turno" abre diálogo con resumen del día, campo opcional arqueo (efectivo contado), notas; al confirmar se persiste el cierre y se actualiza el historial.
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 2.3):** La historia **2.3 (Método de pago por transacción)** está **Hecho**. **Actualizar tablero**: mover 2.3 a Hecho. Criterios de aceptación verificados: (1) **Cada transacción de salida permite elegir método de pago**: en CheckoutPanel el cajero elige efectivo, tarjeta o transferencia antes de cobrar; el valor se envía con `processExit(ticketCode, partialPayment?, paymentMethod)` al backend. (2) **Se persiste**: `vehiculos_process_exit` recibe `payment_method`, normaliza a cash/card/transfer (default cash) e inserta en tabla `transactions` (campo `method`). (3) **Se refleja en tesorería y reportes**: `caja_get_treasury` devuelve `payment_breakdown` (cash, card, transfer) desde transacciones del día; pantalla Caja muestra "Desglose por método de pago" con importes y porcentajes; cierres de turno (`shift_closures`) incluyen totales por método (cash_total, card_total, transfer_total).
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 3.1):** La historia **3.1 (Métricas desde datos persistentes)** está **Hecho**. **Actualizar tablero**: mover 3.1 a Hecho. Criterios de aceptación verificados: (1) **`metricas_get_daily` calcula desde el almacén persistente**: el comando usa SQLite (AppState.db); ingresos y número de transacciones del día provienen de la tabla `transactions` (misma fuente que Caja); conteo de vehículos activos desde `vehicles`; tiempo medio de estadía desde `vehicles` unidos a `transactions` del día. (2) **Pantalla Métricas muestra datos coherentes con vehículos y caja**: revenue y transacciones coinciden con la tesorería; la pantalla muestra estado de carga, error y nota "Datos desde el almacén persistente (coherentes con vehículos y caja)" y botón Actualizar.
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 5.2):** La historia **5.2 (Sincronización Drive)** fue **eliminada** del producto; no hay integración con Google Drive; solo backup local (5.1).
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 5.1):** La historia **5.1 (Backup real)** está **Hecho**. **Actualizar tablero**: mover 5.1 a Hecho. Criterios de aceptación verificados: (1) **Backup exporta datos del almacén a archivo en ruta elegida**: comando `backup_create(path)` recibe la ruta elegida por el usuario (frontend abre diálogo guardar con `@tauri-apps/plugin-dialog` save), usa SQLite backup API (rusqlite feature backup) para copiar la BD a esa ruta y devuelve path y size_bytes; permisos `backup:create` (admin). (2) **Restore importa desde archivo y deja datos consistentes**: comando `backup_restore(path)` recibe la ruta del archivo (frontend abre diálogo abrir, confirmación con AlertDialog), adjunta el archivo como BD, borra tablas en main en orden y copia datos desde la BD adjunta; permisos `backup:restore` (admin). Pantalla Backup: Export y Restore según permisos; i18n es/en.
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 6.1):** La historia **6.1 (Errores y reintentos Tauri)** está **Hecho**. **Actualizar tablero**: mover 6.1 a Hecho. Criterios de aceptación verificados: (1) **Errores de invoke mostrados al usuario de forma clara**: todas las llamadas a backend usan `invokeTauri` desde `@/lib/tauriInvoke`; los errores se normalizan con `parseTauriError` y se muestran en toasts (título "Error" o equivalente, descripción con el mensaje claro). (2) **Reintentos configurables donde aplique**: `invokeTauri(cmd, args, options)` acepta `maxRetries`, `retryDelayMs` y `retryCondition`; las queries usan retry por defecto en React Query (2 reintentos, backoff exponencial); operaciones como backup restore usan reintentos explícitos (ej. `maxRetries: 2`). Configuración central en `TAURI_INVOKE_RETRY_DEFAULTS` y en `QueryClient.defaultOptions.queries`.
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 6.2):** La historia **6.2 (Documentar permisos escáner)** está **Hecho**. **Actualizar tablero**: mover 6.2 a Hecho. Criterios de aceptación verificados: (1) **README o docs con pasos para grupo `input` y troubleshooting**: en **app/README.md** se añadió la sección "Barcode scanner (Linux)" con pasos para añadir el usuario al grupo `input` (`sudo usermod -aG input "$USER"`), verificación (`groups`), cierre de sesión/entrada, tabla de troubleshooting (escáner no dispara, permission denied, foco en la página Vehículos, múltiples dispositivos) y nota sobre **instalador y despliegue offline** (la app se ejecutará solo offline; el instalador futuro puede añadir al usuario a `input` o documentar el paso en la pantalla de finalización). En **app/src-tauri/README.md** se amplió la sección "Barcode scanner" con los mismos pasos para Linux y troubleshooting, y referencia al README de la app para despliegue e instalador.
-
-**Para el profesional Scrum / SM (1 feb 2025 — Historia 3.2):** La historia **3.2 (Exportar reportes)** está **Hecho**. **Actualizar tablero**: mover 3.2 a Hecho. Criterios de aceptación verificados: (1) **Exportación CSV/PDF con rango de fechas**: en Métricas, sección "Exportar reportes" con filtros fecha desde/hasta; vista previa con mismos headers y filtros; exportar CSV (descarga desde vista previa) y PDF (impresión desde vista previa). (2) **Contenido alineado con datos persistidos**: backend `reportes_fetch` y `reportes_write_csv` leen de SQLite (tablas `transactions`, `vehicles`, `shift_closures`) con JOINs. (3) **Headers configurables**: `reportes_get_column_definitions(report_type)` devuelve columnas por tipo; el usuario selecciona columnas con checkboxes; vista previa y export usan las mismas. (4) **Filtros**: fechas obligatorios; método de pago (transacciones, transacciones+vehículo); tipo de vehículo (vehículos completados, transacciones+vehículo). (5) **Tipos predefinidos**: transactions, completed_vehicles, shift_closures, transactions_with_vehicle; JOIN en backend para el último tipo.
+- **Windows:** Entorno objetivo de instalación para v1.
+- **Mapa de calor por "estacionamientos":** No existe entidad spot ni asignación vehículo→spot; queda fuera de v1; mapa de calor v1 = por ocupación en el tiempo (hora/día) con rango de fechas.
+- **Herramientas avanzadas (gráficos propios, Excel, tablas dinámicas):** Backlog v1.1; no bloqueante para v1.

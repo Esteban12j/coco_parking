@@ -85,3 +85,11 @@ The application is intended to run **offline** and will be distributed via an **
 - **Post-install note:** Include in the installer’s finish screen or in a README that “On Linux, barcode scanner requires the user to be in the `input` group. If the scanner does not work, run: `sudo usermod -aG input $USER` and then log out and back in.”
 
 See also **`app/src-tauri/README.md`** (section “Barcode scanner”) for backend details.
+
+## Security (SQL injection and XSS)
+
+- **Backend:** All SQL is executed via parameterized queries (rusqlite placeholders). No user input is concatenated into SQL.
+- **Frontend:** User-supplied text (plates, observations, notes) is never rendered as HTML. We do not use `dangerouslySetInnerHTML` with user data. React text nodes and the shared `escapeForAttribute` helper (for attributes) are used for safe rendering.
+- **Optional:** A Content Security Policy is set in `src-tauri/tauri.conf.json` under `app.security.csp` for the webview.
+
+Details: **`app/SECURITY.md`**.
