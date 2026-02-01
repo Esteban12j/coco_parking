@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invokeTauri } from "@/lib/tauriInvoke";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import { Database, Download, Upload } from "lucide-react";
 import { useTranslation } from "@/i18n";
@@ -50,7 +50,7 @@ export const BackupPage = () => {
         setExporting(false);
         return;
       }
-      await invoke<{ path: string; sizeBytes: number }>("backup_create", {
+      await invokeTauri<{ path: string; sizeBytes: number }>("backup_create", {
         path,
       });
       toast({
@@ -92,7 +92,7 @@ export const BackupPage = () => {
     if (!pendingRestorePath) return;
     setRestoring(true);
     try {
-      await invoke("backup_restore", { path: pendingRestorePath });
+      await invokeTauri("backup_restore", { path: pendingRestorePath }, { maxRetries: 2, retryDelayMs: 1000 });
       toast({
         title: t("backup.restoreSuccess"),
       });

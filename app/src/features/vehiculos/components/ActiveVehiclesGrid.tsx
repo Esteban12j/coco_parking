@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Car, Clock, AlertTriangle } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Car, Bike, Truck, CircleDot, Clock, AlertTriangle } from "lucide-react";
 import { Vehicle, VehicleType } from "@/types/parking";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -9,11 +9,11 @@ interface ActiveVehiclesGridProps {
   onSelect: (vehicle: Vehicle) => void;
 }
 
-const vehicleIcons: Record<VehicleType, string> = {
-  car: "🚗",
-  motorcycle: "🏍️",
-  truck: "🚛",
-  bicycle: "🚲",
+const vehicleIconComponents: Record<VehicleType, React.ComponentType<{ className?: string }>> = {
+  car: Car,
+  motorcycle: Bike,
+  truck: Truck,
+  bicycle: CircleDot,
 };
 
 const formatDuration = (entryTime: Date): string => {
@@ -73,8 +73,11 @@ export const ActiveVehiclesGrid = ({
               hasDebt && "ring-2 ring-destructive/30"
             )}
           >
-            <div className="text-2xl mb-2">
-              {vehicleIcons[vehicle.vehicleType]}
+            <div className="mb-2 flex items-center justify-start">
+              {(() => {
+                const Icon = vehicleIconComponents[vehicle.vehicleType];
+                return <Icon className="h-8 w-8 text-muted-foreground" />;
+              })()}
             </div>
             <p className="font-mono font-semibold text-sm truncate">
               {vehicle.plate}

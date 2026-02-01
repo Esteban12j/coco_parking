@@ -10,6 +10,7 @@ pub const PREFIX_SHIFT_CLOSURE: &str = "SC";
 pub const PREFIX_USER: &str = "US";
 #[allow(dead_code)]
 pub const PREFIX_ROLE: &str = "RL";
+#[allow(dead_code)]
 pub const PREFIX_DATABASE: &str = "DB";
 
 const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

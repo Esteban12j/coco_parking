@@ -19,7 +19,7 @@ Mocks live in `test/mocks/tauri.ts` and are loaded in `setup.ts`.
 
 ### Backend / DB
 
-- Use `mockInvoke.mockResolvedValue(...)` (or `mockRejectedValue`) before calling code that uses `invoke("vehiculos_list_vehicles")` etc.
+- Use `mockInvoke.mockResolvedValue(...)` (or `mockRejectedValue`) before calling code that uses `invokeTauri` / backend commands (e.g. `vehiculos_list_vehicles`). The app uses `@/lib/tauriInvoke` which calls `invoke` from `@tauri-apps/api/core`, so mocking that module affects all Tauri calls.
 - Reset with `mockInvoke.mockReset()` in `beforeEach` if needed.
 
 ## Where tests live

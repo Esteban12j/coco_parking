@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { invoke } from "@tauri-apps/api/core";
+import { invokeTauri } from "@/lib/tauriInvoke";
 
 const MY_PERMISSIONS_QUERY_KEY = ["auth", "myPermissions"];
 
@@ -13,7 +13,7 @@ export function useMyPermissions(enabled = true) {
   const tauri = isTauri();
   const { data: permissions = [], isLoading } = useQuery({
     queryKey: MY_PERMISSIONS_QUERY_KEY,
-    queryFn: () => invoke<string[]>("roles_get_my_permissions"),
+    queryFn: () => invokeTauri<string[]>("roles_get_my_permissions"),
     enabled: tauri && enabled,
   });
 

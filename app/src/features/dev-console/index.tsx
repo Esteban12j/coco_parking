@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { invoke } from "@tauri-apps/api/core";
+import { invokeTauri } from "@/lib/tauriInvoke";
 import { Terminal, User, Play, AlertTriangle, UserCog, ShieldX } from "lucide-react";
 import { useMyPermissions, PERMISSION_DEV_CONSOLE } from "@/hooks/useMyPermissions";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ export const DevConsolePage = () => {
 
   const loadCurrentUser = async () => {
     try {
-      const user = await invoke<string>("dev_get_current_user_id");
+      const user = await invokeTauri<string>("dev_get_current_user_id");
       setCurrentUser(user);
     } catch (e) {
       setCurrentUser("(error)");
@@ -42,7 +42,7 @@ export const DevConsolePage = () => {
 
   const loadCommands = async () => {
     try {
-      const list = await invoke<string[]>("dev_list_commands");
+      const list = await invokeTauri<string[]>("dev_list_commands");
       setCommands(list);
       if (list.length && !selectedCommand) setSelectedCommand(list[0]);
     } catch (e) {
@@ -57,7 +57,7 @@ export const DevConsolePage = () => {
 
   const loadDbPath = async () => {
     try {
-      const path = await invoke<string>("dev_get_db_path");
+      const path = await invokeTauri<string>("dev_get_db_path");
       setDbPath(path);
     } catch {
       setDbPath("");
@@ -87,7 +87,7 @@ export const DevConsolePage = () => {
   const handleLoginAsDeveloper = async () => {
     setLoading(true);
     try {
-      const msg = await invoke<string>("dev_login_as_developer");
+      const msg = await invokeTauri<string>("dev_login_as_developer");
       toast({ title: "Dev login", description: msg });
       await loadCurrentUser();
     } catch (e) {
@@ -120,7 +120,7 @@ export const DevConsolePage = () => {
         setLoading(false);
         return;
       }
-      const res = await invoke(selectedCommand, args);
+      const res = await invokeTauri(selectedCommand, args);
       setResult(typeof res === "string" ? res : JSON.stringify(res, null, 2));
     } catch (e) {
       toast({
@@ -138,7 +138,7 @@ export const DevConsolePage = () => {
     if (!setUserInput.trim()) return;
     setLoading(true);
     try {
-      await invoke("dev_set_current_user", { userId: setUserInput.trim() });
+      await invokeTauri("dev_set_current_user", { userId: setUserInput.trim() });
       toast({ title: t("devConsole.userChanged"), description: setUserInput });
       await loadCurrentUser();
     } catch (e) {

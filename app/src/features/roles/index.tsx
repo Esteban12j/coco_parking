@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { invoke } from "@tauri-apps/api/core";
+import { invokeTauri } from "@/lib/tauriInvoke";
 import { Shield, Plus, Pencil, Trash2, Key, Lock } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
@@ -57,25 +57,25 @@ export const RolesPage = () => {
 
   const usersQuery = useQuery({
     queryKey: ["roles", "users"],
-    queryFn: () => invoke<AuthUser[]>("roles_list_users"),
+    queryFn: () => invokeTauri<AuthUser[]>("roles_list_users"),
     enabled: tauri,
   });
 
   const rolesQuery = useQuery({
     queryKey: ["roles", "roles"],
-    queryFn: () => invoke<Role[]>("roles_list_roles"),
+    queryFn: () => invokeTauri<Role[]>("roles_list_roles"),
     enabled: tauri,
   });
 
   const rolePermissionsQuery = useQuery({
     queryKey: ["roles", "permissions", permissionsRole?.id],
-    queryFn: () => invoke<string[]>("roles_get_role_permissions", { roleId: permissionsRole!.id }),
+    queryFn: () => invokeTauri<string[]>("roles_get_role_permissions", { roleId: permissionsRole!.id }),
     enabled: tauri && !!permissionsRole,
   });
 
   const createUserMutation = useMutation({
     mutationFn: (args: { username: string; password: string; displayName: string; roleId: string }) =>
-      invoke<AuthUser>("roles_create_user", args),
+      invokeTauri<AuthUser>("roles_create_user", args),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles", "users"] });
       setCreateOpen(false);
@@ -88,7 +88,7 @@ export const RolesPage = () => {
 
   const updateUserMutation = useMutation({
     mutationFn: (args: { userId: string; displayName?: string; roleId?: string }) =>
-      invoke<AuthUser>("roles_update_user", args),
+      invokeTauri<AuthUser>("roles_update_user", args),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles", "users"] });
       setEditUser(null);
@@ -100,7 +100,7 @@ export const RolesPage = () => {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: (userId: string) => invoke("roles_delete_user", { userId }),
+    mutationFn: (userId: string) => invokeTauri("roles_delete_user", { userId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles", "users"] });
       setEditUser(null);
@@ -113,7 +113,7 @@ export const RolesPage = () => {
 
   const setPasswordMutation = useMutation({
     mutationFn: (args: { userId: string; newPassword: string }) =>
-      invoke("roles_set_password", args),
+      invokeTauri("roles_set_password", args),
     onSuccess: () => {
       setPasswordUser(null);
       toast({ title: t("roles.passwordUpdated") });
@@ -125,7 +125,7 @@ export const RolesPage = () => {
 
   const updateRolePermissionsMutation = useMutation({
     mutationFn: (args: { roleId: string; permissions: string[] }) =>
-      invoke("roles_update_role_permissions", args),
+      invokeTauri("roles_update_role_permissions", args),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles", "permissions"] });
       setPermissionsRole(null);

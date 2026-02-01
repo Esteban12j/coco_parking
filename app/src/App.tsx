@@ -23,7 +23,14 @@ import { DevConsolePage } from "@/features/dev-console";
 import { LoginPage } from "@/pages/Login";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+    },
+  },
+});
 
 function isTauri(): boolean {
   return typeof window !== "undefined" && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
@@ -48,7 +55,14 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
   if (isLoading) {
-    return null;
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center" role="status" aria-label="Loading">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
   }
   if (!user && location.pathname !== "/login") {
     return <Navigate to="/login" replace />;
