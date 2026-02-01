@@ -127,10 +127,25 @@ export const useParkingStore = () => {
     paymentBreakdown: { cash: 0, card: 0, transfer: 0 },
   };
 
-  const invalidateParking = useCallback(() => {
+  const invalidateParkingVehicles = useCallback(() => {
     setVehiclesPage(1);
+    queryClient.invalidateQueries({ queryKey: ['parking', 'vehicles'] });
+  }, [queryClient]);
+
+  const invalidateParkingTreasury = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['parking', 'treasury'] });
+  }, [queryClient]);
+
+  const invalidateParkingMetrics = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['parking', 'metrics'] });
+  }, [queryClient]);
+
+  const invalidateParkingShiftClosures = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['parking', 'shiftClosures'] });
+  }, [queryClient]);
+
+  const invalidateParking = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['parking'] });
-    queryClient.refetchQueries({ queryKey: ['parking'] });
   }, [queryClient]);
 
   const registerMutation = useMutation({
@@ -148,7 +163,8 @@ export const useParkingStore = () => {
     onSuccess: (vehicle) => {
       setPendingRegisterConflict(null);
       setRegisterError(null);
-      invalidateParking();
+      invalidateParkingVehicles();
+      invalidateParkingMetrics();
       setScanResult({ type: 'entry', vehicle });
     },
     onError: (err) => {
@@ -187,7 +203,9 @@ export const useParkingStore = () => {
       return vehicleFromBackend(v);
     },
     onSuccess: (vehicle) => {
-      invalidateParking();
+      invalidateParkingVehicles();
+      invalidateParkingTreasury();
+      invalidateParkingMetrics();
       setScanResult({ type: 'exit', vehicle });
     },
     onError: (err) => {
@@ -212,8 +230,8 @@ export const useParkingStore = () => {
       return { result, onSuccess: args.onSuccess };
     },
     onSuccess: (data) => {
-      invalidateParking();
-      queryClient.invalidateQueries({ queryKey: ['parking', 'shiftClosures'] });
+      invalidateParkingShiftClosures();
+      invalidateParkingTreasury();
       toast({
         title: t('till.shiftClosed'),
         description: t('till.reportGenerated'),
@@ -451,9 +469,10 @@ export const useParkingStore = () => {
   const deleteVehicle = useCallback(
     async (vehicleId: string): Promise<void> => {
       if (tauri) await invokeTauri('vehiculos_delete_vehicle', { vehicleId });
-      invalidateParking();
+      invalidateParkingVehicles();
+      invalidateParkingMetrics();
     },
-    [tauri, invalidateParking]
+    [tauri, invalidateParkingVehicles, invalidateParkingMetrics]
   );
 
   const deleteExistingAndRetryRegister = useCallback(
@@ -484,9 +503,9 @@ export const useParkingStore = () => {
       if (!tauri) return;
       await invokeTauri('vehiculos_resolve_plate_conflict', { plate, keepVehicleId });
       setPlateConflicts((prev) => prev.filter((c) => c.plate.toUpperCase() !== plate.trim().toUpperCase()));
-      invalidateParking();
+      invalidateParkingVehicles();
     },
-    [tauri, invalidateParking]
+    [tauri, invalidateParkingVehicles]
   );
 
   useEffect(() => {
