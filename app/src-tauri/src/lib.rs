@@ -21,6 +21,7 @@ use domains::{
     caja::{caja_close_shift, caja_get_debug, caja_get_treasury, caja_list_shift_closures},
     drive::{drive_get_status, drive_set_folder_id, drive_sync_now},
     metricas::metricas_get_daily,
+    reportes::{reportes_fetch, reportes_get_column_definitions, reportes_write_csv},
     roles::{
         roles_get_current_user,
         roles_get_my_permissions,
@@ -75,6 +76,9 @@ pub fn run() {
             caja_close_shift,
             caja_list_shift_closures,
             metricas_get_daily,
+            reportes_get_column_definitions,
+            reportes_fetch,
+            reportes_write_csv,
             roles_list_roles,
             roles_get_current_user,
             roles_get_my_permissions,

@@ -13,6 +13,7 @@ import { useParkingStore } from "@/hooks/useParkingStore";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ReportsExport } from "./components/ReportsExport";
 
 export const MetricasPage = () => {
   const { t } = useTranslation();
@@ -213,6 +214,8 @@ export const MetricasPage = () => {
               </div>
             </div>
           </div>
+
+          <ReportsExport />
 
           <div className="bg-card border border-border rounded-xl p-6">
             <h3 className="font-semibold mb-4 flex items-center gap-2">

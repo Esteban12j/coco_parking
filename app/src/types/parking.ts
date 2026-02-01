@@ -93,3 +93,26 @@ export interface PendingRegisterConflict {
   observations?: string;
   ticketCode?: string;
 }
+
+export type ReportTypeKey =
+  | 'transactions'
+  | 'completed_vehicles'
+  | 'shift_closures'
+  | 'transactions_with_vehicle';
+
+export interface ReportColumnDef {
+  key: string;
+  label: string;
+}
+
+export interface ReportFilters {
+  dateFrom: string;
+  dateTo: string;
+  paymentMethod?: string | null;
+  vehicleType?: string | null;
+}
+
+export interface ReportData {
+  columns: ReportColumnDef[];
+  rows: Record<string, string | number | null>[];
+}

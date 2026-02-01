@@ -125,6 +125,48 @@ export interface Translations {
     high: string;
     critical: string;
     fromBackendNote: string;
+    reports: {
+      title: string;
+      reportType: string;
+      dateFrom: string;
+      dateTo: string;
+      paymentMethod: string;
+      vehicleType: string;
+      columns: string;
+      preview: string;
+      exportCsv: string;
+      exportPdf: string;
+      noData: string;
+      typeTransactions: string;
+      typeCompletedVehicles: string;
+      typeShiftClosures: string;
+      typeTransactionsWithVehicle: string;
+      all: string;
+      column: {
+        id: string;
+        vehicle_id: string;
+        amount: string;
+        method: string;
+        created_at: string;
+        ticket_code: string;
+        plate: string;
+        vehicle_type: string;
+        entry_time: string;
+        exit_time: string;
+        total_amount: string;
+        debt: string;
+        transaction_id: string;
+        closed_at: string;
+        expected_total: string;
+        cash_total: string;
+        card_total: string;
+        transfer_total: string;
+        arqueo_cash: string;
+        discrepancy: string;
+        total_transactions: string;
+        notes: string;
+      };
+    };
   };
   roles: {
     title: string;
