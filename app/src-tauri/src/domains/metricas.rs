@@ -38,11 +38,21 @@ pub fn metricas_get_daily(state: State<AppState>) -> Result<DailyMetrics, String
         )
         .map_err(|e| e.to_string())?;
 
-    let (completed_today, total_revenue): (u32, f64) = conn
+    let (completed_today, total_revenue, sum_stay_minutes): (u32, f64, f64) = conn
         .query_row(
-            "SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM transactions WHERE created_at LIKE ?1",
+            r#"
+            SELECT
+                COUNT(*),
+                COALESCE(SUM(t.amount), 0),
+                COALESCE(SUM(
+                    (julianday(v.exit_time) - julianday(v.entry_time)) * 24 * 60
+                ), 0)
+            FROM vehicles v
+            INNER JOIN transactions t ON t.vehicle_id = v.id
+            WHERE t.created_at LIKE ?1
+            "#,
             params![&today_prefix],
-            |row| Ok((row.get::<_, u32>(0)?, row.get::<_, f64>(1)?)),
+            |row| Ok((row.get::<_, i64>(0)? as u32, row.get(1)?, row.get(2)?)),
         )
         .map_err(|e| e.to_string())?;
 
@@ -53,20 +63,6 @@ pub fn metricas_get_daily(state: State<AppState>) -> Result<DailyMetrics, String
     } else {
         0.0
     };
-
-    let sum_stay_minutes: f64 = conn
-        .query_row(
-            r#"
-            SELECT COALESCE(SUM(
-                (julianday(v.exit_time) - julianday(v.entry_time)) * 24 * 60
-            ), 0) FROM vehicles v
-            INNER JOIN transactions t ON t.vehicle_id = v.id
-            WHERE t.created_at LIKE ?1
-            "#,
-            params![&today_prefix],
-            |row| row.get(0),
-        )
-        .unwrap_or(0.0);
 
     let average_stay_minutes = if completed_today > 0 {
         sum_stay_minutes / (completed_today as f64)

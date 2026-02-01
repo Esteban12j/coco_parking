@@ -99,43 +99,21 @@ pub fn caja_get_treasury(state: State<AppState>) -> Result<TreasuryData, String>
     let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
     let today_prefix = format!("{}%", today);
 
-    let total_transactions: u32 = conn
+    let (total_transactions, cash, card, transfer): (u32, f64, f64, f64) = conn
         .query_row(
-            "SELECT COUNT(*) FROM transactions WHERE created_at LIKE ?1",
+            r#"
+            SELECT
+                COUNT(*) AS cnt,
+                COALESCE(SUM(CASE WHEN LOWER(method) = 'cash' THEN amount ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN LOWER(method) = 'card' THEN amount ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN LOWER(method) = 'transfer' THEN amount ELSE 0 END), 0)
+            FROM transactions
+            WHERE created_at LIKE ?1
+            "#,
             params![&today_prefix],
-            |row| row.get(0),
+            |row| Ok((row.get::<_, i64>(0)? as u32, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .map_err(|e| e.to_string())?;
-
-    let (cash, card, transfer) = if total_transactions > 0 {
-        let cash: f64 = conn
-            .query_row(
-                "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE created_at LIKE ?1 AND LOWER(method) = 'cash'",
-                params![&today_prefix],
-                |row| row.get(0),
-            )
-            .unwrap_or(0.0);
-
-        let card: f64 = conn
-            .query_row(
-                "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE created_at LIKE ?1 AND LOWER(method) = 'card'",
-                params![&today_prefix],
-                |row| row.get(0),
-            )
-            .unwrap_or(0.0);
-
-        let transfer: f64 = conn
-            .query_row(
-                "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE created_at LIKE ?1 AND LOWER(method) = 'transfer'",
-                params![&today_prefix],
-                |row| row.get(0),
-            )
-            .unwrap_or(0.0);
-
-        (cash, card, transfer)
-    } else {
-        (0.0, 0.0, 0.0)
-    };
 
     let expected_cash = cash + card + transfer;
     let actual_cash = expected_cash;
