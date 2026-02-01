@@ -2,16 +2,17 @@ import { describe, it, expect } from "vitest";
 import { createElement, type ReactNode } from "react";
 import { renderHook, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { I18nProvider } from "@/i18n/context";
 import { useParkingStore } from "./useParkingStore";
 
 function createWrapper() {
   const queryClient = new QueryClient();
-  return function Wrapper({
-    children,
-  }: {
-    children: ReactNode;
-  }) {
-    return createElement(QueryClientProvider, { client: queryClient }, children);
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(I18nProvider, null, children)
+    );
   };
 }
 
