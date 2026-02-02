@@ -16,7 +16,7 @@
 
 **Hecho:** 1.1–1.3, 2.1–2.3, 3.1–3.2, 4.1–4.2, 5.1, 6.0–6.3, 7.1–7.4, 8.1–8.3, 9.1, 10.1–10.4, 11.1–11.2, 13.1–13.3, 16.1–16.2.  
 **Eliminadas:** 5.2 (Sincronización Drive), 10.5 (filtros y tabla reportes; ya no necesario para v1).  
-**Siguiente:** Épica 15 — Instalador Windows (15.1 build e instalador, 15.2 checklist verificación).  
+**Siguiente:** Épica 15 — 15.1 Hecho (build e instalador); 15.2 checklist verificación instalación.  
 Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes; permisos, scanner. Frontend: rutas vehicles, till, debtors, metrics, roles, backup, dev-console; i18n es/en.
 
 ---
@@ -144,7 +144,7 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes; pe
 
 | ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
 |----|----------|--------|---------|--------|--------------------------|-----|--------|
-| 15.1 | Build e instalador Windows | DevOps / equipo | que el proyecto genere un instalador para Windows (Tauri) de forma reproducible | entregar al cliente en Windows | • Script o pipeline (CI) que ejecute build Tauri para Windows y genere el artefacto de instalación (ej. .msi o .exe según configuración Tauri).<br>• Documentar requisitos (Node, Rust, versiones) y pasos para generar el instalador.<br>• **Entorno objetivo:** Windows. | 5 | Por hacer |
+| 15.1 | Build e instalador Windows | DevOps / equipo | que el proyecto genere un instalador para Windows (Tauri) de forma reproducible | entregar al cliente en Windows | • Script o pipeline (CI) que ejecute build Tauri para Windows y genere el artefacto de instalación (ej. .msi o .exe según configuración Tauri).<br>• Documentar requisitos (Node, Rust, versiones) y pasos para generar el instalador.<br>• **Entorno objetivo:** Windows. | 5 | **Hecho** |
 | 15.2 | Verificación de instalación en Windows | QA / equipo | tener un checklist para probar que la instalación en Windows funciona correctamente | asegurar que el usuario final puede instalar y usar la app | • Checklist: instalar desde el instalador, arrancar app, login, flujo básico (entrada, salida, caja), permisos, cierre de turno, backup export/restore (opcional).<br>• Documentar resultado y requisitos de sistema (Windows 10/11, etc.). | 2 | Por hacer |
 
 ---
@@ -201,7 +201,8 @@ Las épicas 1–8 se mantienen como referencia; todas las historias están **Hec
 
 ## Notas para refinamiento
 
-- **Siguiente:** Épica 15 — 15.1 (build e instalador Windows), 15.2 (checklist verificación). Entorno objetivo: Windows.
+- **Siguiente:** Épica 15 — 15.2 (checklist verificación instalación Windows). 15.1 (build e instalador) **Hecho**.
+- **Scrum Master:** Historia 15.1 (Build e instalador Windows) completada. Entregables: pipeline CI en `.github/workflows/build-windows.yml`, documentación en `docs/BUILD_WINDOWS_INSTALLER.md`. Actualizar sprint/board y priorizar 15.2 (checklist verificación).
 - **Épica 17 (Mantenibilidad):** Queries localizables, capa API única, índice api/ coherente, documento comando→tabla. No bloqueante para v1; priorizar después del instalador (tech lead, backend, frontend, DBA).
 - **Tarifas:** Hecho. Cliente no edita tarifas base; tarifa personalizada = opción en flujo (buscar o crear).
 - **Herramientas avanzadas (Excel, gráficos):** Backlog v1.1.
