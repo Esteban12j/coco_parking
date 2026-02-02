@@ -6,8 +6,7 @@ node_modules/
 
 # Build outputs
 dist/
-src-tauri/target/
-app/src-tauri/target/
+**/target/
 
 # Env
 .env
@@ -25,10 +24,17 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Tauri
+# Tauri / Rust
 src-tauri/Cargo.lock
-app/tsconfig.app.tsbuildinfo
-app/tsconfig.node.tsbuildinfo
+
+# TypeScript
+*.tsbuildinfo
+
+# Vite / tooling
+.vite/
+.turbo/
+coverage/
+.eslintcache
 
 #smart-parking-insights
 smart-parking-insights
