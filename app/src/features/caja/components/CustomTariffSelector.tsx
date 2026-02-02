@@ -31,10 +31,16 @@ function isTauri(): boolean {
 
 const VEHICLE_TYPE_KEYS: VehicleType[] = ["car", "motorcycle", "truck", "bicycle"];
 
+export interface SelectedTariffForCheckout {
+  amount: number;
+  rateDurationHours: number;
+  rateDurationMinutes: number;
+}
+
 interface CustomTariffSelectorProps {
   open: boolean;
   onClose: () => void;
-  onSelect: (amount: number, rateUnit: TariffRateUnit) => void;
+  onSelect: (selected: SelectedTariffForCheckout) => void;
   /** When set (e.g. from checkout), only tariffs for this vehicle type are shown/selectable and create form uses this type. */
   fixedVehicleType?: VehicleType;
   /** When set (e.g. from checkout), create form plate field is pre-filled with this value. */
@@ -59,6 +65,8 @@ export const CustomTariffSelector = ({
   const [createDescription, setCreateDescription] = useState("");
   const [createAmount, setCreateAmount] = useState("");
   const [createRateUnit, setCreateRateUnit] = useState<TariffRateUnit>("hour");
+  const [createDurationHours, setCreateDurationHours] = useState<string>("1");
+  const [createDurationMinutes, setCreateDurationMinutes] = useState<string>("0");
 
   useEffect(() => {
     if (open) {
@@ -86,6 +94,8 @@ export const CustomTariffSelector = ({
       amount: number;
       description?: string | null;
       rateUnit?: TariffRateUnit | null;
+      rateDurationHours?: number;
+      rateDurationMinutes?: number;
     }) =>
       invokeTauri<CustomTariff>("custom_tariffs_create", {
         args: {
@@ -95,6 +105,8 @@ export const CustomTariffSelector = ({
           amount: args.amount,
           description: args.description ?? null,
           rateUnit: args.rateUnit ?? "hour",
+          rateDurationHours: args.rateDurationHours ?? 1,
+          rateDurationMinutes: args.rateDurationMinutes ?? 0,
         },
       }),
     onSuccess: (data) => {
@@ -106,7 +118,15 @@ export const CustomTariffSelector = ({
       setCreateDescription("");
       setCreateAmount("");
       setCreateRateUnit("hour");
-      onSelect(data.amount, (data.rateUnit as TariffRateUnit) ?? "hour");
+      setCreateDurationHours("1");
+      setCreateDurationMinutes("0");
+      const h = data.rateDurationHours ?? 1;
+      const m = data.rateDurationMinutes ?? 0;
+      onSelect({
+        amount: data.amount,
+        rateDurationHours: h,
+        rateDurationMinutes: m,
+      });
       onClose();
     },
     onError: (err) => {
@@ -132,12 +152,25 @@ export const CustomTariffSelector = ({
   };
 
   const handleSelect = (tariff: CustomTariff) => {
-    onSelect(tariff.amount, (tariff.rateUnit as TariffRateUnit) ?? "hour");
+    const h = tariff.rateDurationHours ?? 1;
+    const m = tariff.rateDurationMinutes ?? 0;
+    onSelect({
+      amount: tariff.amount,
+      rateDurationHours: h,
+      rateDurationMinutes: m,
+    });
     onClose();
   };
 
-  const rateUnitSuffix = (unit: TariffRateUnit | null | undefined) =>
-    unit === "minute" ? "/min" : "/h";
+  const durationBlockLabel = (h: number | null | undefined, m: number | null | undefined) => {
+    const hours = h ?? 0;
+    const mins = m ?? 0;
+    if (hours === 0 && mins === 0) return "1h";
+    const parts: string[] = [];
+    if (hours > 0) parts.push(`${hours}h`);
+    if (mins > 0) parts.push(`${mins}min`);
+    return parts.join(" ") || "1h";
+  };
 
   const effectiveCreateVehicleType = fixedVehicleType ?? createVehicleType;
 
@@ -147,6 +180,10 @@ export const CustomTariffSelector = ({
     const amount = parseFloat(amountRaw);
     if (amountRaw === "" || Number.isNaN(amount) || amount < 0) return;
     if (tauri) {
+      const h = Math.max(0, parseInt(createDurationHours, 10) || 0);
+      const m = Math.max(0, Math.min(59, parseInt(createDurationMinutes, 10) || 0));
+      const blockH = h > 0 || m > 0 ? h : 1;
+      const blockM = h > 0 || m > 0 ? m : 0;
       createMutation.mutate({
         vehicleType: effectiveCreateVehicleType,
         name: createName.trim() || null,
@@ -154,11 +191,23 @@ export const CustomTariffSelector = ({
         amount,
         description: createDescription.trim() || null,
         rateUnit: createRateUnit,
+        rateDurationHours: blockH,
+        rateDurationMinutes: blockM,
       });
     } else {
-      onSelect(amount, createRateUnit);
+      const h = Math.max(0, parseInt(createDurationHours, 10) || 0);
+      const m = Math.max(0, Math.min(59, parseInt(createDurationMinutes, 10) || 0));
+      const blockH = h > 0 || m > 0 ? h : 1;
+      const blockM = h > 0 || m > 0 ? m : 0;
+      onSelect({
+        amount,
+        rateDurationHours: blockH,
+        rateDurationMinutes: blockM,
+      });
       setCreateAmount("");
       setCreateRateUnit("hour");
+      setCreateDurationHours("1");
+      setCreateDurationMinutes("0");
       setShowCreateForm(false);
       onClose();
     }
@@ -225,7 +274,7 @@ export const CustomTariffSelector = ({
                             </span>
                           </span>
                           <span className="font-medium shrink-0">
-                            ${tariff.amount.toFixed(2)}{rateUnitSuffix(tariff.rateUnit)}
+                            ${tariff.amount.toFixed(2)} / {durationBlockLabel(tariff.rateDurationHours, tariff.rateDurationMinutes)}
                           </span>
                         </button>
                       </li>
@@ -307,6 +356,28 @@ export const CustomTariffSelector = ({
                   <SelectItem value="minute">{t("customTariff.rateUnitMinute")}</SelectItem>
                 </SelectContent>
               </Select>
+              <Label>{t("customTariff.durationBlock")}</Label>
+              <div className="flex gap-2 items-center">
+                <Input
+                  type="number"
+                  min={0}
+                  value={createDurationHours}
+                  onChange={(e) => setCreateDurationHours(e.target.value)}
+                  placeholder="0"
+                  className="w-20"
+                />
+                <span className="text-sm text-muted-foreground">{t("customTariff.durationHours")}</span>
+                <Input
+                  type="number"
+                  min={0}
+                  max={59}
+                  value={createDurationMinutes}
+                  onChange={(e) => setCreateDurationMinutes(e.target.value)}
+                  placeholder="0"
+                  className="w-20"
+                />
+                <span className="text-sm text-muted-foreground">{t("customTariff.durationMinutes")}</span>
+              </div>
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -319,6 +390,8 @@ export const CustomTariffSelector = ({
                   setCreateDescription("");
                   setCreateAmount("");
                   setCreateRateUnit("hour");
+                  setCreateDurationHours("1");
+                  setCreateDurationMinutes("0");
                   }}
                 >
                   {t("common.cancel")}
