@@ -144,6 +144,8 @@ export const es: Translations = {
     averageTicket: "Ticket Promedio",
     minAvg: "min prom.",
     peakHours: "Horas Pico",
+    peakHoursFromBackend: "Horas pico disponibles en la aplicación de escritorio.",
+    peakHoursNoData: "Sin transacciones en el rango seleccionado.",
     revenueBreakdown: "Desglose de Ingresos",
     cars: "Autos",
     motorcycles: "Motos",

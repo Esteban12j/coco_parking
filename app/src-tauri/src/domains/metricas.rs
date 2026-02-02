@@ -10,6 +10,14 @@ use crate::state::AppState;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct PeakHourSlot {
+    pub hour_label: String,
+    pub hour_start: u8,
+    pub count: u32,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DailyMetrics {
     pub total_vehicles: u32,
     pub active_vehicles: u32,
@@ -91,4 +99,66 @@ pub fn metricas_get_daily(state: State<AppState>) -> Result<DailyMetrics, String
         average_stay_minutes,
         turnover_rate,
     })
+}
+
+#[tauri::command]
+pub fn metricas_get_peak_hours(
+    state: State<AppState>,
+    date_from: Option<String>,
+    date_to: Option<String>,
+) -> Result<Vec<PeakHourSlot>, String> {
+    state.check_permission(permissions::METRICAS_DASHBOARD_READ)?;
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+
+    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let from = date_from.as_deref().unwrap_or(&today);
+    let to = date_to.as_deref().unwrap_or(&today);
+
+    let from_bound = format!("{}T00:00:00.000Z", from);
+    let to_date = chrono::NaiveDate::parse_from_str(to, "%Y-%m-%d").map_err(|e| e.to_string())?;
+    let to_next = to_date
+        .succ_opt()
+        .map(|d| format!("{}T00:00:00.000Z", d))
+        .unwrap_or_else(|| format!("{}T23:59:59.999Z", to));
+
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT CAST(substr(created_at, 12, 2) AS INTEGER) as h, COUNT(*) as cnt
+            FROM transactions
+            WHERE created_at >= ?1 AND created_at < ?2
+            GROUP BY h
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+    let mut rows = stmt
+        .query(params![&from_bound, &to_next])
+        .map_err(|e| e.to_string())?;
+
+    let mut counts_by_hour: std::collections::HashMap<u8, u32> = (0..24).map(|h| (h, 0)).collect();
+    while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+        let h: u8 = row.get::<_, i64>(0).map_err(|e| e.to_string())? as u8;
+        let cnt: u32 = row.get::<_, i64>(1).map_err(|e| e.to_string())? as u32;
+        if h < 24 {
+            counts_by_hour.insert(h, cnt);
+        }
+    }
+
+    let slots: Vec<PeakHourSlot> = (0..24)
+        .map(|hour_start| {
+            let count = *counts_by_hour.get(&hour_start).unwrap_or(&0);
+            let hour_label = format!(
+                "{:02}:00 - {:02}:00",
+                hour_start,
+                if hour_start == 23 { 0 } else { hour_start + 1 }
+            );
+            PeakHourSlot {
+                hour_label,
+                hour_start,
+                count,
+            }
+        })
+        .collect();
+
+    Ok(slots)
 }

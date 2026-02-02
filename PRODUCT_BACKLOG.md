@@ -14,7 +14,7 @@
 
 ## Resumen de avance (Épicas 1–8)
 
-**Hecho:** Historias 1.1–1.3, 2.1–2.3, 3.1–3.2, 4.1–4.2, 5.1, 6.0–6.3, 7.1–7.4, 8.1–8.3, **9.1**. **Eliminada:** 5.2 (Sincronización Drive).  
+**Hecho:** Historias 1.1–1.3, 2.1–2.3, 3.1–3.2, 4.1–4.2, 5.1, 6.0–6.3, 7.1–7.4, 8.1–8.3, **9.1**, **10.1**. **Eliminada:** 5.2 (Sincronización Drive).  
 Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, permisos, scanner. Frontend: rutas vehicles, till, debtors, metrics, roles, backup, dev-console; permisos en nav y acciones; i18n es/en.
 
 ---
@@ -50,10 +50,12 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 
 | ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
 |----|----------|--------|---------|--------|--------------------------|-----|--------|
-| 10.1 | Horas pico con datos reales | admin | ver horas pico calculadas desde transacciones/entradas reales | tomar decisiones con datos fiables | • Backend: comando o extensión de métricas que devuelva ocupación o número de transacciones por franja horaria (ej. por hora del día) para la fecha o rango indicado.<br>• Frontend: reemplazar datos fijos en el bloque "Horas pico" por datos del backend; mismo formato (franja, porcentaje o cantidad). | 5 | Por hacer |
+| 10.1 | Horas pico con datos reales | admin | ver horas pico calculadas desde transacciones/entradas reales | tomar decisiones con datos fiables | • Backend: comando o extensión de métricas que devuelva ocupación o número de transacciones por franja horaria (ej. por hora del día) para la fecha o rango indicado.<br>• Frontend: reemplazar datos fijos en el bloque "Horas pico" por datos del backend; mismo formato (franja, porcentaje o cantidad). | 5 | **Hecho** |
 | 10.2 | Layout Métricas clave y Exportar reportes | admin | que al abrir la previsualización de reportes no se expanda el bloque de Métricas clave dejando espacio en blanco | no perder contexto visual | • "Métricas clave" y "Exportar reportes" no comparten la misma celda de grid que crece con la previsualización.<br>• Exportar reportes en su propia fila o columna; al expandir la previsualización solo ese bloque crece; Métricas clave mantiene altura estable. | 2 | Por hacer |
 | 10.3 | Mapa de calor por ocupación en el tiempo | admin | ver un mapa de calor con datos reales (ocupación por hora/día) y poder elegir rango de fechas | entender patrones de uso | • Backend: comando que devuelva datos para mapa de calor por tiempo (ej. ocupación o transacciones por hora del día, o por día del mes), con rango de fechas (date_from, date_to).<br>• Frontend: reemplazar el grid actual (datos aleatorios) por visualización con datos reales; selector de rango de fechas; leyenda comprensible (bajo/medio/alto).<br>• Nota: mapa de calor por "estacionamientos" (spots físicos) queda fuera de v1; no existe entidad spot ni asignación de vehículo a spot. | 5 | Por hacer |
 | 10.4 | Rango de fechas para métricas | admin | filtrar métricas y gráficos (horas pico, mapa de calor) por rango de fechas (día, mes, año) | analizar periodos concretos | • Pantalla Métricas: filtro de rango de fechas (desde/hasta) aplicado a horas pico, mapa de calor y, si se desea, a métricas clave (o mantener "hoy" por defecto para KPIs).<br>• Backend: métricas diarias extendidas o nuevo comando que acepte date_from/date_to donde corresponda. | 3 | Por hacer |
+
+**Nota para Scrum Master:** Historia **10.1** (Horas pico con datos reales) está **Hecho**. Backend: comando `metricas_get_peak_hours(date_from?, date_to?)` devuelve transacciones por franja horaria (24 slots). Frontend: bloque "Horas pico" usa datos del backend (franja, cantidad y % respecto al máximo). Actualizar tablero/sprint según corresponda.
 
 ---
 
@@ -107,10 +109,12 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 
 **Nota para Scrum Master (16.1):** Historia 16.1 cerrada. Implementación: tarifas por defecto centralizadas en `app/src/lib/defaultRates.ts`; entrada y cierre de sesión usan exclusivamente la tarifa por defecto por tipo de vehículo. Backend ignora `special_rate` en el cálculo de salida. No existe flujo ni permiso para editar tarifas base; no hay asignación tarifa fija por vehículo. Actualizar tablero y resumen por épica.
 
+**Nota para Scrum Master (16.2):** Historia 16.2 cerrada. En el flujo de cierre de sesión (CheckoutPanel): opción "Usar tarifa personalizada" junto a "Tarifa por defecto". Al elegir tarifa personalizada se abre el selector (CustomTariffSelector) que lista tarifas desde la tabla `custom_tariffs` (placa/ref + monto), con búsqueda por placa o descripción, y opción "Crear tarifa personalizada aquí" con formulario mínimo (placa/ref, descripción opcional, monto) para crear y aplicar en el acto. Backend: migración 10 añade tabla `custom_tariffs`; comandos `custom_tariffs_list` y `custom_tariffs_create`; `vehiculos_process_exit` acepta `custom_parking_cost` opcional para aplicar monto acordado puntual. Las tarifas personalizadas no sustituyen la tarifa por defecto. Actualizar tablero y resumen por épica.
+
 | ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
 |----|----------|--------|---------|--------|--------------------------|-----|--------|
 | 16.1 | Tarifa por defecto obligatoria | operador/sistema | que por defecto se use siempre la tarifa por defecto del sistema y que el cliente no pueda modificar tarifas base ni dejar fija una tarifa a un vehículo | evitar configuración errónea y mantener coherencia | • No existe flujo ni permiso para que el cliente edite las tarifas base del sistema.<br>• No existe asignación "tarifa fija por vehículo/placa"; cada cálculo usa por defecto la tarifa por defecto.<br>• En registro de entrada o cálculo de costo: valor por defecto = tarifa por defecto del sistema. | 3 | **Hecho** |
-| 16.2 | Opción tarifa personalizada (buscar o crear) | operador | poder elegir "usar tarifa personalizada" y abrir un buscador que muestre brevemente placa y costo, o crear una tarifa personalizada ahí mismo | aplicar un precio acordado puntual sin tocar tarifas base | • En el flujo donde se aplica tarifa (ej. entrada o cierre de sesión): opción "Usar tarifa personalizada" además del valor por defecto.<br>• Al elegir tarifa personalizada: se abre buscador/selector que lista tarifas personalizadas existentes mostrando de forma breve placa (o identificador) y costo; búsqueda por placa o filtro para encontrar la esperada.<br>• Opción "Crear tarifa personalizada aquí": formulario mínimo (ej. placa/ref + monto o descripción breve + costo) para crear y aplicar en el acto, sin acceder a configuración global de tarifas.<br>• Las tarifas personalizadas son de uso puntual o asociadas a sesión/vehículo en curso; no sustituyen la tarifa por defecto del sistema. | 5 | Por hacer |
+| 16.2 | Opción tarifa personalizada (buscar o crear) | operador | poder elegir "usar tarifa personalizada" y abrir un buscador que muestre brevemente placa y costo, o crear una tarifa personalizada ahí mismo | aplicar un precio acordado puntual sin tocar tarifas base | • En el flujo donde se aplica tarifa (ej. entrada o cierre de sesión): opción "Usar tarifa personalizada" además del valor por defecto.<br>• Al elegir tarifa personalizada: se abre buscador/selector que lista tarifas personalizadas existentes mostrando de forma breve placa (o identificador) y costo; búsqueda por placa o filtro para encontrar la esperada.<br>• Opción "Crear tarifa personalizada aquí": formulario mínimo (ej. placa/ref + monto o descripción breve + costo) para crear y aplicar en el acto, sin acceder a configuración global de tarifas.<br>• Las tarifas personalizadas son de uso puntual o asociadas a sesión/vehículo en curso; no sustituyen la tarifa por defecto del sistema. | 5 | **Hecho** |
 
 ---
 
@@ -144,7 +148,7 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 | **13. Historial y búsqueda** | 3 | 11 | Por hacer |
 | 14. Herramientas avanzadas | 1 | 8 | Backlog v1.1 |
 | **15. Instalador Windows** | 2 | 7 | Por hacer |
-| **16. Tarifas (default + personalizada)** | 2 | 8 | En curso (16.1 Hecho) |
+| **16. Tarifas (default + personalizada)** | 2 | 8 | Hecho |
 | **Total (v1 activo)** | **35** | **~153** | — |
 
 ---

@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import {
   Car,
   TrendingUp,
@@ -14,7 +15,14 @@ import { useMyPermissions } from "@/hooks/useMyPermissions";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { invokeTauri } from "@/lib/tauriInvoke";
+import type { PeakHourSlot } from "@/types/parking";
 import { ReportsExport } from "./components/ReportsExport";
+
+function getTodayLocalDate(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
 
 export const MetricasPage = () => {
   const { t } = useTranslation();
@@ -28,6 +36,20 @@ export const MetricasPage = () => {
     isTauri,
     invalidateParking,
   } = useParkingStore();
+
+  const today = getTodayLocalDate();
+  const peakHoursQuery = useQuery({
+    queryKey: ["parking", "peakHours", today, today],
+    queryFn: () =>
+      invokeTauri<PeakHourSlot[]>("metricas_get_peak_hours", {
+        date_from: today,
+        date_to: today,
+      }),
+    enabled: isTauri,
+  });
+
+  const peakSlots: PeakHourSlot[] = peakHoursQuery.data ?? [];
+  const maxCount = Math.max(1, ...peakSlots.map((s) => s.count));
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -111,29 +133,37 @@ export const MetricasPage = () => {
               <Clock className="h-5 w-5 text-muted-foreground" />
               {t("metrics.peakHours")}
             </h3>
-            <div className="space-y-3">
-              {[
-                { hour: "8:00 - 10:00", percentage: 85 },
-                { hour: "12:00 - 14:00", percentage: 95 },
-                { hour: "17:00 - 19:00", percentage: 78 },
-                { hour: "20:00 - 22:00", percentage: 45 },
-              ].map((item) => (
-                <div key={item.hour} className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span>{item.hour}</span>
-                    <span className="font-medium">{item.percentage}%</span>
-                  </div>
-                  <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-all",
-                        item.percentage > 80 ? "bg-warning" : "bg-info"
-                      )}
-                      style={{ width: `${item.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+              {!isTauri ? (
+                <p className="text-sm text-muted-foreground">{t("metrics.peakHoursFromBackend")}</p>
+              ) : peakHoursQuery.isLoading ? (
+                <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+              ) : peakSlots.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t("metrics.peakHoursNoData")}</p>
+              ) : (
+                peakSlots.map((slot) => {
+                  const percentage = maxCount > 0 ? Math.round((slot.count / maxCount) * 100) : 0;
+                  return (
+                    <div key={slot.hourLabel} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span>{slot.hourLabel}</span>
+                        <span className="font-medium">
+                          {slot.count} {percentage > 0 && `(${percentage}%)`}
+                        </span>
+                      </div>
+                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            percentage > 80 ? "bg-warning" : "bg-info"
+                          )}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
 

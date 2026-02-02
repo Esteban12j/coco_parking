@@ -35,6 +35,12 @@ export interface DailyMetrics {
   turnoverRate: number;
 }
 
+export interface PeakHourSlot {
+  hourLabel: string;
+  hourStart: number;
+  count: number;
+}
+
 /** Tesorería: una sola fuente, tabla transactions. */
 export interface TreasuryData {
   expectedCash: number;

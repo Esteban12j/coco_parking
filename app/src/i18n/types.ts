@@ -145,6 +145,8 @@ export interface Translations {
     averageTicket: string;
     minAvg: string;
     peakHours: string;
+    peakHoursFromBackend: string;
+    peakHoursNoData: string;
     revenueBreakdown: string;
     cars: string;
     motorcycles: string;
