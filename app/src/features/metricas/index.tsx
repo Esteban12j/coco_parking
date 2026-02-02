@@ -2,12 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Car,
   TrendingUp,
-  Clock,
   DollarSign,
   PieChart,
   LayoutGrid,
   RefreshCw,
   AlertCircle,
+  LogIn,
+  LogOut,
+  BarChart3,
 } from "lucide-react";
 import { MetricCard } from "@/components/MetricCard";
 import { useParkingStore } from "@/hooks/useParkingStore";
@@ -18,6 +20,71 @@ import { Button } from "@/components/ui/button";
 import { invokeTauri } from "@/lib/tauriInvoke";
 import type { PeakHourSlot } from "@/types/parking";
 import { ReportsExport } from "./components/ReportsExport";
+
+function HourSlotsCard({
+  title,
+  hint,
+  noDataLabel,
+  backendOnlyLabel,
+  loadingLabel,
+  icon,
+  isTauri,
+  isLoading,
+  slots,
+}: {
+  title: string;
+  hint: string;
+  noDataLabel: string;
+  backendOnlyLabel: string;
+  loadingLabel: string;
+  icon: React.ReactNode;
+  isTauri: boolean;
+  isLoading: boolean;
+  slots: PeakHourSlot[];
+}) {
+  const maxCount = Math.max(1, ...slots.map((s) => s.count));
+  return (
+    <div className="bg-card border border-border rounded-xl p-6">
+      <h3 className="font-semibold mb-1 flex items-center gap-2">
+        {icon}
+        {title}
+      </h3>
+      <p className="text-xs text-muted-foreground mb-4">{hint}</p>
+      <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
+        {!isTauri ? (
+          <p className="text-sm text-muted-foreground">{backendOnlyLabel}</p>
+        ) : isLoading ? (
+          <p className="text-sm text-muted-foreground">{loadingLabel}</p>
+        ) : slots.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{noDataLabel}</p>
+        ) : (
+          slots.map((slot) => {
+            const percentage = maxCount > 0 ? Math.round((slot.count / maxCount) * 100) : 0;
+            return (
+              <div key={slot.hourLabel} className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span>{slot.hourLabel}</span>
+                  <span className="font-medium">
+                    {slot.count} {percentage > 0 && `(${percentage}%)`}
+                  </span>
+                </div>
+                <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all",
+                      percentage > 80 ? "bg-warning" : "bg-info"
+                    )}
+                    style={{ width: `${percentage}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
 
 function getTodayLocalDate(): string {
   const now = new Date();
@@ -38,8 +105,29 @@ export const MetricasPage = () => {
   } = useParkingStore();
 
   const today = getTodayLocalDate();
-  const peakHoursQuery = useQuery({
-    queryKey: ["parking", "peakHours", today, today],
+
+  const arrivalsQuery = useQuery({
+    queryKey: ["parking", "arrivalsByHour", today, today],
+    queryFn: () =>
+      invokeTauri<PeakHourSlot[]>("metricas_get_arrivals_by_hour", {
+        date_from: today,
+        date_to: today,
+      }),
+    enabled: isTauri,
+  });
+
+  const occupancyQuery = useQuery({
+    queryKey: ["parking", "occupancyByHour", today, today],
+    queryFn: () =>
+      invokeTauri<PeakHourSlot[]>("metricas_get_occupancy_by_hour", {
+        date_from: today,
+        date_to: today,
+      }),
+    enabled: isTauri,
+  });
+
+  const exitsQuery = useQuery({
+    queryKey: ["parking", "exitsByHour", today, today],
     queryFn: () =>
       invokeTauri<PeakHourSlot[]>("metricas_get_peak_hours", {
         date_from: today,
@@ -48,8 +136,9 @@ export const MetricasPage = () => {
     enabled: isTauri,
   });
 
-  const peakSlots: PeakHourSlot[] = peakHoursQuery.data ?? [];
-  const maxCount = Math.max(1, ...peakSlots.map((s) => s.count));
+  const arrivalsSlots: PeakHourSlot[] = arrivalsQuery.data ?? [];
+  const occupancySlots: PeakHourSlot[] = occupancyQuery.data ?? [];
+  const exitsSlots: PeakHourSlot[] = exitsQuery.data ?? [];
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -127,46 +216,43 @@ export const MetricasPage = () => {
           />
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="bg-card border border-border rounded-xl p-6">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <Clock className="h-5 w-5 text-muted-foreground" />
-              {t("metrics.peakHours")}
-            </h3>
-            <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
-              {!isTauri ? (
-                <p className="text-sm text-muted-foreground">{t("metrics.peakHoursFromBackend")}</p>
-              ) : peakHoursQuery.isLoading ? (
-                <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
-              ) : peakSlots.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("metrics.peakHoursNoData")}</p>
-              ) : (
-                peakSlots.map((slot) => {
-                  const percentage = maxCount > 0 ? Math.round((slot.count / maxCount) * 100) : 0;
-                  return (
-                    <div key={slot.hourLabel} className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span>{slot.hourLabel}</span>
-                        <span className="font-medium">
-                          {slot.count} {percentage > 0 && `(${percentage}%)`}
-                        </span>
-                      </div>
-                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                        <div
-                          className={cn(
-                            "h-full rounded-full transition-all",
-                            percentage > 80 ? "bg-warning" : "bg-info"
-                          )}
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
+        <div className="grid md:grid-cols-3 gap-6">
+          <HourSlotsCard
+            title={t("metrics.arrivalsByHour")}
+            hint={t("metrics.arrivalsByHourHint")}
+            noDataLabel={t("metrics.arrivalsByHourNoData")}
+            backendOnlyLabel={t("metrics.peakHoursFromBackend")}
+            loadingLabel={t("common.loading")}
+            icon={<LogIn className="h-5 w-5 text-muted-foreground" />}
+            isTauri={isTauri}
+            isLoading={arrivalsQuery.isLoading}
+            slots={arrivalsSlots}
+          />
+          <HourSlotsCard
+            title={t("metrics.occupancyByHour")}
+            hint={t("metrics.occupancyByHourHint")}
+            noDataLabel={t("metrics.occupancyByHourNoData")}
+            backendOnlyLabel={t("metrics.peakHoursFromBackend")}
+            loadingLabel={t("common.loading")}
+            icon={<BarChart3 className="h-5 w-5 text-muted-foreground" />}
+            isTauri={isTauri}
+            isLoading={occupancyQuery.isLoading}
+            slots={occupancySlots}
+          />
+          <HourSlotsCard
+            title={t("metrics.exitsByHour")}
+            hint={t("metrics.exitsByHourHint")}
+            noDataLabel={t("metrics.exitsByHourNoData")}
+            backendOnlyLabel={t("metrics.peakHoursFromBackend")}
+            loadingLabel={t("common.loading")}
+            icon={<LogOut className="h-5 w-5 text-muted-foreground" />}
+            isTauri={isTauri}
+            isLoading={exitsQuery.isLoading}
+            slots={exitsSlots}
+          />
+        </div>
 
+        <div className="grid md:grid-cols-2 gap-6">
           <div className="bg-card border border-border rounded-xl p-6">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <PieChart className="h-5 w-5 text-muted-foreground" />

@@ -22,7 +22,12 @@ use domains::{
     backup::{backup_create, backup_list, backup_restore},
     caja::{caja_close_shift, caja_get_debug, caja_get_treasury, caja_list_shift_closures},
     custom_tariffs::{custom_tariffs_create, custom_tariffs_list, custom_tariffs_update, custom_tariffs_delete},
-    metricas::{metricas_get_daily, metricas_get_peak_hours},
+    metricas::{
+        metricas_get_arrivals_by_hour,
+        metricas_get_daily,
+        metricas_get_occupancy_by_hour,
+        metricas_get_peak_hours,
+    },
     reportes::{reportes_fetch, reportes_get_column_definitions, reportes_write_csv},
     roles::{
         auth_get_session,
@@ -119,6 +124,8 @@ pub fn run() {
             caja_list_shift_closures,
             metricas_get_daily,
             metricas_get_peak_hours,
+            metricas_get_arrivals_by_hour,
+            metricas_get_occupancy_by_hour,
             reportes_get_column_definitions,
             reportes_fetch,
             reportes_write_csv,

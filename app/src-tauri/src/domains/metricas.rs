@@ -1,5 +1,10 @@
 //! Daily metrics from persistent store (SQLite). Revenue and transaction count
 //! come from table `transactions` so metrics are coherent with Caja (till).
+//!
+//! Hour-by-hour metrics (arrivals, occupancy, exits):
+//! - Arrivals: hour of entry (when vehicles arrive, demand for spaces).
+//! - Occupancy: vehicles occupying a spot during each hour (busiest hours).
+//! - Exits (peak_hours): hour of checkout/payment (when spaces free up).
 
 use rusqlite::params;
 use serde::Serialize;
@@ -14,6 +19,44 @@ pub struct PeakHourSlot {
     pub hour_label: String,
     pub hour_start: u8,
     pub count: u32,
+}
+
+fn hour_label(hour_start: u8) -> String {
+    format!(
+        "{:02}:00 - {:02}:00",
+        hour_start,
+        if hour_start == 23 { 0 } else { hour_start + 1 }
+    )
+}
+
+fn date_bounds(
+    date_from: Option<&str>,
+    date_to: Option<&str>,
+    today: &str,
+) -> Result<(String, String, chrono::NaiveDate, chrono::NaiveDate), String> {
+    let from = date_from.unwrap_or(today);
+    let to = date_to.unwrap_or(today);
+    let from_bound = format!("{}T00:00:00.000Z", from);
+    let to_date = chrono::NaiveDate::parse_from_str(to, "%Y-%m-%d").map_err(|e| e.to_string())?;
+    let to_next = to_date
+        .succ_opt()
+        .map(|d| format!("{}T00:00:00.000Z", d))
+        .unwrap_or_else(|| format!("{}T23:59:59.999Z", to));
+    let from_date = chrono::NaiveDate::parse_from_str(from, "%Y-%m-%d").map_err(|e| e.to_string())?;
+    Ok((from_bound, to_next, from_date, to_date))
+}
+
+fn build_24_slots(counts_by_hour: &std::collections::HashMap<u8, u32>) -> Vec<PeakHourSlot> {
+    (0..24)
+        .map(|hour_start| {
+            let count = *counts_by_hour.get(&hour_start).unwrap_or(&0);
+            PeakHourSlot {
+                hour_label: hour_label(hour_start),
+                hour_start,
+                count,
+            }
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -101,6 +144,8 @@ pub fn metricas_get_daily(state: State<AppState>) -> Result<DailyMetrics, String
     })
 }
 
+/// Exits by hour: count of checkouts/payments per hour (when spaces free up).
+/// Source: transactions.created_at.
 #[tauri::command]
 pub fn metricas_get_peak_hours(
     state: State<AppState>,
@@ -111,15 +156,8 @@ pub fn metricas_get_peak_hours(
     let conn = state.db.get().map_err(|e| e.to_string())?;
 
     let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let from = date_from.as_deref().unwrap_or(&today);
-    let to = date_to.as_deref().unwrap_or(&today);
-
-    let from_bound = format!("{}T00:00:00.000Z", from);
-    let to_date = chrono::NaiveDate::parse_from_str(to, "%Y-%m-%d").map_err(|e| e.to_string())?;
-    let to_next = to_date
-        .succ_opt()
-        .map(|d| format!("{}T00:00:00.000Z", d))
-        .unwrap_or_else(|| format!("{}T23:59:59.999Z", to));
+    let (from_bound, to_next, _, _) =
+        date_bounds(date_from.as_deref(), date_to.as_deref(), &today)?;
 
     let mut stmt = conn
         .prepare(
@@ -144,21 +182,121 @@ pub fn metricas_get_peak_hours(
         }
     }
 
-    let slots: Vec<PeakHourSlot> = (0..24)
-        .map(|hour_start| {
-            let count = *counts_by_hour.get(&hour_start).unwrap_or(&0);
-            let hour_label = format!(
-                "{:02}:00 - {:02}:00",
-                hour_start,
-                if hour_start == 23 { 0 } else { hour_start + 1 }
-            );
-            PeakHourSlot {
-                hour_label,
-                hour_start,
-                count,
-            }
-        })
+    Ok(build_24_slots(&counts_by_hour))
+}
+
+/// Arrivals by hour: count of vehicles that entered per hour (demand for spaces).
+/// Source: vehicles.entry_time.
+#[tauri::command]
+pub fn metricas_get_arrivals_by_hour(
+    state: State<AppState>,
+    date_from: Option<String>,
+    date_to: Option<String>,
+) -> Result<Vec<PeakHourSlot>, String> {
+    state.check_permission(permissions::METRICAS_DASHBOARD_READ)?;
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+
+    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let (from_bound, to_next, _, _) =
+        date_bounds(date_from.as_deref(), date_to.as_deref(), &today)?;
+
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT CAST(substr(entry_time, 12, 2) AS INTEGER) as h, COUNT(*) as cnt
+            FROM vehicles
+            WHERE entry_time >= ?1 AND entry_time < ?2
+            GROUP BY h
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+    let mut rows = stmt
+        .query(params![&from_bound, &to_next])
+        .map_err(|e| e.to_string())?;
+
+    let mut counts_by_hour: std::collections::HashMap<u8, u32> = (0..24).map(|h| (h, 0)).collect();
+    while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+        let h: u8 = row.get::<_, i64>(0).map_err(|e| e.to_string())? as u8;
+        let cnt: u32 = row.get::<_, i64>(1).map_err(|e| e.to_string())? as u32;
+        if h < 24 {
+            counts_by_hour.insert(h, cnt);
+        }
+    }
+
+    Ok(build_24_slots(&counts_by_hour))
+}
+
+/// Occupancy by hour: average number of vehicles occupying a spot during each hour (busiest hours).
+/// For each hour H, counts vehicles where entry_time < end_of(H) and (exit_time IS NULL or exit_time > start_of(H)).
+/// Over a date range, returns the average occupancy per hour of day.
+#[tauri::command]
+pub fn metricas_get_occupancy_by_hour(
+    state: State<AppState>,
+    date_from: Option<String>,
+    date_to: Option<String>,
+) -> Result<Vec<PeakHourSlot>, String> {
+    state.check_permission(permissions::METRICAS_DASHBOARD_READ)?;
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+
+    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let (from_bound, to_next, from_date, to_date) =
+        date_bounds(date_from.as_deref(), date_to.as_deref(), &today)?;
+
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT entry_time, exit_time
+            FROM vehicles
+            WHERE entry_time < ?1 AND (exit_time IS NULL OR exit_time > ?2)
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+    let mut rows = stmt
+        .query(params![&to_next, &from_bound])
+        .map_err(|e| e.to_string())?;
+
+    let mut entries: Vec<(String, Option<String>)> = Vec::new();
+    while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+        let entry_time: String = row.get(0).map_err(|e| e.to_string())?;
+        let exit_time: Option<String> = row.get(1).map_err(|e| e.to_string())?;
+        entries.push((entry_time, exit_time));
+    }
+
+    let num_days = (to_date - from_date).num_days() + 1;
+    let num_days = num_days.max(1) as f64;
+
+    let mut sum_by_hour: std::collections::HashMap<u8, u32> = (0..24).map(|h| (h, 0)).collect();
+
+    let mut d = from_date;
+    while d <= to_date {
+        let day_str = d.format("%Y-%m-%d").to_string();
+        for hour in 0u8..24 {
+            let start_ts = format!("{}T{:02}:00:00.000Z", day_str, hour);
+            let end_ts = if hour == 23 {
+                let next = d.succ_opt().unwrap_or(d);
+                format!("{}T00:00:00.000Z", next.format("%Y-%m-%d"))
+            } else {
+                format!("{}T{:02}:00:00.000Z", day_str, hour + 1)
+            };
+            let count = entries
+                .iter()
+                .filter(|(entry_time, exit_time)| {
+                    entry_time.as_str() < end_ts.as_str()
+                        && (exit_time.is_none() || exit_time.as_deref().unwrap_or("") > start_ts.as_str())
+                })
+                .count() as u32;
+            *sum_by_hour.get_mut(&hour).unwrap() += count;
+        }
+        match d.succ_opt() {
+            Some(next) => d = next,
+            None => break,
+        }
+    }
+
+    let counts_by_hour: std::collections::HashMap<u8, u32> = sum_by_hour
+        .into_iter()
+        .map(|(h, sum)| (h, (sum as f64 / num_days).round() as u32))
         .collect();
 
-    Ok(slots)
+    Ok(build_24_slots(&counts_by_hour))
 }

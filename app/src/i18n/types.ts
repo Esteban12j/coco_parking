@@ -147,6 +147,15 @@ export interface Translations {
     peakHours: string;
     peakHoursFromBackend: string;
     peakHoursNoData: string;
+    arrivalsByHour: string;
+    arrivalsByHourHint: string;
+    arrivalsByHourNoData: string;
+    occupancyByHour: string;
+    occupancyByHourHint: string;
+    occupancyByHourNoData: string;
+    exitsByHour: string;
+    exitsByHourHint: string;
+    exitsByHourNoData: string;
     revenueBreakdown: string;
     cars: string;
     motorcycles: string;
