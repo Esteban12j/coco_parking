@@ -333,10 +333,15 @@ export const MetricasPage = () => {
               </div>
             </div>
           </div>
+        </div>
 
-          {canExportReports && <ReportsExport />}
+        {canExportReports && (
+          <div className="w-full">
+            <ReportsExport />
+          </div>
+        )}
 
-          <div className="bg-card border border-border rounded-xl p-6">
+        <div className="bg-card border border-border rounded-xl p-6">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <LayoutGrid className="h-5 w-5 text-muted-foreground" />
               {t("metrics.heatMap")}
@@ -377,7 +382,6 @@ export const MetricasPage = () => {
               </span>
             </div>
           </div>
-        </div>
       </div>
     </div>
   );

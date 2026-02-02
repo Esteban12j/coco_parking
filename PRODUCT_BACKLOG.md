@@ -1,7 +1,7 @@
 # Product Backlog — COCO Parking
 
 **Última actualización:** 1 de febrero de 2025  
-**Fuente:** Análisis Scrum, Consultoría Datos, Análisis Deuda, feedback de producto (métricas, UI, seguridad, historial, tema, instalador, tarifas default/personalizada).  
+**Fuente:** Análisis Scrum, Consultoría Datos, Análisis Deuda, feedback de producto (métricas, UI, seguridad, historial, tema, instalador, tarifas default/personalizada). Refinamiento 10.2: layout + UX reportes (filtros y tabla).  
 **Prioridad:** 1 = más alta.
 
 ---
@@ -14,7 +14,8 @@
 
 ## Resumen de avance (Épicas 1–8)
 
-**Hecho:** Historias 1.1–1.3, 2.1–2.3, 3.1–3.2, 4.1–4.2, 5.1, 6.0–6.3, 7.1–7.4, 8.1–8.3, **9.1**, **10.1**. **Eliminada:** 5.2 (Sincronización Drive).  
+**Hecho:** Historias 1.1–1.3, 2.1–2.3, 3.1–3.2, 4.1–4.2, 5.1, 6.0–6.3, 7.1–7.4, 8.1–8.3, **9.1**, **10.1**, **10.2**. **Eliminada:** 5.2 (Sincronización Drive).  
+**Siguiente en desarrollo:** 10.5 (filtros y tabla en reportes), luego 10.3 (mapa de calor).  
 Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, permisos, scanner. Frontend: rutas vehicles, till, debtors, metrics, roles, backup, dev-console; permisos en nav y acciones; i18n es/en.
 
 ---
@@ -46,16 +47,17 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 
 ## Épica 10: Métricas — UI y datos reales
 
-**Objetivo:** Horas pico con datos reales, layout correcto en Métricas, mapa de calor con datos reales (por tiempo, no por spots), y rango de fechas para métricas. Prioridad P1 para v1.
+**Objetivo:** Horas pico con datos reales, layout correcto en Métricas, mapa de calor con datos reales (por tiempo, no por spots), rango de fechas para métricas, y mejor UX en vista Exportar reportes (filtros + tabla). Prioridad P1 para v1.
 
 | ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
 |----|----------|--------|---------|--------|--------------------------|-----|--------|
 | 10.1 | Horas pico con datos reales | admin | ver horas pico calculadas desde transacciones/entradas reales | tomar decisiones con datos fiables | • Backend: comando o extensión de métricas que devuelva ocupación o número de transacciones por franja horaria (ej. por hora del día) para la fecha o rango indicado.<br>• Frontend: reemplazar datos fijos en el bloque "Horas pico" por datos del backend; mismo formato (franja, porcentaje o cantidad). | 5 | **Hecho** |
-| 10.2 | Layout Métricas clave y Exportar reportes | admin | que al abrir la previsualización de reportes no se expanda el bloque de Métricas clave dejando espacio en blanco | no perder contexto visual | • "Métricas clave" y "Exportar reportes" no comparten la misma celda de grid que crece con la previsualización.<br>• Exportar reportes en su propia fila o columna; al expandir la previsualización solo ese bloque crece; Métricas clave mantiene altura estable. | 2 | Por hacer |
+| 10.2 | Layout Métricas clave y Exportar reportes | admin | que al abrir la previsualización de reportes no se expanda el bloque de Métricas clave dejando espacio en blanco | no perder contexto visual | • "Métricas clave" y "Exportar reportes" no comparten celda de grid que crece con la previsualización.<br>• **Exportar reportes en su propia fila** (ancho completo); al expandir la previsualización solo ese bloque crece; Métricas clave (y Revenue breakdown) mantienen altura estable. | 2 | **Hecho** |
 | 10.3 | Mapa de calor por ocupación en el tiempo | admin | ver un mapa de calor con datos reales (ocupación por hora/día) y poder elegir rango de fechas | entender patrones de uso | • Backend: comando que devuelva datos para mapa de calor por tiempo (ej. ocupación o transacciones por hora del día, o por día del mes), con rango de fechas (date_from, date_to).<br>• Frontend: reemplazar el grid actual (datos aleatorios) por visualización con datos reales; selector de rango de fechas; leyenda comprensible (bajo/medio/alto).<br>• Nota: mapa de calor por "estacionamientos" (spots físicos) queda fuera de v1; no existe entidad spot ni asignación de vehículo a spot. | 5 | Por hacer |
 | 10.4 | Rango de fechas para métricas | admin | filtrar métricas y gráficos (horas pico, mapa de calor) por rango de fechas (día, mes, año) | analizar periodos concretos | • Pantalla Métricas: filtro de rango de fechas (desde/hasta) aplicado a horas pico, mapa de calor y, si se desea, a métricas clave (o mantener "hoy" por defecto para KPIs).<br>• Backend: métricas diarias extendidas o nuevo comando que acepte date_from/date_to donde corresponda. | 3 | Por hacer |
+| 10.5 | Filtros y tabla en Exportar reportes | admin | tener filtros claros y una tabla de previsualización usable (altura acotada, paginación, ordenación) sin cambiar de pantalla | mejor usabilidad al generar reportes | • Filtros (tipo reporte, fechas, método de pago, tipo vehículo, columnas) en barra o agrupación clara; no amontonados en un grid pequeño.<br>• Tabla de previsualización con altura acotada (max-h + scroll interno), paginación en cliente y ordenación por columnas; opcional: búsqueda en cliente sobre datos cargados.<br>• Sin cambios en backend; mismo contrato reportes_fetch. | 3 | Por hacer |
 
-**Nota para Scrum Master:** Historia **10.1** (Horas pico con datos reales) está **Hecho**. Backend: comando `metricas_get_peak_hours(date_from?, date_to?)` devuelve transacciones por franja horaria (24 slots). Frontend: bloque "Horas pico" usa datos del backend (franja, cantidad y % respecto al máximo). Actualizar tablero/sprint según corresponda.
+**Nota para Scrum Master:** Historia **10.1** (Horas pico con datos reales) está **Hecho**. Historia **10.2** (Layout Métricas clave y Exportar reportes) está **Hecho**: Exportar reportes en fila propia (ancho completo); Métricas clave y Revenue breakdown en grid de 2 columnas con altura estable; al expandir la previsualización solo crece el bloque Exportar reportes. **Orden de desarrollo Épica 10:** 10.5 (filtros + tabla reportes) → 10.3 (mapa de calor) → 10.4 (rango fechas). Actualizar tablero/sprint según corresponda.
 
 ---
 
@@ -142,14 +144,14 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 | 7. Arquitectura de datos y rendimiento | 4 | 13 | Hecho |
 | 8. Deudores | 3 | 13 | Hecho |
 | **9. Seguridad** | 1 | 3 | Hecho |
-| **10. Métricas UI y datos reales** | 4 | 15 | Por hacer |
+| **10. Métricas UI y datos reales** | 5 | 18 | Por hacer |
 | **11. Tema y tipografía** | 3 | 8 | Por hacer |
 | **12. Responsive** | 1 | 3 | Por hacer |
 | **13. Historial y búsqueda** | 3 | 11 | Por hacer |
 | 14. Herramientas avanzadas | 1 | 8 | Backlog v1.1 |
 | **15. Instalador Windows** | 2 | 7 | Por hacer |
 | **16. Tarifas (default + personalizada)** | 2 | 8 | Hecho |
-| **Total (v1 activo)** | **35** | **~153** | — |
+| **Total (v1 activo)** | **36** | **~156** | — |
 
 ---
 
@@ -175,6 +177,8 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 
 **Scrum Master:** Quedan épicas 9–16 en backlog; P0 = Épica 15 (Instalador Windows); P1 = 16 (Tarifas), 9, 10, 11, 12, 13; P2 = 14 (v1.1). Orden sugerido para sprints: 16.1–16.2 (tarifas) junto con 9, 10.2, 11, 12, 13 y 15.1 donde se pueda; luego 10.1, 10.3, 10.4 y 15.2.
 
+**Scrum Master (refinamiento 10.2 / UX reportes):** Acordado con Product Designer, UI/UX, Frontend y PM: (1) **Layout:** Exportar reportes en fila propia (ancho completo); Métricas clave y Revenue breakdown mantienen altura estable. (2) **Filtros y tabla en la página actual:** Filtros en barra/agrupación clara; tabla de previsualización con altura acotada, paginación en cliente y ordenación por columnas (sin cambios en backend). Historia 10.5 añadida para (2). **Orden de desarrollo Épica 10:** 10.2 (layout) → 10.5 (filtros + tabla) → 10.3 (mapa de calor) → 10.4 (rango fechas).
+
 ---
 
 ## Épicas 1–8 (referencia breve)
@@ -198,3 +202,4 @@ Las épicas 1–8 se mantienen como referencia; todas las historias están **Hec
 - **Windows:** Entorno objetivo de instalación para v1.
 - **Mapa de calor por "estacionamientos":** No existe entidad spot ni asignación vehículo→spot; queda fuera de v1; mapa de calor v1 = por ocupación en el tiempo (hora/día) con rango de fechas.
 - **Herramientas avanzadas (gráficos propios, Excel, tablas dinámicas):** Backlog v1.1; no bloqueante para v1.
+- **Épica 10 — orden de desarrollo:** 10.2 (layout Métricas clave / Exportar reportes) → 10.5 (filtros y tabla en Exportar reportes) → 10.3 (mapa de calor) → 10.4 (rango fechas para métricas).
