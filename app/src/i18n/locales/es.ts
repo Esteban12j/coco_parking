@@ -5,6 +5,12 @@ export const es: Translations = {
     name: "COCO Parking",
     tagline: "Smart Parking",
   },
+  theme: {
+    label: "Tema",
+    light: "Claro",
+    soft: "Suave",
+    dark: "Oscuro",
+  },
   common: {
     cancel: "Cancelar",
     search: "Buscar",

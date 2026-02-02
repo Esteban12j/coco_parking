@@ -1,3 +1,4 @@
+import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -77,10 +78,17 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <I18nProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="light"
+      storageKey="coco-parking-theme"
+      themes={["light", "dark", "soft"]}
+      enableSystem={false}
+    >
+      <I18nProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
         <PlateConflictsGate />
         <BrowserRouter>
           <AuthGate>
@@ -101,8 +109,9 @@ const App = () => (
             </Routes>
           </AuthGate>
         </BrowserRouter>
-    </TooltipProvider>
-    </I18nProvider>
+        </TooltipProvider>
+      </I18nProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

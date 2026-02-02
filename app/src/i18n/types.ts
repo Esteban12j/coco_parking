@@ -5,6 +5,12 @@ export interface Translations {
     name: string;
     tagline: string;
   };
+  theme: {
+    label: string;
+    light: string;
+    soft: string;
+    dark: string;
+  };
   auth: {
     title: string;
     subtitle: string;

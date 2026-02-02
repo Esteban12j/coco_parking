@@ -1,7 +1,8 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { NavLink } from "react-router-dom";
 import { useEffect } from "react";
-import { Car, DollarSign, BarChart3, Tag, Shield, Database, Terminal, Languages, HardDrive, Cpu, LogOut, FileWarning } from "lucide-react";
+import { Car, DollarSign, BarChart3, Tag, Shield, Database, Terminal, Languages, HardDrive, Cpu, LogOut, FileWarning, Palette } from "lucide-react";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
 import { useParkingStore } from "@/hooks/useParkingStore";
@@ -42,13 +43,17 @@ const devNavRoute = { to: "/dev-console", key: "nav.devConsole" as const, icon: 
 
 const ALLOWED_FALLBACK_ORDER = ["/vehicles", "/till", "/debtors", "/metrics", "/tariffs", "/roles", "/backup"];
 
+type AppTheme = "light" | "dark" | "soft";
+
 export const AppLayout = () => {
   const { t, locale, setLocale } = useTranslation();
+  const { theme, setTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const { isTauri: tauri } = useParkingStore();
   const { user, logout } = useSession();
   const { hasPermission } = useMyPermissions(!!user);
+  const currentTheme = (theme === "light" || theme === "dark" || theme === "soft" ? theme : "light") as AppTheme;
 
   const visibleNavRoutes =
     tauri && user ? navRoutes.filter((r) => hasPermission(r.permission)) : navRoutes;
@@ -96,7 +101,7 @@ export const AppLayout = () => {
               </DropdownMenu>
             </div>
           )}
-          <div className="mt-3 pt-3 border-t border-border">
+          <div className="mt-3 pt-3 border-t border-border space-y-2">
             <Select value={locale} onValueChange={(v) => setLocale(v as Locale)}>
               <SelectTrigger className="h-8 text-xs gap-1.5">
                 <Languages className="h-3.5 w-3.5" />
@@ -105,6 +110,20 @@ export const AppLayout = () => {
               <SelectContent>
                 <SelectItem value="en">English</SelectItem>
                 <SelectItem value="es">Español</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={currentTheme}
+              onValueChange={(v) => setTheme(v as AppTheme)}
+            >
+              <SelectTrigger className="h-8 text-xs gap-1.5">
+                <Palette className="h-3.5 w-3.5" />
+                <SelectValue placeholder={t("theme.label")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="light">{t("theme.light")}</SelectItem>
+                <SelectItem value="soft">{t("theme.soft")}</SelectItem>
+                <SelectItem value="dark">{t("theme.dark")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
