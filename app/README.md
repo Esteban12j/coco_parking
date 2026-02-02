@@ -35,19 +35,13 @@ Artifacts: `app/src-tauri/target/release/bundle/` (Windows: .exe/.msi; macOS: .a
 
 ## Troubleshooting
 
-**Blank window on Linux / WSL2** (with libEGL / MESA warnings): the webview may fail to use the GPU. Try running with software rendering:
+**Blank window or stuck on "Loading COCO Parking…" on Linux / WSL2** (with libEGL / MESA / ZINK warnings): the webview may fail to use the GPU. Try running with software rendering:
 
 ```bash
-WEBKIT_DISABLE_DMABUF_RENDERER=1 npm run tauri:dev
+WEBKIT_DISABLE_DMABUF_RENDERER=1 LIBGL_ALWAYS_SOFTWARE=1 npm run tauri:dev
 ```
 
-Or:
-
-```bash
-LIBGL_ALWAYS_SOFTWARE=1 npm run tauri:dev
-```
-
-If the window stays blank, open http://localhost:5173 in a normal browser while `tauri:dev` is running. If the app loads there, the issue is the Tauri webview (graphics stack). On WSL2, using WSLg (Windows 11) or running the app natively on Windows/macOS often works better.
+If the window stays blank or stuck on the initial loading text, open http://localhost:5173 in a normal browser while `tauri:dev` is running. If the app loads there, the issue is the Tauri webview (graphics stack). On WSL2, using WSLg (Windows 11) or running the app natively on Windows/macOS often works better.
 
 ## Barcode scanner (Linux)
 
