@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Car,
@@ -16,6 +17,8 @@ import { useMyPermissions } from "@/hooks/useMyPermissions";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { invokeTauri } from "@/lib/tauriInvoke";
 import type { PeakHourSlot } from "@/types/parking";
 import { ReportsExport } from "./components/ReportsExport";
@@ -105,33 +108,35 @@ export const MetricasPage = () => {
   } = useParkingStore();
 
   const today = getTodayLocalDate();
+  const [dateFrom, setDateFrom] = useState(today);
+  const [dateTo, setDateTo] = useState(today);
 
   const arrivalsQuery = useQuery({
-    queryKey: ["parking", "arrivalsByHour", today, today],
+    queryKey: ["parking", "arrivalsByHour", dateFrom, dateTo],
     queryFn: () =>
       invokeTauri<PeakHourSlot[]>("metricas_get_arrivals_by_hour", {
-        date_from: today,
-        date_to: today,
+        dateFrom,
+        dateTo,
       }),
     enabled: isTauri,
   });
 
   const occupancyQuery = useQuery({
-    queryKey: ["parking", "occupancyByHour", today, today],
+    queryKey: ["parking", "occupancyByHour", dateFrom, dateTo],
     queryFn: () =>
       invokeTauri<PeakHourSlot[]>("metricas_get_occupancy_by_hour", {
-        date_from: today,
-        date_to: today,
+        dateFrom,
+        dateTo,
       }),
     enabled: isTauri,
   });
 
   const exitsQuery = useQuery({
-    queryKey: ["parking", "exitsByHour", today, today],
+    queryKey: ["parking", "exitsByHour", dateFrom, dateTo],
     queryFn: () =>
       invokeTauri<PeakHourSlot[]>("metricas_get_peak_hours", {
-        date_from: today,
-        date_to: today,
+        dateFrom,
+        dateTo,
       }),
     enabled: isTauri,
   });
@@ -152,17 +157,39 @@ export const MetricasPage = () => {
             </p>
           )}
         </div>
-        {isTauri && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => invalidateParking()}
-            disabled={isLoading}
-          >
-            <RefreshCw className={isLoading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-            <span className="ml-2">{t("common.refresh")}</span>
-          </Button>
-        )}
+        <div className="flex flex-wrap items-end gap-4">
+          {isTauri && (
+            <>
+              <div className="space-y-2">
+                <Label className="text-sm">{t("metrics.heatmapDayVehicle.dateFrom")}</Label>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">{t("metrics.heatmapDayVehicle.dateTo")}</Label>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+          {isTauri && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => invalidateParking()}
+              disabled={isLoading}
+            >
+              <RefreshCw className={isLoading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+              <span className="ml-2">{t("common.refresh")}</span>
+            </Button>
+          )}
+        </div>
       </div>
 
       {isLoading && (
@@ -343,7 +370,7 @@ export const MetricasPage = () => {
 
         {isTauri && (
           <div className="w-full">
-            <HeatmapDayVehicle />
+            <HeatmapDayVehicle dateFrom={dateFrom} dateTo={dateTo} />
           </div>
         )}
 

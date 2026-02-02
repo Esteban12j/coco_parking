@@ -4,7 +4,6 @@ import { useTranslation } from "@/i18n";
 import { invokeTauri } from "@/lib/tauriInvoke";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -84,19 +83,16 @@ function intensityTextClass(count: number, maxCount: number): string {
   return "text-foreground";
 }
 
-function getTodayLocalDate(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-}
-
 const isTauriEnv = (): boolean =>
   typeof window !== "undefined" && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
 
-export function HeatmapDayVehicle() {
+type HeatmapDayVehicleProps = {
+  dateFrom: string;
+  dateTo: string;
+};
+
+export function HeatmapDayVehicle({ dateFrom, dateTo }: HeatmapDayVehicleProps) {
   const { t } = useTranslation();
-  const today = getTodayLocalDate();
-  const [dateFrom, setDateFrom] = useState(today);
-  const [dateTo, setDateTo] = useState(today);
   const [period, setPeriod] = useState<DayPeriodFilter>("");
   const isTauri = isTauriEnv();
 
@@ -104,8 +100,8 @@ export function HeatmapDayVehicle() {
     queryKey: ["parking", "heatmapDayVehicle", dateFrom, dateTo, period],
     queryFn: () =>
       invokeTauri<HeatmapDayVehicleRow[]>("metricas_get_heatmap_day_vehicle", {
-        date_from: dateFrom,
-        date_to: dateTo,
+        dateFrom,
+        dateTo,
         period: period || null,
       }),
     enabled: isTauri && !!dateFrom && !!dateTo,
@@ -127,22 +123,6 @@ export function HeatmapDayVehicle() {
       </p>
 
       <div className="flex flex-wrap items-end gap-4 mb-4">
-        <div className="space-y-2">
-          <Label className="text-sm">{t("metrics.heatmapDayVehicle.dateFrom")}</Label>
-          <Input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-sm">{t("metrics.heatmapDayVehicle.dateTo")}</Label>
-          <Input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-          />
-        </div>
         <div className="space-y-2">
           <Label className="text-sm">{t("metrics.heatmapDayVehicle.period")}</Label>
           <Select
