@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    /* Eye-Friendly Base Palette */
+    /* Eye-Friendly Base Palette (Story 11.1: non–pure white for comfort) */
     --background: 210 20% 98%; /* #F8F9FA - Soft bone */
     --foreground: 217 33% 17%; /* #1E293B - Professional blue-black */
 
