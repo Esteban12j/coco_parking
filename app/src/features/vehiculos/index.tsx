@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Search } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Search, CalendarDays } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { ScannerInput } from "./components/ScannerInput";
 import { VehicleEntryForm } from "./components/VehicleEntryForm";
@@ -182,7 +183,20 @@ export const VehiculosPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <PageHeader title={t("vehicles.title")} subtitle={t("vehicles.subtitle")} />
+      <PageHeader
+        title={t("vehicles.title")}
+        subtitle={t("vehicles.subtitle")}
+        actions={
+          isTauri ? (
+            <Link to="/vehicles/today">
+              <Button variant="outline" size="sm">
+                <CalendarDays className="h-4 w-4 mr-2" />
+                {t("vehicles.vehiclesTodayLink")}
+              </Button>
+            </Link>
+          ) : undefined
+        }
+      />
 
       <section className="py-6">
         {viewMode === "scanner" && (

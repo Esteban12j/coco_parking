@@ -203,6 +203,7 @@ pub fn dev_list_commands(state: State<AppState>) -> Result<Vec<String>, String> 
         "dev_clear_database".to_string(),
         "caja_get_debug".to_string(),
         "vehiculos_list_vehicles".to_string(),
+        "vehiculos_list_vehicles_by_date".to_string(),
         "vehiculos_register_entry".to_string(),
         "vehiculos_process_exit".to_string(),
         "vehiculos_find_by_plate".to_string(),

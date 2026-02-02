@@ -36,6 +36,7 @@ export interface Translations {
   };
   nav: {
     vehicles: string;
+    vehiclesToday: string;
     till: string;
     debtors: string;
     metrics: string;
@@ -105,6 +106,12 @@ export interface Translations {
     plateHistoryEmpty: string;
     plateHistoryViewDebtDetail: string;
     plateHistoryAmountOrDebt: string;
+    vehiclesTodayTitle: string;
+    vehiclesTodaySubtitle: string;
+    vehiclesTodayNoData: string;
+    vehiclesTodayDateLabel: string;
+    vehiclesTodayLink: string;
+    vehiclesTodayCountLabel: string;
     /** Placa opcional para bicicletas/monopatines */
     vehiclePlateOptional: string;
     errorRegisteringEntry: string;

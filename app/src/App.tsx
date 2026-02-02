@@ -13,6 +13,7 @@ import {
 import { I18nProvider } from "@/i18n";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { VehiculosPage } from "@/features/vehiculos";
+import { VehiclesTodayPage } from "@/features/vehiculos/VehiclesTodayPage";
 import { PlateConflictsModal } from "@/features/vehiculos/components/PlateConflictsModal";
 import { useParkingStore } from "@/hooks/useParkingStore";
 import { useSession } from "@/hooks/useSession";
@@ -97,6 +98,7 @@ const App = () => (
               <Route path="/" element={<AppLayout />}>
                 <Route index element={<Navigate to="/vehicles" replace />} />
                 <Route path="vehicles" element={<VehiculosPage />} />
+                <Route path="vehicles/today" element={<VehiclesTodayPage />} />
                 <Route path="till" element={<CajaPage />} />
                 <Route path="debtors" element={<DebtorsPage />} />
                 <Route path="metrics" element={<MetricasPage />} />

@@ -100,11 +100,13 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 
 **Nota para Scrum Master (13.2):** Historia 13.2 cerrada. Búsqueda progresiva por placa implementada: backend `vehiculos_search_vehicles_by_plate_prefix` (prefix LIKE); en "Buscar por placa" (manual checkout) y en "Historial por placa" se consulta con debounce 350 ms cuando se escriben ≥2 caracteres; resultados se actualizan al seguir escribiendo; en manual checkout se muestran sugerencias de vehículos activos y se puede elegir uno para cobro. Actualizar tablero y resumen por épica.
 
+**Nota para Scrum Master (13.3):** Historia 13.3 cerrada. Acceso rápido "Vehículos de hoy" implementado: backend `vehiculos_list_vehicles_by_date` (date YYYY-MM-DD; devuelve vehículos con entrada o salida en esa fecha, activos + completados); ruta `/vehicles/today` con página dedicada; enlace en la navegación lateral ("Vehículos de hoy") y botón en la página Vehículos; filtro de fecha por defecto "hoy"; tabla con ticket, placa, tipo, entrada, salida, estado, monto/deuda; paginación cuando hay más de 50 registros. Actualizar tablero y resumen por épica.
+
 | ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
 |----|----------|--------|---------|--------|--------------------------|-----|--------|
 | 13.1 | Historial por placa | operador/admin | buscar el historial de un coche por su placa (activos + completados) | consultar sesiones y pagos de esa placa | • Pantalla o sección "Historial por placa" (o integrada en Vehículos): campo placa y tabla con todos los vehículos de esa placa (vehiculos_get_vehicles_by_plate).<br>• Columnas: ticket, placa, tipo, entrada, salida, estado, monto/deuda según corresponda; opcional enlace a detalle deuda si aplica. | 5 | **Hecho** |
 | 13.2 | Búsqueda progresiva por placa | operador | que al escribir más caracteres de la placa se reduzcan las coincidencias mostradas | encontrar más rápido el vehículo o historial | • En la búsqueda por placa (y donde se liste por placa): consulta al backend con debounce (ej. ≥2 caracteres); resultados que coincidan con el texto introducido; listado que se actualiza al seguir escribiendo. | 3 | **Hecho** |
-| 13.3 | Acceso rápido "Vehículos de hoy" | operador | ver desde un solo lugar los vehículos del día (activos y ya pagados) sin ir a Métricas y aplicar filtros | menos clics para una consulta frecuente | • Enlace o sección "Vehículos de hoy" (en nav o en Vehículos) que muestre listado de vehículos con entrada o salida hoy (activos + completados hoy); filtro de fecha "hoy" aplicado por defecto; sin pasar por Métricas ni varios clics. | 3 | Por hacer |
+| 13.3 | Acceso rápido "Vehículos de hoy" | operador | ver desde un solo lugar los vehículos del día (activos y ya pagados) sin ir a Métricas y aplicar filtros | menos clics para una consulta frecuente | • Enlace o sección "Vehículos de hoy" (en nav o en Vehículos) que muestre listado de vehículos con entrada o salida hoy (activos + completados hoy); filtro de fecha "hoy" aplicado por defecto; sin pasar por Métricas ni varios clics. | 3 | **Hecho** |
 
 ---
 
@@ -114,7 +116,7 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 
 | ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
 |----|----------|--------|---------|--------|--------------------------|-----|--------|
-| 14.1 | Exportar datos crudos o Excel / gráficos personalizados | admin | exportar datos en bruto o crear mis propios gráficos/tablas dinámicas (o llevarlos a Excel) | análisis flexible | • Opción de exportar datos crudos (CSV/Excel) de tablas relacionales con filtros básicos.<br>• Opcional: herramienta interna para gráficos con tablas dinámicas o unión de datos; si no, al menos export suficiente para hacerlo en Excel.<br>• **Alcance:** backlog v1.1; no bloqueante para instalador v1. | 8 | Backlog |
+| 14.1 | Exportar datos crudos o Excel / gráficos personalizados | admin | exportar datos en bruto o crear mis propios gráficos/tablas dinámicas (o llevarlos a Excel) | análisis flexible | • Opción de exportar datos crudos (CSV/Excel) de tablas relacionales con filtros básicos.<br>• Opcional: herramienta interna para gráficos con tablas dinámicas o unión de datos; si no, al menos export suficiente para hacerlo en Excel.<br>• **Alcance:** backlog v1.1; no bloqueante para instalador v1. | 8 | despriorizado |
 
 ---
 

@@ -36,6 +36,7 @@ export const en: Translations = {
   },
   nav: {
     vehicles: "Vehicles",
+    vehiclesToday: "Today's vehicles",
     till: "Till",
     debtors: "Debtors",
     metrics: "Metrics",
@@ -105,6 +106,12 @@ export const en: Translations = {
     plateHistoryEmpty: "No records for that plate.",
     plateHistoryViewDebtDetail: "View debt detail",
     plateHistoryAmountOrDebt: "Amount / Debt",
+    vehiclesTodayTitle: "Today's vehicles",
+    vehiclesTodaySubtitle: "Vehicles with entry or exit on the selected date (active and completed).",
+    vehiclesTodayNoData: "No vehicles with entry or exit on this date.",
+    vehiclesTodayDateLabel: "Date",
+    vehiclesTodayLink: "Today's vehicles",
+    vehiclesTodayCountLabel: "vehicles",
     vehiclePlateOptional: "Plate (cars, motorcycles, trucks only; bicycles have no plate)",
     errorRegisteringEntry: "Error registering entry",
     errors: {

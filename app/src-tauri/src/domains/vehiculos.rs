@@ -143,6 +143,39 @@ pub fn vehiculos_list_vehicles(
     Ok(ListVehiclesResult { items, total })
 }
 
+/// Vehicles with entry or exit on the given date (YYYY-MM-DD). Active and completed. For "Vehículos de hoy" quick access.
+#[tauri::command]
+pub fn vehiculos_list_vehicles_by_date(
+    state: State<AppState>,
+    date: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<ListVehiclesResult, String> {
+    state.check_permission(permissions::VEHICULOS_ENTRIES_READ)?;
+    let date_trim = date.trim();
+    if date_trim.len() < 10 {
+        return Err("Date must be YYYY-MM-DD".to_string());
+    }
+    let date_prefix = &date_trim[..10];
+    let limit = limit.unwrap_or(DEFAULT_LIST_LIMIT).min(MAX_LIST_LIMIT);
+    let offset = offset.unwrap_or(0);
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+
+    let count_sql = "SELECT COUNT(*) FROM vehicles WHERE (substr(entry_time, 1, 10) = ?1) OR (exit_time IS NOT NULL AND substr(exit_time, 1, 10) = ?2)";
+    let total: u32 = conn
+        .query_row(count_sql, params![date_prefix, date_prefix], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+
+    let list_sql = "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE (substr(entry_time, 1, 10) = ?1) OR (exit_time IS NOT NULL AND substr(exit_time, 1, 10) = ?2) ORDER BY entry_time DESC LIMIT ?3 OFFSET ?4";
+    let mut stmt = conn.prepare(list_sql).map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![date_prefix, date_prefix, limit, offset], |row| row_to_vehicle(row))
+        .map_err(|e| e.to_string())?;
+    let items: Vec<Vehicle> = rows.filter_map(|r| r.ok()).collect();
+
+    Ok(ListVehiclesResult { items, total })
+}
+
 #[tauri::command]
 pub fn vehiculos_get_total_debt(state: State<AppState>) -> Result<f64, String> {
     state.check_permission(permissions::CAJA_DEBTORS_READ)?;

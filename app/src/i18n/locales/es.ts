@@ -36,6 +36,7 @@ export const es: Translations = {
   },
   nav: {
     vehicles: "Vehículos",
+    vehiclesToday: "Vehículos de hoy",
     till: "Caja",
     debtors: "Deudores",
     metrics: "Métricas",
@@ -105,6 +106,12 @@ export const es: Translations = {
     plateHistoryEmpty: "No hay registros para esa placa.",
     plateHistoryViewDebtDetail: "Ver detalle deuda",
     plateHistoryAmountOrDebt: "Monto / Deuda",
+    vehiclesTodayTitle: "Vehículos de hoy",
+    vehiclesTodaySubtitle: "Vehículos con entrada o salida en la fecha seleccionada (activos y completados).",
+    vehiclesTodayNoData: "No hay vehículos con entrada o salida en esta fecha.",
+    vehiclesTodayDateLabel: "Fecha",
+    vehiclesTodayLink: "Vehículos de hoy",
+    vehiclesTodayCountLabel: "vehículos",
     vehiclePlateOptional: "Placa (solo auto, moto o camión; bicicletas no llevan placa)",
     errorRegisteringEntry: "Error al registrar entrada",
     errors: {
