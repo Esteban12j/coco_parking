@@ -10,10 +10,10 @@
     --background: 210 20% 98%; /* #F8F9FA - Soft bone */
     --foreground: 217 33% 17%; /* #1E293B - Professional blue-black */
 
-    --card: 0 0% 100%; /* Pure white for cards */
+    --card: 210 20% 99%; /* Soft elevated surface (same hue as background, non–pure white) */
     --card-foreground: 217 33% 17%;
 
-    --popover: 0 0% 100%;
+    --popover: 210 20% 99%;
     --popover-foreground: 217 33% 17%;
 
     /* COCO Yellow - Brand Accent */
@@ -50,7 +50,7 @@
     --radius: 0.5rem;
 
     /* Sidebar */
-    --sidebar-background: 0 0% 100%;
+    --sidebar-background: 210 20% 99%;
     --sidebar-foreground: 217 33% 17%;
     --sidebar-primary: 49 100% 50%;
     --sidebar-primary-foreground: 217 33% 17%;
