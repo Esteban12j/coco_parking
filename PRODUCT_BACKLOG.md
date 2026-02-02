@@ -147,6 +147,8 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes; pe
 | 15.1 | Build e instalador Windows | DevOps / equipo | que el proyecto genere un instalador para Windows (Tauri) de forma reproducible | entregar al cliente en Windows | • Script o pipeline (CI) que ejecute build Tauri para Windows y genere el artefacto de instalación (ej. .msi o .exe según configuración Tauri).<br>• Documentar requisitos (Node, Rust, versiones) y pasos para generar el instalador.<br>• **Entorno objetivo:** Windows. | 5 | **Hecho** |
 | 15.2 | Verificación de instalación en Windows | QA / equipo | tener un checklist para probar que la instalación en Windows funciona correctamente | asegurar que el usuario final puede instalar y usar la app | • Checklist: instalar desde el instalador, arrancar app, login, flujo básico (entrada, salida, caja), permisos, cierre de turno, backup export/restore (opcional).<br>• Documentar resultado y requisitos de sistema (Windows 10/11, etc.). | 2 | Por hacer |
 
+**Scrum Master — update (15.2):** Checklist created: `docs/WINDOWS_INSTALLATION_CHECKLIST.md`. It covers: install from installer, start app, login, basic flow (entry, exit, till/caja), permissions, shift close (cierre de turno), backup export/restore (optional); system requirements (Windows 10/11 x64, WebView2); and a sign-off section for QA and for marking 15.2 Done. **Action:** Once QA runs the checklist and documents results, mark 15.2 as **Hecho** and document system requirements in the backlog or in the checklist file.
+
 ---
 
 ## Resumen por épica (incluye v1)
@@ -202,7 +204,7 @@ Las épicas 1–8 se mantienen como referencia; todas las historias están **Hec
 ## Notas para refinamiento
 
 - **Siguiente:** Épica 15 — 15.2 (checklist verificación instalación Windows). 15.1 (build e instalador) **Hecho**.
-- **Scrum Master:** Historia 15.1 (Build e instalador Windows) completada. Entregables: pipeline CI en `.github/workflows/build-windows.yml`, documentación en `docs/BUILD_WINDOWS_INSTALLER.md`. Actualizar sprint/board y priorizar 15.2 (checklist verificación).
+- **Scrum Master:** Historia 15.1 (Build e instalador Windows) completada. Entregables: pipeline CI en `.github/workflows/build-windows.yml`, documentación en `docs/BUILD_WINDOWS_INSTALLER.md`. Actualizar sprint/board y priorizar 15.2 (checklist verificación). **15.2 entregable:** checklist en `docs/WINDOWS_INSTALLATION_CHECKLIST.md` — cuando QA ejecute el checklist y documente resultados, marcar 15.2 como Hecho y documentar requisitos de sistema si aplica.
 - **Épica 17 (Mantenibilidad):** Queries localizables, capa API única, índice api/ coherente, documento comando→tabla. No bloqueante para v1; priorizar después del instalador (tech lead, backend, frontend, DBA).
 - **Tarifas:** Hecho. Cliente no edita tarifas base; tarifa personalizada = opción en flujo (buscar o crear).
 - **Herramientas avanzadas (Excel, gráficos):** Backlog v1.1.
