@@ -86,11 +86,13 @@ export const CustomTariffSelector = ({
       description?: string | null;
     }) =>
       invokeTauri<CustomTariff>("custom_tariffs_create", {
-        vehicleType: args.vehicleType,
-        name: args.name?.trim() || null,
-        plateOrRef: args.plateOrRef?.trim() || null,
-        amount: args.amount,
-        description: args.description ?? null,
+        args: {
+          vehicleType: args.vehicleType,
+          name: args.name?.trim() || null,
+          plateOrRef: args.plateOrRef?.trim() || null,
+          amount: args.amount,
+          description: args.description ?? null,
+        },
       }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["custom_tariffs"] });
