@@ -58,6 +58,7 @@ export const TariffsPage = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingTariff, setEditingTariff] = useState<CustomTariff | null>(null);
   const [formVehicleType, setFormVehicleType] = useState<VehicleType>("car");
+  const [formName, setFormName] = useState("");
   const [formPlateOrRef, setFormPlateOrRef] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formAmount, setFormAmount] = useState("");
@@ -74,12 +75,14 @@ export const TariffsPage = () => {
   const createMutation = useMutation({
     mutationFn: (args: {
       vehicleType: string;
+      name?: string | null;
       plateOrRef?: string | null;
       amount: number;
       description?: string | null;
     }) =>
       invokeTauri<CustomTariff>("custom_tariffs_create", {
         vehicleType: args.vehicleType,
+        name: args.name?.trim() || null,
         plateOrRef: args.plateOrRef?.trim() || null,
         amount: args.amount,
         description: args.description ?? null,
@@ -99,6 +102,7 @@ export const TariffsPage = () => {
     mutationFn: (args: {
       id: string;
       vehicleType?: string | null;
+      name?: string | null;
       plateOrRef?: string | null;
       amount?: number;
       description?: string | null;
@@ -106,6 +110,7 @@ export const TariffsPage = () => {
       invokeTauri<CustomTariff>("custom_tariffs_update", {
         id: args.id,
         vehicleType: args.vehicleType ?? null,
+        name: args.name?.trim() || null,
         plateOrRef: args.plateOrRef?.trim() || null,
         amount: args.amount ?? null,
         description: args.description ?? null,
@@ -144,6 +149,7 @@ export const TariffsPage = () => {
 
   function resetForm() {
     setFormVehicleType("car");
+    setFormName("");
     setFormPlateOrRef("");
     setFormDescription("");
     setFormAmount("");
@@ -152,6 +158,7 @@ export const TariffsPage = () => {
   const openEdit = (tariff: CustomTariff) => {
     setEditingTariff(tariff);
     setFormVehicleType((tariff.vehicleType as VehicleType) || "car");
+    setFormName(tariff.name ?? "");
     setFormPlateOrRef(tariff.plateOrRef ?? "");
     setFormDescription(tariff.description ?? "");
     setFormAmount(String(tariff.amount));
@@ -170,6 +177,7 @@ export const TariffsPage = () => {
     updateMutation.mutate({
       id: editingTariff.id,
       vehicleType: formVehicleType,
+      name: formName.trim() || null,
       plateOrRef: formPlateOrRef.trim() || null,
       amount,
       description: formDescription.trim() || null,
@@ -181,14 +189,15 @@ export const TariffsPage = () => {
     if (Number.isNaN(amount) || amount < 0) return;
     createMutation.mutate({
       vehicleType: formVehicleType,
+      name: formName.trim() || null,
       plateOrRef: formPlateOrRef.trim() || null,
       amount,
       description: formDescription.trim() || null,
     });
   };
 
-  const plateDisplay = (tariff: CustomTariff) =>
-    tariff.plateOrRef?.trim() ? tariff.plateOrRef : t("tariffs.defaultLabel");
+  const nameDisplay = (tariff: CustomTariff) =>
+    tariff.name?.trim() || tariff.plateOrRef?.trim() || t("tariffs.defaultLabel");
 
   const isFormValid =
     formAmount.trim() !== "" &&
@@ -237,6 +246,7 @@ export const TariffsPage = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t("conflicts.vehicleType")}</TableHead>
+                    <TableHead>{t("customTariff.name")}</TableHead>
                     <TableHead>{t("customTariff.plateOrRef")}</TableHead>
                     <TableHead>{t("customTariff.description")}</TableHead>
                     <TableHead className="text-right">{t("customTariff.amount")}</TableHead>
@@ -247,7 +257,8 @@ export const TariffsPage = () => {
                   {customTariffs.map((tariff) => (
                     <TableRow key={tariff.id}>
                       <TableCell>{vehicleLabels[tariff.vehicleType as VehicleType] ?? tariff.vehicleType}</TableCell>
-                      <TableCell className="font-mono">{plateDisplay(tariff)}</TableCell>
+                      <TableCell className="font-medium">{nameDisplay(tariff)}</TableCell>
+                      <TableCell className="font-mono text-muted-foreground">{tariff.plateOrRef?.trim() || "—"}</TableCell>
                       <TableCell className="text-muted-foreground max-w-[200px] truncate">
                         {tariff.description ?? "—"}
                       </TableCell>
@@ -305,6 +316,12 @@ export const TariffsPage = () => {
                 ))}
               </SelectContent>
             </Select>
+            <Label>{t("customTariff.name")}</Label>
+            <Input
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
+              placeholder={t("customTariff.namePlaceholder")}
+            />
             <Label>{t("customTariff.plateOrRef")} ({t("tariffs.optional")})</Label>
             <Input
               value={formPlateOrRef}
@@ -367,6 +384,12 @@ export const TariffsPage = () => {
                   ))}
                 </SelectContent>
               </Select>
+              <Label>{t("customTariff.name")}</Label>
+              <Input
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder={t("customTariff.namePlaceholder")}
+              />
               <Label>{t("customTariff.plateOrRef")} ({t("tariffs.optional")})</Label>
               <Input
                 value={formPlateOrRef}

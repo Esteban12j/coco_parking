@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>;
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 12;
+const SCHEMA_VERSION: i64 = 13;
 
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
@@ -305,6 +305,15 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
         )
         .map_err(|e| e.to_string())?;
         conn.execute("INSERT INTO schema_version (version) VALUES (12)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 13 {
+        conn.execute_batch(
+            "ALTER TABLE custom_tariffs ADD COLUMN name TEXT;",
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (13)", [])
             .map_err(|e| e.to_string())?;
     }
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Plus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -35,22 +35,38 @@ interface CustomTariffSelectorProps {
   open: boolean;
   onClose: () => void;
   onSelect: (amount: number) => void;
+  /** When set (e.g. from checkout), only tariffs for this vehicle type are shown/selectable and create form uses this type. */
+  fixedVehicleType?: VehicleType;
+  /** When set (e.g. from checkout), create form plate field is pre-filled with this value. */
+  fixedPlateOrRef?: string;
 }
 
 export const CustomTariffSelector = ({
   open,
   onClose,
   onSelect,
+  fixedVehicleType,
+  fixedPlateOrRef,
 }: CustomTariffSelectorProps) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const tauri = isTauri();
   const [search, setSearch] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [createVehicleType, setCreateVehicleType] = useState<VehicleType>("car");
-  const [createPlateOrRef, setCreatePlateOrRef] = useState("");
+  const [createVehicleType, setCreateVehicleType] = useState<VehicleType>(fixedVehicleType ?? "car");
+  const [createName, setCreateName] = useState("");
+  const [createPlateOrRef, setCreatePlateOrRef] = useState(fixedPlateOrRef ?? "");
   const [createDescription, setCreateDescription] = useState("");
   const [createAmount, setCreateAmount] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      if (fixedVehicleType != null) {
+        setCreateVehicleType(fixedVehicleType);
+      }
+      setCreatePlateOrRef(fixedPlateOrRef ?? "");
+    }
+  }, [open, fixedVehicleType, fixedPlateOrRef]);
 
   const listQuery = useQuery({
     queryKey: ["custom_tariffs", search],
@@ -64,12 +80,14 @@ export const CustomTariffSelector = ({
   const createMutation = useMutation({
     mutationFn: (args: {
       vehicleType: string;
+      name?: string | null;
       plateOrRef?: string | null;
       amount: number;
       description?: string | null;
     }) =>
       invokeTauri<CustomTariff>("custom_tariffs_create", {
         vehicleType: args.vehicleType,
+        name: args.name?.trim() || null,
         plateOrRef: args.plateOrRef?.trim() || null,
         amount: args.amount,
         description: args.description ?? null,
@@ -77,8 +95,9 @@ export const CustomTariffSelector = ({
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["custom_tariffs"] });
       setShowCreateForm(false);
-      setCreateVehicleType("car");
-      setCreatePlateOrRef("");
+      setCreateVehicleType(fixedVehicleType ?? "car");
+      setCreateName("");
+      setCreatePlateOrRef(fixedPlateOrRef ?? "");
       setCreateDescription("");
       setCreateAmount("");
       onSelect(data.amount);
@@ -93,7 +112,11 @@ export const CustomTariffSelector = ({
     },
   });
 
-  const items = (listQuery.data ?? []) as CustomTariff[];
+  const allItems = (listQuery.data ?? []) as CustomTariff[];
+  const items =
+    fixedVehicleType != null
+      ? allItems.filter((t) => t.vehicleType === fixedVehicleType)
+      : allItems;
 
   const vehicleLabels: Record<VehicleType, string> = {
     car: t("checkout.car"),
@@ -107,6 +130,8 @@ export const CustomTariffSelector = ({
     onClose();
   };
 
+  const effectiveCreateVehicleType = fixedVehicleType ?? createVehicleType;
+
   const handleCreateAndApply = (e?: React.FormEvent) => {
     e?.preventDefault();
     const amountRaw = createAmount.replace(",", ".").trim();
@@ -114,7 +139,8 @@ export const CustomTariffSelector = ({
     if (amountRaw === "" || Number.isNaN(amount) || amount < 0) return;
     if (tauri) {
       createMutation.mutate({
-        vehicleType: createVehicleType,
+        vehicleType: effectiveCreateVehicleType,
+        name: createName.trim() || null,
         plateOrRef: createPlateOrRef.trim() || null,
         amount,
         description: createDescription.trim() || null,
@@ -132,8 +158,8 @@ export const CustomTariffSelector = ({
     !Number.isNaN(parseFloat(createAmount.replace(",", "."))) &&
     parseFloat(createAmount.replace(",", ".")) >= 0;
 
-  const plateDisplay = (tariff: CustomTariff) =>
-    tariff.plateOrRef?.trim() ? tariff.plateOrRef : t("tariffs.defaultLabel");
+  const nameDisplay = (tariff: CustomTariff) =>
+    tariff.name?.trim() || tariff.plateOrRef?.trim() || t("tariffs.defaultLabel");
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -159,7 +185,12 @@ export const CustomTariffSelector = ({
                 </div>
               ) : items.length === 0 && !showCreateForm ? (
                 <p className="py-2 text-center text-sm text-muted-foreground">
-                  {t("customTariff.noResults")}
+                  {fixedVehicleType != null
+                    ? t("customTariff.noResultsForType").replace(
+                        "{{type}}",
+                        vehicleLabels[fixedVehicleType]
+                      )
+                    : t("customTariff.noResults")}
                 </p>
               ) : items.length > 0 ? (
                 <ScrollArea className="max-h-[180px] rounded-md border border-border">
@@ -178,8 +209,8 @@ export const CustomTariffSelector = ({
                             <span className="text-muted-foreground shrink-0">
                               {vehicleLabels[tariff.vehicleType as VehicleType] ?? tariff.vehicleType}
                             </span>
-                            <span className="font-mono truncate">
-                              {plateDisplay(tariff)}
+                            <span className="font-medium truncate">
+                              {nameDisplay(tariff)}
                             </span>
                           </span>
                           <span className="font-medium shrink-0">
@@ -198,22 +229,36 @@ export const CustomTariffSelector = ({
               onSubmit={handleCreateAndApply}
               className="space-y-3 rounded-lg border border-border p-4"
             >
-              <Label>{t("conflicts.vehicleType")}</Label>
-              <Select
-                value={createVehicleType}
-                onValueChange={(v) => setCreateVehicleType(v as VehicleType)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {VEHICLE_TYPE_KEYS.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {vehicleLabels[type]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {fixedVehicleType == null ? (
+                <>
+                  <Label>{t("conflicts.vehicleType")}</Label>
+                  <Select
+                    value={createVehicleType}
+                    onValueChange={(v) => setCreateVehicleType(v as VehicleType)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {VEHICLE_TYPE_KEYS.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {vehicleLabels[type]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {t("conflicts.vehicleType")}: {vehicleLabels[fixedVehicleType]}
+                </p>
+              )}
+              <Label>{t("customTariff.name")}</Label>
+              <Input
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+                placeholder={t("customTariff.namePlaceholder")}
+              />
               <Label>{t("customTariff.plateOrRef")} ({t("tariffs.optional")})</Label>
               <Input
                 value={createPlateOrRef}
@@ -244,8 +289,9 @@ export const CustomTariffSelector = ({
                   variant="outline"
                   onClick={() => {
                     setShowCreateForm(false);
-                    setCreateVehicleType("car");
-                    setCreatePlateOrRef("");
+                    setCreateVehicleType(fixedVehicleType ?? "car");
+                    setCreateName("");
+                    setCreatePlateOrRef(fixedPlateOrRef ?? "");
                     setCreateDescription("");
                     setCreateAmount("");
                   }}

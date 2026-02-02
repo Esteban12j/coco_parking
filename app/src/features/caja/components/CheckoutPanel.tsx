@@ -175,6 +175,8 @@ export const CheckoutPanel = ({
           setCustomParkingCost(amount);
           setCustomTariffSelectorOpen(false);
         }}
+        fixedVehicleType={vehicle.vehicleType}
+        fixedPlateOrRef={vehicle.plate}
       />
       <div className="space-y-3 mb-6">
         {customParkingCost === null && (

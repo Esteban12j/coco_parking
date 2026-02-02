@@ -315,11 +315,14 @@ export interface Translations {
     title: string;
     searchPlaceholder: string;
     createHere: string;
+    name: string;
+    namePlaceholder: string;
     plateOrRef: string;
     description: string;
     amount: string;
     createAndApply: string;
     noResults: string;
+    noResultsForType: string;
     createError: string;
   };
   tariffs: {
