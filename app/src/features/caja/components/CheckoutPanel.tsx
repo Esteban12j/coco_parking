@@ -97,6 +97,23 @@ export const CheckoutPanel = ({
       : defaultParkingCost;
   const totalWithDebt = parkingCost + (vehicle.debt || 0);
 
+  const timeParkedLabel = `${elapsed.hours}h ${elapsed.minutes}min`;
+  const blocksCharged =
+    selectedCustomTariff != null && blockMinutes > 0
+      ? Math.ceil(totalMinutes / blockMinutes)
+      : 0;
+  const customBlockLabel =
+    selectedCustomTariff != null
+      ? (() => {
+          const h = selectedCustomTariff.rateDurationHours ?? 0;
+          const m = selectedCustomTariff.rateDurationMinutes ?? 0;
+          const parts: string[] = [];
+          if (h > 0) parts.push(`${h}h`);
+          if (m > 0) parts.push(`${m}min`);
+          return parts.length > 0 ? parts.join(" ") : "1h";
+        })()
+      : "";
+
   const handleCheckout = () => {
     const costToSend = selectedCustomTariff != null ? parkingCost : undefined;
     if (showPartial && partialAmount) {
@@ -189,16 +206,45 @@ export const CheckoutPanel = ({
         fixedPlateOrRef={vehicle.plate}
       />
       <div className="space-y-3 mb-6">
-        {selectedCustomTariff === null && (
+        <div className="flex justify-between text-sm">
+          <span className="text-muted-foreground">{t("checkout.timeParked")}</span>
+          <span className="font-mono font-medium">{timeParkedLabel}</span>
+        </div>
+        {selectedCustomTariff === null ? (
           <>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{t("checkout.hourlyRate")}</span>
-              <span className="font-medium">${hourlyRate.toFixed(2)}</span>
+              <span className="text-muted-foreground">{t("checkout.tariff")}</span>
+              <span className="font-medium">${hourlyRate.toFixed(2)}/h</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{t("checkout.hoursCharged")}</span>
+              <span className="font-medium">{hoursCharged} h</span>
+            </div>
+            <div className="flex justify-between text-sm bg-muted/50 rounded px-2 py-1.5 font-mono">
+              <span className="text-muted-foreground">{t("checkout.tariffFormulaDefault")}</span>
+              <span className="font-semibold">
+                {hoursCharged} × ${hourlyRate.toFixed(2)} = ${defaultParkingCost.toFixed(2)}
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">{t("checkout.tariff")}</span>
               <span className="font-medium">
-                {hoursCharged} hr{hoursCharged > 1 ? "s" : ""}
+                ${selectedCustomTariff.amount.toFixed(2)} / {customBlockLabel}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">{t("checkout.blocksCharged")}</span>
+              <span className="font-medium">
+                {blocksCharged} ({timeParkedLabel} ÷ {customBlockLabel})
+              </span>
+            </div>
+            <div className="flex justify-between text-sm bg-muted/50 rounded px-2 py-1.5 font-mono">
+              <span className="text-muted-foreground">{t("checkout.tariffFormulaCustom")}</span>
+              <span className="font-semibold">
+                {blocksCharged} × ${selectedCustomTariff.amount.toFixed(2)} = ${parkingCost.toFixed(2)}
               </span>
             </div>
           </>
