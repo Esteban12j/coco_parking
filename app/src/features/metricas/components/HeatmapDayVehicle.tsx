@@ -77,6 +77,13 @@ function intensityClass(count: number, maxCount: number): string {
   return "bg-success/50";
 }
 
+function intensityTextClass(count: number, maxCount: number): string {
+  if (maxCount === 0 || count === 0) return "text-muted-foreground";
+  const pct = count / maxCount;
+  if (pct >= 2 / 3) return "text-destructive-foreground";
+  return "text-foreground";
+}
+
 function getTodayLocalDate(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -218,10 +225,13 @@ export function HeatmapDayVehicle() {
                           <TooltipTrigger asChild>
                             <div
                               className={cn(
-                                "w-full h-full min-w-[14px] min-h-[14px] rounded-sm transition-colors cursor-default",
-                                intensityClass(count, maxCount)
+                                "w-full h-full min-w-[14px] min-h-[14px] rounded-sm transition-colors cursor-default flex items-center justify-center text-[10px] font-medium leading-none",
+                                intensityClass(count, maxCount),
+                                intensityTextClass(count, maxCount)
                               )}
-                            />
+                            >
+                              {count > 0 ? count : ""}
+                            </div>
                           </TooltipTrigger>
                           <TooltipContent className="text-sm">
                             <p>{t(getDayLabelKey(dow))} · {t(getVehicleTypeLabelKey(vt))}</p>
@@ -235,17 +245,17 @@ export function HeatmapDayVehicle() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-2 shrink-0 py-1 text-xs text-muted-foreground border-l border-border pl-3">
-              <span className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-sm bg-secondary shrink-0" />
+            <div className="flex flex-col gap-3 shrink-0 py-1 text-sm text-muted-foreground border-l border-border pl-4">
+              <span className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 rounded-sm bg-secondary shrink-0" />
                 {t("metrics.heatmapDayVehicle.legendLow")}
               </span>
-              <span className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-sm bg-success/50 shrink-0" />
+              <span className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 rounded-sm bg-warning/70 shrink-0" />
                 {t("metrics.heatmapDayVehicle.legendMedium")}
               </span>
-              <span className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-sm bg-warning/70 shrink-0" />
+              <span className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 rounded-sm bg-destructive/70 shrink-0" />
                 {t("metrics.heatmapDayVehicle.legendHigh")}
               </span>
             </div>
