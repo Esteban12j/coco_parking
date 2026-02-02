@@ -1,9 +1,9 @@
 //! Daily metrics from persistent store (SQLite). Revenue and transaction count
 //! come from table `transactions` so metrics are coherent with Caja (till).
 //!
-//! Hour-by-hour metrics (arrivals, occupancy, exits):
-//! - Arrivals: hour of entry (when vehicles arrive, demand for spaces).
-//! - Occupancy: vehicles occupying a spot during each hour (busiest hours).
+//! Hour-by-hour metrics (arrivals, occupancy, exits). All three count only completed turns (vehicles that have exited).
+//! - Arrivals: hour of entry (when vehicles arrived, demand for spaces).
+//! - Occupancy: vehicles that were occupying a spot during each hour (busiest hours).
 //! - Exits (peak_hours): hour of checkout/payment (when spaces free up).
 
 use rusqlite::params;
@@ -145,7 +145,7 @@ pub fn metricas_get_daily(state: State<AppState>) -> Result<DailyMetrics, String
 }
 
 /// Exits by hour: count of checkouts/payments per hour (when spaces free up).
-/// Source: transactions.created_at.
+/// Only completed turns (transactions exist only when a vehicle has exited). Source: transactions.created_at.
 #[tauri::command]
 pub fn metricas_get_peak_hours(
     state: State<AppState>,
@@ -186,7 +186,7 @@ pub fn metricas_get_peak_hours(
 }
 
 /// Arrivals by hour: count of vehicles that entered per hour (demand for spaces).
-/// Source: vehicles.entry_time.
+/// Only completed turns (exit_time IS NOT NULL). Source: vehicles.entry_time.
 #[tauri::command]
 pub fn metricas_get_arrivals_by_hour(
     state: State<AppState>,
@@ -205,7 +205,7 @@ pub fn metricas_get_arrivals_by_hour(
             r#"
             SELECT CAST(substr(entry_time, 12, 2) AS INTEGER) as h, COUNT(*) as cnt
             FROM vehicles
-            WHERE entry_time >= ?1 AND entry_time < ?2
+            WHERE entry_time >= ?1 AND entry_time < ?2 AND exit_time IS NOT NULL
             GROUP BY h
             "#,
         )
@@ -227,8 +227,8 @@ pub fn metricas_get_arrivals_by_hour(
 }
 
 /// Occupancy by hour: average number of vehicles occupying a spot during each hour (busiest hours).
-/// For each hour H, counts vehicles where entry_time < end_of(H) and (exit_time IS NULL or exit_time > start_of(H)).
-/// Over a date range, returns the average occupancy per hour of day.
+/// Only completed turns (exit_time IS NOT NULL). For each hour H, counts vehicles where
+/// entry_time < end_of(H) and exit_time > start_of(H). Over a date range, returns the average per hour of day.
 #[tauri::command]
 pub fn metricas_get_occupancy_by_hour(
     state: State<AppState>,
@@ -247,7 +247,7 @@ pub fn metricas_get_occupancy_by_hour(
             r#"
             SELECT entry_time, exit_time
             FROM vehicles
-            WHERE entry_time < ?1 AND (exit_time IS NULL OR exit_time > ?2)
+            WHERE entry_time < ?1 AND exit_time IS NOT NULL AND exit_time > ?2
             "#,
         )
         .map_err(|e| e.to_string())?;
@@ -255,10 +255,10 @@ pub fn metricas_get_occupancy_by_hour(
         .query(params![&to_next, &from_bound])
         .map_err(|e| e.to_string())?;
 
-    let mut entries: Vec<(String, Option<String>)> = Vec::new();
+    let mut entries: Vec<(String, String)> = Vec::new();
     while let Some(row) = rows.next().map_err(|e| e.to_string())? {
         let entry_time: String = row.get(0).map_err(|e| e.to_string())?;
-        let exit_time: Option<String> = row.get(1).map_err(|e| e.to_string())?;
+        let exit_time: String = row.get(1).map_err(|e| e.to_string())?;
         entries.push((entry_time, exit_time));
     }
 
@@ -281,8 +281,7 @@ pub fn metricas_get_occupancy_by_hour(
             let count = entries
                 .iter()
                 .filter(|(entry_time, exit_time)| {
-                    entry_time.as_str() < end_ts.as_str()
-                        && (exit_time.is_none() || exit_time.as_deref().unwrap_or("") > start_ts.as_str())
+                    entry_time.as_str() < end_ts.as_str() && exit_time.as_str() > start_ts.as_str()
                 })
                 .count() as u32;
             *sum_by_hour.get_mut(&hour).unwrap() += count;
