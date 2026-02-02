@@ -29,6 +29,10 @@ export function getPeakHours(args: {
 export function getHeatmapDayVehicle(args: {
   dateFrom?: string;
   dateTo?: string;
+  period?: string | null;
 }): Promise<HeatmapDayVehicleRow[]> {
-  return invokeTauri<HeatmapDayVehicleRow[]>("metricas_get_heatmap_day_vehicle", args);
+  return invokeTauri<HeatmapDayVehicleRow[]>("metricas_get_heatmap_day_vehicle", {
+    ...args,
+    period: args.period ?? undefined,
+  });
 }

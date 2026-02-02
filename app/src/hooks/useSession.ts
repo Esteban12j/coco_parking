@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { invokeTauri } from "@/lib/tauriInvoke";
+import * as apiAuth from "@/api/auth";
 import type { AuthUser } from "@/types/parking";
 
 const SESSION_QUERY_KEY = ["auth", "session"];
@@ -15,7 +15,7 @@ export function useSession() {
   const sessionQuery = useQuery({
     queryKey: SESSION_QUERY_KEY,
     queryFn: async (): Promise<AuthUser | null> => {
-      const user = await invokeTauri<AuthUser | null>("auth_get_session");
+      const user = await apiAuth.getSession();
       return user ?? null;
     },
     enabled: tauri,
@@ -23,7 +23,7 @@ export function useSession() {
 
   const loginMutation = useMutation({
     mutationFn: async ({ username, password }: { username: string; password: string }) => {
-      const user = await invokeTauri<AuthUser>("auth_login", { username, password });
+      const user = await apiAuth.login(username, password);
       return user;
     },
     onSuccess: (user) => {
@@ -33,7 +33,7 @@ export function useSession() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await invokeTauri("auth_logout");
+      await apiAuth.logout();
     },
     onSuccess: () => {
       queryClient.setQueryData(SESSION_QUERY_KEY, null);

@@ -17,6 +17,7 @@ export function getColumnDefinitions(
 export function fetchReport(args: {
   reportType: ReportTypeKey;
   filters: ReportFilters;
+  selectedColumns?: string[] | null;
 }): Promise<ReportData> {
   return invokeTauri<ReportData>("reportes_fetch", args);
 }

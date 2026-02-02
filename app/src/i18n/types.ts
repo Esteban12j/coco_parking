@@ -346,8 +346,14 @@ export interface Translations {
   };
   checkout: {
     title: string;
+    tariff: string;
     hourlyRate: string;
     hoursCharged: string;
+    timeParked: string;
+    tariffFormulaDefault: string;
+    tariffFormulaCustom: string;
+    blocksCharged: string;
+    blocksOfTime: string;
     parkingCost: string;
     pendingDebt: string;
     totalToPay: string;
@@ -373,6 +379,12 @@ export interface Translations {
     plateOrRef: string;
     description: string;
     amount: string;
+    rateUnit: string;
+    rateUnitHour: string;
+    rateUnitMinute: string;
+    durationHours: string;
+    durationMinutes: string;
+    durationBlock: string;
     createAndApply: string;
     noResults: string;
     noResultsForType: string;

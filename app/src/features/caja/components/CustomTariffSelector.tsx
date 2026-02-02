@@ -19,7 +19,10 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTranslation } from "@/i18n";
-import { invokeTauri } from "@/lib/tauriInvoke";
+import {
+  listCustomTariffs,
+  createCustomTariff,
+} from "@/api/customTariffs";
 import { CustomTariff, TariffRateUnit } from "@/types/parking";
 import type { VehicleType } from "@/types/parking";
 import { cn } from "@/lib/utils";
@@ -79,10 +82,7 @@ export const CustomTariffSelector = ({
 
   const listQuery = useQuery({
     queryKey: ["custom_tariffs", search],
-    queryFn: () =>
-      invokeTauri<CustomTariff[]>("custom_tariffs_list", {
-        search: search.trim() || null,
-      }),
+    queryFn: () => listCustomTariffs(search.trim() || null),
     enabled: tauri && open,
   });
 
@@ -97,17 +97,15 @@ export const CustomTariffSelector = ({
       rateDurationHours?: number;
       rateDurationMinutes?: number;
     }) =>
-      invokeTauri<CustomTariff>("custom_tariffs_create", {
-        args: {
-          vehicleType: args.vehicleType,
-          name: args.name?.trim() || null,
-          plateOrRef: args.plateOrRef?.trim() || null,
-          amount: args.amount,
-          description: args.description ?? null,
-          rateUnit: args.rateUnit ?? "hour",
-          rateDurationHours: args.rateDurationHours ?? 1,
-          rateDurationMinutes: args.rateDurationMinutes ?? 0,
-        },
+      createCustomTariff({
+        vehicleType: args.vehicleType,
+        name: args.name?.trim() || null,
+        plateOrRef: args.plateOrRef?.trim() || null,
+        amount: args.amount,
+        description: args.description ?? null,
+        rateUnit: args.rateUnit ?? "hour",
+        rateDurationHours: args.rateDurationHours ?? 1,
+        rateDurationMinutes: args.rateDurationMinutes ?? 0,
       }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["custom_tariffs"] });

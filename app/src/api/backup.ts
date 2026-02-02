@@ -1,9 +1,7 @@
 import { invokeTauri } from "@/lib/tauriInvoke";
 
-export function createBackup(args: {
-  includeDb: boolean;
-}): Promise<{ path: string; sizeBytes: number }> {
-  return invokeTauri<{ path: string; sizeBytes: number }>("backup_create", args);
+export function createBackup(path: string): Promise<{ path: string; sizeBytes: number }> {
+  return invokeTauri<{ path: string; sizeBytes: number }>("backup_create", { path });
 }
 
 export function restoreBackup(path: string): Promise<void> {

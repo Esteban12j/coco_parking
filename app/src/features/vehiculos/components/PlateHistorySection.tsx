@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { invokeTauri } from "@/lib/tauriInvoke";
+import { getDebtDetailByPlate } from "@/api/vehiculos";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import type { Vehicle, VehicleType } from "@/types/parking";
 import type { DebtDetailByPlateResult } from "@/types/parking";
@@ -84,9 +84,7 @@ export const PlateHistorySection = ({
   const debtDetailQuery = useQuery({
     queryKey: ["parking", "debtDetail", selectedPlateForDebtDetail],
     queryFn: (): Promise<DebtDetailByPlateResult> =>
-      invokeTauri("vehiculos_get_debt_detail_by_plate", {
-        plate: selectedPlateForDebtDetail ?? "",
-      }),
+      getDebtDetailByPlate(selectedPlateForDebtDetail ?? ""),
     enabled:
       isTauri &&
       selectedPlateForDebtDetail !== null &&

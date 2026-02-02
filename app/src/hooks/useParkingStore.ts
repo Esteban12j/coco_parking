@@ -1,19 +1,15 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { invokeTauri } from '@/lib/tauriInvoke';
 import { Vehicle, VehicleType, DailyMetrics, TreasuryData, ShiftClosure, PlateConflict, PendingRegisterConflict } from '@/types/parking';
+import * as apiCaja from '@/api/caja';
+import * as apiMetricas from '@/api/metricas';
+import * as apiVehiculos from '@/api/vehiculos';
 import { toast } from '@/hooks/use-toast';
 import { useTranslation } from '@/i18n';
 import { generatePrefixedId } from '@/lib/utils';
 import { getDefaultRate } from '@/lib/defaultRates';
 
-// Backend returns ISO strings; frontend expects Date
-type VehicleFromBackend = Omit<Vehicle, 'entryTime' | 'exitTime'> & {
-  entryTime: string;
-  exitTime?: string | null;
-};
-
-function vehicleFromBackend(v: VehicleFromBackend): Vehicle {
+function vehicleFromBackend(v: apiVehiculos.VehicleBackend): Vehicle {
   return {
     ...v,
     entryTime: new Date(v.entryTime),
@@ -96,11 +92,10 @@ export const useParkingStore = () => {
   const [vehiclesPage, setVehiclesPage] = useState(1);
   const [vehiclesPageSize] = useState(20);
 
-  type ListVehiclesResponse = { items: VehicleFromBackend[]; total: number };
   const vehiclesQuery = useQuery({
     queryKey: ['parking', 'vehicles', vehiclesPage, vehiclesPageSize, 'active'],
     queryFn: async (): Promise<{ items: Vehicle[]; total: number }> => {
-      const res = await invokeTauri<ListVehiclesResponse>('vehiculos_list_vehicles', {
+      const res = await apiVehiculos.listVehicles({
         limit: vehiclesPageSize,
         offset: (vehiclesPage - 1) * vehiclesPageSize,
         status: 'active',
@@ -116,7 +111,7 @@ export const useParkingStore = () => {
 
   const metricsQuery = useQuery({
     queryKey: ['parking', 'metrics'],
-    queryFn: () => invokeTauri<DailyMetrics>('metricas_get_daily'),
+    queryFn: () => apiMetricas.getDailyMetrics(),
     enabled: tauri,
   });
 
@@ -125,7 +120,7 @@ export const useParkingStore = () => {
     queryFn: () => {
       const now = new Date();
       const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      return invokeTauri<TreasuryData>('caja_get_treasury', { date: localDate });
+      return apiCaja.getTreasury(localDate);
     },
     enabled: tauri,
     refetchOnWindowFocus: true,
@@ -133,7 +128,7 @@ export const useParkingStore = () => {
 
   const shiftClosuresQuery = useQuery({
     queryKey: ['parking', 'shiftClosures'],
-    queryFn: async () => invokeTauri<ShiftClosure[]>('caja_list_shift_closures', { limit: 50 }),
+    queryFn: () => apiCaja.listShiftClosures({ limit: 50 }),
     enabled: tauri,
   });
 
@@ -191,7 +186,7 @@ export const useParkingStore = () => {
   const registerMutation = useMutation({
     mutationFn: async (args: RegisterArgs) => {
       lastRegisterArgsRef.current = args;
-      const v = await invokeTauri<VehicleFromBackend>('vehiculos_register_entry', {
+      const v = await apiVehiculos.registerEntry({
         plate: args.plate,
         vehicleType: args.vehicleType,
         observations: args.observations ?? null,
@@ -236,7 +231,7 @@ export const useParkingStore = () => {
       paymentMethod?: string;
       customParkingCost?: number;
     }) => {
-      const v = await invokeTauri<VehicleFromBackend>('vehiculos_process_exit', {
+      const v = await apiVehiculos.processExit({
         ticketCode: args.ticketCode,
         partialPayment: args.payPartial ?? null,
         paymentMethod: args.paymentMethod ?? null,
@@ -265,7 +260,7 @@ export const useParkingStore = () => {
       notes?: string | null;
       onSuccess?: () => void;
     }) => {
-      const result = await invokeTauri<ShiftClosure>('caja_close_shift', {
+      const result = await apiCaja.closeShift({
         arqueoCash: args.arqueoCash ?? undefined,
         notes: args.notes ?? undefined,
       });
@@ -298,7 +293,7 @@ export const useParkingStore = () => {
     async (plate: string): Promise<number> => {
       if (tauri) {
         try {
-          return await invokeTauri<number>('vehiculos_get_plate_debt', { plate });
+          return await apiVehiculos.getPlateDebt(plate);
         } catch {
           return 0;
         }
@@ -401,9 +396,7 @@ export const useParkingStore = () => {
     async (code: string): Promise<Vehicle | undefined> => {
       if (tauri) {
         try {
-          const v = await invokeTauri<VehicleFromBackend | null>('vehiculos_find_by_ticket', {
-            ticketCode: code.trim(),
-          });
+          const v = await apiVehiculos.findByTicket(code.trim());
           const activeVehicle = v ? vehicleFromBackend(v) : undefined;
           if (activeVehicle) {
             setScanResult({ type: 'exit', vehicle: activeVehicle });
@@ -427,12 +420,11 @@ export const useParkingStore = () => {
     [tauri, findActiveVehicle]
   );
 
-  /** En Tauri usa backend (vehiculos_find_by_plate); en web busca en la lista local. */
   const findByPlate = useCallback(
     async (plate: string): Promise<Vehicle | null> => {
       if (tauri) {
         try {
-          const v = await invokeTauri<VehicleFromBackend | null>('vehiculos_find_by_plate', { plate: plate.trim() });
+          const v = await apiVehiculos.findByPlate(plate.trim());
           return v ? vehicleFromBackend(v) : null;
         } catch {
           return null;
@@ -510,9 +502,7 @@ export const useParkingStore = () => {
     async (plate: string): Promise<Vehicle[]> => {
       if (!tauri) return [];
       try {
-        const list = await invokeTauri<VehicleFromBackend[]>('vehiculos_get_vehicles_by_plate', {
-          plate: plate.trim(),
-        });
+        const list = await apiVehiculos.getVehiclesByPlate(plate.trim());
         return (list ?? []).map(vehicleFromBackend);
       } catch {
         return [];
@@ -525,9 +515,7 @@ export const useParkingStore = () => {
     async (platePrefix: string): Promise<Vehicle[]> => {
       if (!tauri) return [];
       try {
-        const list = await invokeTauri<VehicleFromBackend[]>('vehiculos_search_vehicles_by_plate_prefix', {
-          platePrefix: platePrefix.trim(),
-        });
+        const list = await apiVehiculos.searchVehiclesByPlatePrefix(platePrefix.trim());
         return (list ?? []).map(vehicleFromBackend);
       } catch {
         return [];
@@ -538,7 +526,7 @@ export const useParkingStore = () => {
 
   const deleteVehicle = useCallback(
     async (vehicleId: string): Promise<void> => {
-      if (tauri) await invokeTauri('vehiculos_delete_vehicle', { vehicleId });
+      if (tauri) await apiVehiculos.deleteVehicle(vehicleId);
       invalidateParkingVehicles();
       invalidateParkingMetrics();
     },
@@ -571,7 +559,7 @@ export const useParkingStore = () => {
   const resolvePlateConflict = useCallback(
     async (plate: string, keepVehicleId: string) => {
       if (!tauri) return;
-      await invokeTauri('vehiculos_resolve_plate_conflict', { plate, keepVehicleId });
+      await apiVehiculos.resolvePlateConflict(plate, keepVehicleId);
       setPlateConflicts((prev) => prev.filter((c) => c.plate.toUpperCase() !== plate.trim().toUpperCase()));
       invalidateParkingVehicles();
     },
@@ -580,7 +568,8 @@ export const useParkingStore = () => {
 
   useEffect(() => {
     if (!tauri) return;
-    invokeTauri<{ plate: string; vehicles: VehicleFromBackend[] }[]>('vehiculos_get_plate_conflicts')
+    apiVehiculos
+      .getPlateConflicts()
       .then((list) => {
         const mapped: PlateConflict[] = (list ?? []).map((c) => ({
           plate: c.plate,

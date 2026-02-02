@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Car, RefreshCw } from "lucide-react";
 import { useTranslation } from "@/i18n";
-import { invokeTauri } from "@/lib/tauriInvoke";
+import { listVehiclesByDate, type VehicleBackend } from "@/api/vehiculos";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,14 +17,7 @@ import {
 } from "@/components/ui/table";
 import { Vehicle } from "@/types/parking";
 
-type VehicleFromBackend = Omit<Vehicle, "entryTime" | "exitTime"> & {
-  entryTime: string;
-  exitTime?: string | null;
-};
-
-type ListVehiclesResponse = { items: VehicleFromBackend[]; total: number };
-
-function vehicleFromBackend(v: VehicleFromBackend): Vehicle {
+function vehicleFromBackend(v: VehicleBackend): Vehicle {
   return {
     ...v,
     entryTime: new Date(v.entryTime),
@@ -66,14 +59,11 @@ export const VehiclesTodayPage = () => {
   const query = useQuery({
     queryKey: ["parking", "vehiclesByDate", selectedDate, page],
     queryFn: async (): Promise<{ items: Vehicle[]; total: number }> => {
-      const res = await invokeTauri<ListVehiclesResponse>(
-        "vehiculos_list_vehicles_by_date",
-        {
-          date: selectedDate,
-          limit: PAGE_SIZE,
-          offset: (page - 1) * PAGE_SIZE,
-        }
-      );
+      const res = await listVehiclesByDate({
+        date: selectedDate,
+        limit: PAGE_SIZE,
+        offset: (page - 1) * PAGE_SIZE,
+      });
       if (!res) return { items: [], total: 0 };
       return {
         items: (res.items ?? []).map(vehicleFromBackend),

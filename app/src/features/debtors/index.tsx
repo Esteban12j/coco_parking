@@ -19,12 +19,12 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { invokeTauri } from "@/lib/tauriInvoke";
-import type {
-  DebtorEntry,
-  DebtDetailByPlateResult,
-  ListDebtorsResult,
-} from "@/types/parking";
+import {
+  getTotalDebt,
+  listDebtors,
+  getDebtDetailByPlate,
+} from "@/api/vehiculos";
+import type { DebtorEntry } from "@/types/parking";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useParkingStore } from "@/hooks/useParkingStore";
 
@@ -51,14 +51,14 @@ export const DebtorsPage = () => {
 
   const totalDebtQuery = useQuery({
     queryKey: ["parking", "totalDebt"],
-    queryFn: () => invokeTauri<number>("vehiculos_get_total_debt"),
+    queryFn: () => getTotalDebt(),
     enabled: isTauri,
   });
 
   const debtorsQuery = useQuery({
     queryKey: ["parking", "debtors", page, DEBTORS_PAGE_SIZE],
-    queryFn: (): Promise<ListDebtorsResult> =>
-      invokeTauri("vehiculos_list_debtors", {
+    queryFn: () =>
+      listDebtors({
         limit: DEBTORS_PAGE_SIZE,
         offset: (page - 1) * DEBTORS_PAGE_SIZE,
       }),
@@ -67,10 +67,7 @@ export const DebtorsPage = () => {
 
   const debtDetailQuery = useQuery({
     queryKey: ["parking", "debtDetail", selectedPlate],
-    queryFn: (): Promise<DebtDetailByPlateResult> =>
-      invokeTauri("vehiculos_get_debt_detail_by_plate", {
-        plate: selectedPlate ?? "",
-      }),
+    queryFn: () => getDebtDetailByPlate(selectedPlate ?? ""),
     enabled: isTauri && selectedPlate !== null && selectedPlate.length > 0,
   });
 

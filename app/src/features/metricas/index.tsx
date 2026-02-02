@@ -19,7 +19,11 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { invokeTauri } from "@/lib/tauriInvoke";
+import {
+  getArrivalsByHour,
+  getOccupancyByHour,
+  getPeakHours,
+} from "@/api/metricas";
 import type { PeakHourSlot } from "@/types/parking";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ReportsExport } from "./components/ReportsExport";
@@ -114,31 +118,19 @@ export const MetricasPage = () => {
 
   const arrivalsQuery = useQuery({
     queryKey: ["parking", "arrivalsByHour", dateFrom, dateTo],
-    queryFn: () =>
-      invokeTauri<PeakHourSlot[]>("metricas_get_arrivals_by_hour", {
-        dateFrom,
-        dateTo,
-      }),
+    queryFn: () => getArrivalsByHour({ dateFrom, dateTo }),
     enabled: isTauri,
   });
 
   const occupancyQuery = useQuery({
     queryKey: ["parking", "occupancyByHour", dateFrom, dateTo],
-    queryFn: () =>
-      invokeTauri<PeakHourSlot[]>("metricas_get_occupancy_by_hour", {
-        dateFrom,
-        dateTo,
-      }),
+    queryFn: () => getOccupancyByHour({ dateFrom, dateTo }),
     enabled: isTauri,
   });
 
   const exitsQuery = useQuery({
     queryKey: ["parking", "exitsByHour", dateFrom, dateTo],
-    queryFn: () =>
-      invokeTauri<PeakHourSlot[]>("metricas_get_peak_hours", {
-        dateFrom,
-        dateTo,
-      }),
+    queryFn: () => getPeakHours({ dateFrom, dateTo }),
     enabled: isTauri,
   });
 

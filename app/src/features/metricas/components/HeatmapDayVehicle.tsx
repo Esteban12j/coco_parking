@@ -1,7 +1,7 @@
 import { useState, Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "@/i18n";
-import { invokeTauri } from "@/lib/tauriInvoke";
+import { getHeatmapDayVehicle } from "@/api/metricas";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import {
@@ -99,7 +99,7 @@ export function HeatmapDayVehicle({ dateFrom, dateTo }: HeatmapDayVehicleProps) 
   const query = useQuery({
     queryKey: ["parking", "heatmapDayVehicle", dateFrom, dateTo, period],
     queryFn: () =>
-      invokeTauri<HeatmapDayVehicleRow[]>("metricas_get_heatmap_day_vehicle", {
+      getHeatmapDayVehicle({
         dateFrom,
         dateTo,
         period: period || null,

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { invokeTauri } from "@/lib/tauriInvoke";
+import { listCustomTariffs } from "@/api/customTariffs";
 import {
   getDefaultTariffForCheckout,
   type DefaultTariffForCheckout as DefaultTariff,
@@ -48,8 +48,7 @@ export function useDefaultRates(): {
 
   const query = useQuery({
     queryKey: ["custom_tariffs"],
-    queryFn: () =>
-      invokeTauri<CustomTariff[]>("custom_tariffs_list", { search: null }),
+    queryFn: () => listCustomTariffs(null),
     enabled: tauri,
   });
 

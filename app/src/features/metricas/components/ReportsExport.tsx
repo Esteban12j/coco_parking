@@ -1,5 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { invokeTauri } from "@/lib/tauriInvoke";
+import {
+  getColumnDefinitions,
+  fetchReport,
+} from "@/api/reportes";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { useTranslation } from "@/i18n";
@@ -104,9 +107,7 @@ export const ReportsExport = () => {
   const fetchColumnDefs = useCallback(async (typeKey: ReportTypeKey) => {
     if (!isTauri) return;
     try {
-      const cols = await invokeTauri<ReportColumnDef[]>("reportes_get_column_definitions", {
-        reportType: typeKey,
-      });
+      const cols = await getColumnDefinitions(typeKey);
       setColumnDefs(cols ?? []);
       setSelectedColumnKeys((cols ?? []).map((c) => c.key));
     } catch {
@@ -126,7 +127,7 @@ export const ReportsExport = () => {
     setError(null);
     setLoading(true);
     try {
-      const data = await invokeTauri<ReportData>("reportes_fetch", {
+      const data = await fetchReport({
         reportType,
         filters: {
           dateFrom: dateFrom,

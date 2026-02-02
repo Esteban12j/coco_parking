@@ -38,7 +38,12 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useTranslation } from "@/i18n";
-import { invokeTauri } from "@/lib/tauriInvoke";
+import {
+  listCustomTariffs,
+  createCustomTariff,
+  updateCustomTariff,
+  deleteCustomTariff,
+} from "@/api/customTariffs";
 import { CustomTariff, TariffRateUnit } from "@/types/parking";
 import { VehicleType } from "@/types/parking";
 import { toast } from "@/hooks/use-toast";
@@ -69,10 +74,7 @@ export const TariffsPage = () => {
 
   const listQuery = useQuery({
     queryKey: ["custom_tariffs", search],
-    queryFn: () =>
-      invokeTauri<CustomTariff[]>("custom_tariffs_list", {
-        search: search.trim() || null,
-      }),
+    queryFn: () => listCustomTariffs(search.trim() || null),
     enabled: tauri,
   });
 
@@ -87,17 +89,15 @@ export const TariffsPage = () => {
       rateDurationHours?: number | null;
       rateDurationMinutes?: number | null;
     }) =>
-      invokeTauri<CustomTariff>("custom_tariffs_create", {
-        args: {
-          vehicleType: args.vehicleType,
-          name: args.name?.trim() || null,
-          plateOrRef: args.plateOrRef?.trim() || null,
-          amount: args.amount,
-          description: args.description ?? null,
-          rateUnit: args.rateUnit ?? "hour",
-          rateDurationHours: args.rateDurationHours ?? 1,
-          rateDurationMinutes: args.rateDurationMinutes ?? 0,
-        },
+      createCustomTariff({
+        vehicleType: args.vehicleType,
+        name: args.name?.trim() || null,
+        plateOrRef: args.plateOrRef?.trim() || null,
+        amount: args.amount,
+        description: args.description ?? null,
+        rateUnit: args.rateUnit ?? "hour",
+        rateDurationHours: args.rateDurationHours ?? 1,
+        rateDurationMinutes: args.rateDurationMinutes ?? 0,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["custom_tariffs"] });
@@ -122,18 +122,16 @@ export const TariffsPage = () => {
       rateDurationHours?: number | null;
       rateDurationMinutes?: number | null;
     }) =>
-      invokeTauri<CustomTariff>("custom_tariffs_update", {
-        args: {
-          id: args.id,
-          vehicleType: args.vehicleType ?? null,
-          name: args.name?.trim() || null,
-          plateOrRef: args.plateOrRef?.trim() || null,
-          amount: args.amount ?? null,
-          description: args.description ?? null,
-          rateUnit: args.rateUnit ?? null,
-          rateDurationHours: args.rateDurationHours ?? null,
-          rateDurationMinutes: args.rateDurationMinutes ?? null,
-        },
+      updateCustomTariff({
+        id: args.id,
+        vehicleType: args.vehicleType ?? undefined,
+        name: args.name?.trim() || null,
+        plateOrRef: args.plateOrRef?.trim() || null,
+        amount: args.amount,
+        description: args.description ?? null,
+        rateUnit: args.rateUnit ?? null,
+        rateDurationHours: args.rateDurationHours ?? null,
+        rateDurationMinutes: args.rateDurationMinutes ?? null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["custom_tariffs"] });
@@ -147,7 +145,7 @@ export const TariffsPage = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => invokeTauri<undefined>("custom_tariffs_delete", { id }),
+    mutationFn: (id: string) => deleteCustomTariff(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["custom_tariffs"] });
       setDeleteId(null);
