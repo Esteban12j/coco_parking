@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useTranslation } from "@/i18n";
 import { invokeTauri } from "@/lib/tauriInvoke";
 import { CustomTariff, TariffRateUnit } from "@/types/parking";
@@ -266,10 +267,7 @@ export const TariffsPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">{t("tariffs.title")}</h1>
-        <p className="text-muted-foreground">{t("tariffs.subtitle")}</p>
-      </div>
+      <PageHeader title={t("tariffs.title")} subtitle={t("tariffs.subtitle")} />
 
       {tauri && (
         <Card>

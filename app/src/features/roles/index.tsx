@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 import type { AuthUser, Role } from "@/types/parking";
 
@@ -149,10 +150,7 @@ export const RolesPage = () => {
   if (!tauri) {
     return (
       <div className="container mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold">{t("roles.title")}</h1>
-          <p className="text-muted-foreground">{t("roles.subtitle")}</p>
-        </div>
+        <PageHeader title={t("roles.title")} subtitle={t("roles.subtitle")} />
         <div className="bg-card border border-border rounded-xl p-12 text-center">
           <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-muted-foreground">{t("roles.inDevelopment")}</p>
@@ -163,10 +161,7 @@ export const RolesPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">{t("roles.title")}</h1>
-        <p className="text-muted-foreground">{t("roles.subtitle")}</p>
-      </div>
+      <PageHeader title={t("roles.title")} subtitle={t("roles.subtitle")} />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">

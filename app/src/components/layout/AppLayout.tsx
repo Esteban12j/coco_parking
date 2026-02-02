@@ -66,8 +66,8 @@ export const AppLayout = () => {
   }, [tauri, user, location.pathname, hasPermission, navigate]);
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <aside className="w-56 border-r border-border bg-card flex flex-col shrink-0">
+    <div className="h-screen overflow-hidden bg-background flex">
+      <aside className="fixed left-0 top-0 z-20 h-screen w-56 flex flex-col overflow-y-auto border-r border-border bg-card">
         <div className="p-4 border-b border-border">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
@@ -158,7 +158,7 @@ export const AppLayout = () => {
           )}
         </nav>
       </aside>
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 min-h-0 overflow-auto pl-56">
         <Outlet />
       </main>
     </div>

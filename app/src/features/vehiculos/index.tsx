@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Vehicle } from "@/types/parking";
 import { listen } from "@tauri-apps/api/event";
 
@@ -154,10 +155,7 @@ export const VehiculosPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">{t("vehicles.title")}</h1>
-        <p className="text-muted-foreground">{t("vehicles.subtitle")}</p>
-      </div>
+      <PageHeader title={t("vehicles.title")} subtitle={t("vehicles.subtitle")} />
 
       <section className="py-6">
         {viewMode === "scanner" && (

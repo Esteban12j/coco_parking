@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 
@@ -154,15 +155,15 @@ export const DevConsolePage = () => {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Terminal className="h-7 w-7" />
-          {t("devConsole.title")}
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {t("devConsole.subtitle")}
-        </p>
-      </div>
+      <PageHeader
+        title={
+          <>
+            <Terminal className="h-7 w-7" />
+            {t("devConsole.title")}
+          </>
+        }
+        subtitle={t("devConsole.subtitle")}
+      />
 
       <div className="space-y-6">
         <div className="rounded-lg border border-border bg-card p-4">

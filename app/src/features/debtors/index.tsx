@@ -25,6 +25,7 @@ import type {
   DebtDetailByPlateResult,
   ListDebtorsResult,
 } from "@/types/parking";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useParkingStore } from "@/hooks/useParkingStore";
 
 const DEBTORS_PAGE_SIZE = 20;
@@ -95,28 +96,24 @@ export const DebtorsPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{t("debtors.title")}</h1>
-          <p className="text-muted-foreground">{t("debtors.subtitle")}</p>
-          {isTauri && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t("debtors.fromBackendNote")}
-            </p>
-          )}
-        </div>
-        {isTauri && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isLoading}
-          >
-            <RefreshCw className={isLoading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-            <span className="ml-2">{t("common.refresh")}</span>
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title={t("debtors.title")}
+        subtitle={t("debtors.subtitle")}
+        extraNote={isTauri ? t("debtors.fromBackendNote") : undefined}
+        actions={
+          isTauri ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isLoading}
+            >
+              <RefreshCw className={isLoading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+              <span className="ml-2">{t("common.refresh")}</span>
+            </Button>
+          ) : undefined
+        }
+      />
 
       {isLoading && (
         <div className="mb-6 rounded-lg border border-border bg-muted/30 p-4 text-center text-sm text-muted-foreground">

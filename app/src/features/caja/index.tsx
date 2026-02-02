@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { CloseShiftDialog } from "./components/CloseShiftDialog";
 
 function formatClosedAt(iso: string): string {
@@ -59,28 +60,24 @@ export const CajaPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{t("till.title")}</h1>
-          <p className="text-muted-foreground">{t("till.subtitle")}</p>
-          {isTauri && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t("till.fromBackendNote")}
-            </p>
-          )}
-        </div>
-        {isTauri && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => invalidateParking()}
-            disabled={isLoading}
-          >
-            <RefreshCw className={isLoading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-            <span className="ml-2">{t("common.refresh")}</span>
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title={t("till.title")}
+        subtitle={t("till.subtitle")}
+        extraNote={isTauri ? t("till.fromBackendNote") : undefined}
+        actions={
+          isTauri ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => invalidateParking()}
+              disabled={isLoading}
+            >
+              <RefreshCw className={isLoading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+              <span className="ml-2">{t("common.refresh")}</span>
+            </Button>
+          ) : undefined
+        }
+      />
 
       {isLoading && (
         <div className="mb-6 rounded-lg border border-border bg-muted/30 p-4 text-center text-sm text-muted-foreground">

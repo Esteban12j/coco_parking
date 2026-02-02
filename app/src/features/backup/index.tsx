@@ -3,6 +3,7 @@ import { invokeTauri } from "@/lib/tauriInvoke";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import { Database, Download, Upload } from "lucide-react";
 import { useTranslation } from "@/i18n";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
 import { generatePrefixedId } from "@/lib/utils";
@@ -118,10 +119,7 @@ export const BackupPage = () => {
   if (!tauri) {
     return (
       <div className="container mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold">{t("backup.title")}</h1>
-          <p className="text-muted-foreground">{t("backup.subtitle")}</p>
-        </div>
+        <PageHeader title={t("backup.title")} subtitle={t("backup.subtitle")} />
         <div className="bg-card border border-border rounded-xl p-12 text-center">
           <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-muted-foreground">{t("backup.inDevelopment")}</p>
@@ -132,10 +130,7 @@ export const BackupPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">{t("backup.title")}</h1>
-        <p className="text-muted-foreground">{t("backup.subtitle")}</p>
-      </div>
+      <PageHeader title={t("backup.title")} subtitle={t("backup.subtitle")} />
       <div className="grid gap-4 md:grid-cols-2 max-w-2xl">
         <div className="bg-card border border-border rounded-xl p-6 flex flex-col gap-4">
           <Download className="h-10 w-10 text-muted-foreground" />

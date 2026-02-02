@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { invokeTauri } from "@/lib/tauriInvoke";
 import type { PeakHourSlot } from "@/types/parking";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { ReportsExport } from "./components/ReportsExport";
 import { HeatmapDayVehicle } from "./components/HeatmapDayVehicle";
 
@@ -147,50 +148,46 @@ export const MetricasPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{t("metrics.title")}</h1>
-          <p className="text-muted-foreground">{t("metrics.subtitle")}</p>
-          {isTauri && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t("metrics.fromBackendNote")}
-            </p>
-          )}
-        </div>
-        <div className="flex flex-wrap items-end gap-4">
-          {isTauri && (
-            <>
-              <div className="space-y-2">
-                <Label className="text-sm">{t("metrics.heatmapDayVehicle.dateFrom")}</Label>
-                <Input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm">{t("metrics.heatmapDayVehicle.dateTo")}</Label>
-                <Input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                />
-              </div>
-            </>
-          )}
-          {isTauri && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => invalidateParking()}
-              disabled={isLoading}
-            >
-              <RefreshCw className={isLoading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-              <span className="ml-2">{t("common.refresh")}</span>
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title={t("metrics.title")}
+        subtitle={t("metrics.subtitle")}
+        extraNote={isTauri ? t("metrics.fromBackendNote") : undefined}
+        actions={
+          <>
+            {isTauri && (
+              <>
+                <div className="space-y-2">
+                  <Label className="text-sm">{t("metrics.heatmapDayVehicle.dateFrom")}</Label>
+                  <Input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">{t("metrics.heatmapDayVehicle.dateTo")}</Label>
+                  <Input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+            {isTauri && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => invalidateParking()}
+                disabled={isLoading}
+              >
+                <RefreshCw className={isLoading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+                <span className="ml-2">{t("common.refresh")}</span>
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {isLoading && (
         <div className="mb-6 rounded-lg border border-border bg-muted/30 p-4 text-center text-sm text-muted-foreground">
