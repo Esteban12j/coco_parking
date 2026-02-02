@@ -29,13 +29,22 @@ fn hour_label(hour_start: u8) -> String {
     )
 }
 
+fn date_prefix(s: &str) -> &str {
+    let s = s.trim();
+    if s.len() >= 10 {
+        &s[..10]
+    } else {
+        s
+    }
+}
+
 fn date_bounds(
     date_from: Option<&str>,
     date_to: Option<&str>,
     today: &str,
 ) -> Result<(String, String, chrono::NaiveDate, chrono::NaiveDate), String> {
-    let from = date_from.unwrap_or(today);
-    let to = date_to.unwrap_or(today);
+    let from = date_prefix(date_from.unwrap_or(today));
+    let to = date_prefix(date_to.unwrap_or(today));
     let from_bound = format!("{}T00:00:00.000Z", from);
     let to_date = chrono::NaiveDate::parse_from_str(to, "%Y-%m-%d").map_err(|e| e.to_string())?;
     let to_next = to_date
@@ -344,11 +353,11 @@ pub fn metricas_get_heatmap_day_vehicle(
             SELECT
                 CAST(COALESCE(strftime('%w', substr(exit_time, 1, 10)), '0') AS INTEGER) as dow,
                 CAST(substr(exit_time, 12, 2) AS INTEGER) as h,
-                vehicle_type,
+                LOWER(vehicle_type) as vehicle_type,
                 COUNT(*) as cnt
             FROM vehicles
-            WHERE exit_time IS NOT NULL AND length(exit_time) >= 13 AND exit_time >= ?1 AND exit_time < ?2
-            GROUP BY dow, h, vehicle_type
+            WHERE status = 'completed' AND exit_time IS NOT NULL AND length(exit_time) >= 13 AND exit_time >= ?1 AND exit_time < ?2
+            GROUP BY dow, h, LOWER(vehicle_type)
             "#,
         )
         .map_err(|e| e.to_string())?;
