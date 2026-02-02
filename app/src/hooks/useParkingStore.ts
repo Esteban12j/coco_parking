@@ -521,6 +521,21 @@ export const useParkingStore = () => {
     [tauri]
   );
 
+  const searchVehiclesByPlatePrefix = useCallback(
+    async (platePrefix: string): Promise<Vehicle[]> => {
+      if (!tauri) return [];
+      try {
+        const list = await invokeTauri<VehicleFromBackend[]>('vehiculos_search_vehicles_by_plate_prefix', {
+          platePrefix: platePrefix.trim(),
+        });
+        return (list ?? []).map(vehicleFromBackend);
+      } catch {
+        return [];
+      }
+    },
+    [tauri]
+  );
+
   const deleteVehicle = useCallback(
     async (vehicleId: string): Promise<void> => {
       if (tauri) await invokeTauri('vehiculos_delete_vehicle', { vehicleId });
@@ -610,6 +625,7 @@ export const useParkingStore = () => {
     registerError,
     clearRegisterError,
     getVehiclesByPlate,
+    searchVehiclesByPlatePrefix,
     deleteVehicle,
     deleteExistingAndRetryRegister,
     plateConflicts,

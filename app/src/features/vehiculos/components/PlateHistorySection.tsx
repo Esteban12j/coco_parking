@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,8 +20,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { invokeTauri } from "@/lib/tauriInvoke";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import type { Vehicle, VehicleType } from "@/types/parking";
 import type { DebtDetailByPlateResult } from "@/types/parking";
+
+const MIN_PLATE_CHARS = 2;
+const DEBOUNCE_MS = 350;
 
 function formatDateTime(iso: string | Date | null | undefined): string {
   if (iso == null) return "—";
@@ -37,34 +41,45 @@ function formatDateTime(iso: string | Date | null | undefined): string {
 }
 
 interface PlateHistorySectionProps {
-  getVehiclesByPlate: (plate: string) => Promise<Vehicle[]>;
+  searchVehiclesByPlatePrefix: (platePrefix: string) => Promise<Vehicle[]>;
   isTauri: boolean;
 }
 
 export const PlateHistorySection = ({
-  getVehiclesByPlate,
+  searchVehiclesByPlatePrefix,
   isTauri,
 }: PlateHistorySectionProps) => {
   const { t } = useTranslation();
   const [plateInput, setPlateInput] = useState("");
+  const debouncedPlate = useDebouncedValue(plateInput.trim().toUpperCase(), DEBOUNCE_MS);
   const [searchResult, setSearchResult] = useState<Vehicle[] | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const requestIdRef = useRef(0);
   const [selectedPlateForDebtDetail, setSelectedPlateForDebtDetail] = useState<
     string | null
   >(null);
 
-  const handleSearch = useCallback(async () => {
-    const plate = plateInput.trim();
-    if (!plate) return;
+  useEffect(() => {
+    if (debouncedPlate.length < MIN_PLATE_CHARS) {
+      setSearchResult(null);
+      setIsSearching(false);
+      return;
+    }
+    const id = ++requestIdRef.current;
     setIsSearching(true);
     setSearchResult(null);
-    try {
-      const list = await getVehiclesByPlate(plate);
-      setSearchResult(list);
-    } finally {
-      setIsSearching(false);
-    }
-  }, [plateInput, getVehiclesByPlate]);
+    searchVehiclesByPlatePrefix(debouncedPlate)
+      .then((list) => {
+        if (requestIdRef.current === id) {
+          setSearchResult(list);
+        }
+      })
+      .finally(() => {
+        if (requestIdRef.current === id) {
+          setIsSearching(false);
+        }
+      });
+  }, [debouncedPlate, searchVehiclesByPlatePrefix]);
 
   const debtDetailQuery = useQuery({
     queryKey: ["parking", "debtDetail", selectedPlateForDebtDetail],
@@ -99,16 +114,17 @@ export const PlateHistorySection = ({
           }
           placeholder={t("vehicles.plateHistoryPlaceholder")}
           className="font-mono uppercase w-40"
-          onKeyDown={(e) => e.key === "Enter" && void handleSearch()}
         />
-        <Button
-          variant="coco"
-          onClick={() => void handleSearch()}
-          disabled={isSearching}
-        >
-          <Search className="h-4 w-4 mr-2" />
-          {isSearching ? t("common.loading") : t("common.search")}
-        </Button>
+        {plateInput.trim().length > 0 && plateInput.trim().length < MIN_PLATE_CHARS && (
+          <span className="text-sm text-muted-foreground">
+            {t("vehicles.plateHistoryTypeMore")}
+          </span>
+        )}
+        {isSearching && (
+          <span className="text-sm text-muted-foreground">
+            {t("common.loading")}
+          </span>
+        )}
       </div>
 
       {searchResult !== null && (

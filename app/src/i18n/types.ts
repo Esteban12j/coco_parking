@@ -101,6 +101,7 @@ export interface Translations {
     hasDebt: string;
     plateHistorySectionTitle: string;
     plateHistoryPlaceholder: string;
+    plateHistoryTypeMore: string;
     plateHistoryEmpty: string;
     plateHistoryViewDebtDetail: string;
     plateHistoryAmountOrDebt: string;

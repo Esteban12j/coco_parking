@@ -619,6 +619,51 @@ pub fn vehiculos_get_vehicles_by_plate(
     Ok(list)
 }
 
+fn like_escape_prefix(prefix: &str) -> String {
+    let mut escaped = String::new();
+    for c in prefix.chars() {
+        match c {
+            '%' => {
+                escaped.push('\\');
+                escaped.push('%');
+            }
+            '_' => {
+                escaped.push('\\');
+                escaped.push('_');
+            }
+            '\\' => {
+                escaped.push('\\');
+                escaped.push('\\');
+            }
+            other => escaped.push(other),
+        }
+    }
+    escaped.push('%');
+    escaped
+}
+
+/// Progressive plate search: vehicles whose plate_upper starts with the given prefix (e.g. ≥2 chars). For debounced UI.
+#[tauri::command]
+pub fn vehiculos_search_vehicles_by_plate_prefix(
+    state: State<AppState>,
+    plate_prefix: String,
+) -> Result<Vec<Vehicle>, String> {
+    state.check_permission(permissions::VEHICULOS_ENTRIES_READ)?;
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+    let key = normalize_plate_for_index(&plate_prefix);
+    let pattern = like_escape_prefix(&key);
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE plate_upper LIKE ?1 ESCAPE '\\' ORDER BY entry_time DESC",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![pattern], |row| row_to_vehicle(row))
+        .map_err(|e| e.to_string())?;
+    let list: Vec<Vehicle> = rows.filter_map(|r| r.ok()).collect();
+    Ok(list)
+}
+
 /// Elimina un vehículo y sus transacciones. El cliente usa esto para quitar el dato que considera erróneo.
 #[tauri::command]
 pub fn vehiculos_delete_vehicle(state: State<AppState>, vehicle_id: String) -> Result<(), String> {

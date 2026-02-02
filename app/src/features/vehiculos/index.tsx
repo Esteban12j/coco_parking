@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Search } from "lucide-react";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { ScannerInput } from "./components/ScannerInput";
 import { VehicleEntryForm } from "./components/VehicleEntryForm";
 import { ActiveVehiclesGrid } from "./components/ActiveVehiclesGrid";
@@ -40,6 +41,7 @@ export const VehiculosPage = () => {
     registerError,
     clearRegisterError,
     getVehiclesByPlate,
+    searchVehiclesByPlatePrefix,
     deleteExistingAndRetryRegister,
     isTauri,
   } = useParkingStore();
@@ -48,7 +50,11 @@ export const VehiculosPage = () => {
   const [currentTicket, setCurrentTicket] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [manualPlate, setManualPlate] = useState("");
+  const debouncedManualPlate = useDebouncedValue(manualPlate.trim().toUpperCase(), 350);
   const [searchingByPlate, setSearchingByPlate] = useState(false);
+  const [plateSuggestions, setPlateSuggestions] = useState<Vehicle[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const suggestionRequestIdRef = useRef(0);
   const handleScanInputRef = useRef<(code: string) => void>(() => {});
 
   useEffect(() => {
@@ -73,6 +79,26 @@ export const VehiculosPage = () => {
       unlisten?.();
     };
   }, []);
+
+  useEffect(() => {
+    if (viewMode !== "manual-search" || debouncedManualPlate.length < 2) {
+      setPlateSuggestions([]);
+      return;
+    }
+    const id = ++suggestionRequestIdRef.current;
+    setLoadingSuggestions(true);
+    searchVehiclesByPlatePrefix(debouncedManualPlate)
+      .then((list) => {
+        if (suggestionRequestIdRef.current !== id) return;
+        const activeOnly = list.filter((v) => v.status === "active");
+        setPlateSuggestions(activeOnly);
+      })
+      .finally(() => {
+        if (suggestionRequestIdRef.current === id) {
+          setLoadingSuggestions(false);
+        }
+      });
+  }, [viewMode, debouncedManualPlate, searchVehiclesByPlatePrefix]);
 
   const handleScanInput = async (code: string) => {
     setCurrentTicket(code);
@@ -200,6 +226,36 @@ export const VehiculosPage = () => {
                 {searchingByPlate ? t("common.loading") : t("common.search")}
               </Button>
             </div>
+            {manualPlate.trim().length > 0 && manualPlate.trim().length < 2 && (
+              <p className="text-sm text-muted-foreground">
+                {t("vehicles.plateHistoryTypeMore")}
+              </p>
+            )}
+            {loadingSuggestions && (
+              <p className="text-sm text-muted-foreground">
+                {t("common.loading")}
+              </p>
+            )}
+            {!loadingSuggestions && plateSuggestions.length > 0 && (
+              <ul className="border border-border rounded-lg divide-y divide-border max-h-48 overflow-y-auto">
+                {plateSuggestions.map((v) => (
+                  <li key={v.id}>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start font-mono h-auto py-2"
+                      onClick={() => {
+                        setSelectedVehicle(v);
+                        setViewMode("checkout");
+                        setManualPlate("");
+                        setPlateSuggestions([]);
+                      }}
+                    >
+                      {v.plate} — {v.ticketCode}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
             <Button
               variant="ghost"
               onClick={handleCancel}
@@ -275,7 +331,7 @@ export const VehiculosPage = () => {
       </section>
 
       <PlateHistorySection
-        getVehiclesByPlate={getVehiclesByPlate}
+        searchVehiclesByPlatePrefix={searchVehiclesByPlatePrefix}
         isTauri={isTauri}
       />
 

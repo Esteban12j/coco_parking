@@ -101,6 +101,7 @@ export const en: Translations = {
     hasDebt: "Has debt",
     plateHistorySectionTitle: "History by plate",
     plateHistoryPlaceholder: "Plate to search...",
+    plateHistoryTypeMore: "Type at least 2 characters.",
     plateHistoryEmpty: "No records for that plate.",
     plateHistoryViewDebtDetail: "View debt detail",
     plateHistoryAmountOrDebt: "Amount / Debt",

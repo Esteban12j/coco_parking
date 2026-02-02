@@ -101,6 +101,7 @@ export const es: Translations = {
     hasDebt: "Tiene deuda",
     plateHistorySectionTitle: "Historial por placa",
     plateHistoryPlaceholder: "Placa a buscar...",
+    plateHistoryTypeMore: "Escriba al menos 2 caracteres.",
     plateHistoryEmpty: "No hay registros para esa placa.",
     plateHistoryViewDebtDetail: "Ver detalle deuda",
     plateHistoryAmountOrDebt: "Monto / Deuda",

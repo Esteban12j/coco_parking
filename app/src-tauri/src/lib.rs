@@ -61,6 +61,7 @@ use domains::{
         vehiculos_process_exit,
         vehiculos_register_entry,
         vehiculos_resolve_plate_conflict,
+        vehiculos_search_vehicles_by_plate_prefix,
     },
 };
 
@@ -115,6 +116,7 @@ pub fn run() {
             vehiculos_get_plate_debt,
             vehiculos_get_total_debt,
             vehiculos_get_vehicles_by_plate,
+            vehiculos_search_vehicles_by_plate_prefix,
             vehiculos_list_debtors,
             vehiculos_delete_vehicle,
             vehiculos_get_plate_conflicts,
