@@ -1,6 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { invokeTauri } from "@/lib/tauriInvoke";
-import { DEFAULT_RATES } from "@/lib/defaultRates";
+import {
+  getDefaultTariffForCheckout,
+  type DefaultTariffForCheckout as DefaultTariff,
+} from "@/lib/defaultRates";
 import type { VehicleType } from "@/types/parking";
 import type { CustomTariff } from "@/types/parking";
 
@@ -10,14 +13,25 @@ function isTauri(): boolean {
 
 const VEHICLE_TYPES: VehicleType[] = ["car", "motorcycle", "truck", "bicycle"];
 
-function tariffsToDefaultRates(tariffs: CustomTariff[]): Record<VehicleType, number> {
-  const base = { ...DEFAULT_RATES };
+function tariffsToDefaultTariffs(tariffs: CustomTariff[]): Record<VehicleType, DefaultTariff> {
+  const base: Record<VehicleType, DefaultTariff> = {
+    car: getDefaultTariffForCheckout("car"),
+    motorcycle: getDefaultTariffForCheckout("motorcycle"),
+    truck: getDefaultTariffForCheckout("truck"),
+    bicycle: getDefaultTariffForCheckout("bicycle"),
+  };
   const defaults = tariffs.filter(
     (t) => !t.plateOrRef || t.plateOrRef.trim() === ""
   );
   for (const t of defaults) {
     if (VEHICLE_TYPES.includes(t.vehicleType as VehicleType)) {
-      base[t.vehicleType as VehicleType] = t.amount;
+      const h = t.rateDurationHours ?? 1;
+      const m = t.rateDurationMinutes ?? 0;
+      base[t.vehicleType as VehicleType] = {
+        amount: t.amount,
+        rateDurationHours: h > 0 || m > 0 ? h : 1,
+        rateDurationMinutes: h > 0 || m > 0 ? m : 0,
+      };
     }
   }
   return base;
@@ -25,6 +39,7 @@ function tariffsToDefaultRates(tariffs: CustomTariff[]): Record<VehicleType, num
 
 export function useDefaultRates(): {
   rates: Record<VehicleType, number>;
+  defaultTariffs: Record<VehicleType, DefaultTariff>;
   isLoading: boolean;
   refetch: () => void;
 } {
@@ -38,13 +53,28 @@ export function useDefaultRates(): {
     enabled: tauri,
   });
 
-  const rates: Record<VehicleType, number> =
+  const defaultTariffs: Record<VehicleType, DefaultTariff> =
     tauri && query.data
-      ? tariffsToDefaultRates(query.data as CustomTariff[])
-      : DEFAULT_RATES;
+      ? tariffsToDefaultTariffs(query.data as CustomTariff[])
+      : VEHICLE_TYPES.reduce(
+          (acc, type) => {
+            acc[type] = getDefaultTariffForCheckout(type);
+            return acc;
+          },
+          {} as Record<VehicleType, DefaultTariff>
+        );
+
+  const rates: Record<VehicleType, number> = VEHICLE_TYPES.reduce(
+    (acc, type) => {
+      acc[type] = defaultTariffs[type].amount;
+      return acc;
+    },
+    {} as Record<VehicleType, number>
+  );
 
   return {
     rates,
+    defaultTariffs,
     isLoading: tauri ? query.isLoading : false,
     refetch: () => queryClient.invalidateQueries({ queryKey: ["custom_tariffs"] }),
   };

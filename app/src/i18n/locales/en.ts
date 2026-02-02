@@ -299,6 +299,7 @@ export const en: Translations = {
     tariffFormulaDefault: "Formula",
     tariffFormulaCustom: "Formula",
     blocksCharged: "Blocks",
+    blocksOfTime: "Time blocks",
     parkingCost: "Parking cost",
     pendingDebt: "Pending debt",
     totalToPay: "TOTAL TO PAY",
