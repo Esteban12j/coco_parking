@@ -25,6 +25,7 @@ use domains::{
     metricas::{
         metricas_get_arrivals_by_hour,
         metricas_get_daily,
+        metricas_get_heatmap_day_vehicle,
         metricas_get_occupancy_by_hour,
         metricas_get_peak_hours,
     },
@@ -126,6 +127,7 @@ pub fn run() {
             metricas_get_peak_hours,
             metricas_get_arrivals_by_hour,
             metricas_get_occupancy_by_hour,
+            metricas_get_heatmap_day_vehicle,
             reportes_get_column_definitions,
             reportes_fetch,
             reportes_write_csv,

@@ -176,6 +176,29 @@ export interface Translations {
     high: string;
     critical: string;
     fromBackendNote: string;
+    heatmapDayVehicle: {
+      title: string;
+      hint: string;
+      dateFrom: string;
+      dateTo: string;
+      period: string;
+      periodNoFilter: string;
+      periodMorning: string;
+      periodMidday: string;
+      periodAfternoon: string;
+      periodNight: string;
+      legendLow: string;
+      legendMedium: string;
+      legendHigh: string;
+      noData: string;
+      daySunday: string;
+      dayMonday: string;
+      dayTuesday: string;
+      dayWednesday: string;
+      dayThursday: string;
+      dayFriday: string;
+      daySaturday: string;
+    };
     reports: {
       title: string;
       reportType: string;

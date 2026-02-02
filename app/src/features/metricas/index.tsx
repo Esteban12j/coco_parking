@@ -4,7 +4,6 @@ import {
   TrendingUp,
   DollarSign,
   PieChart,
-  LayoutGrid,
   RefreshCw,
   AlertCircle,
   LogIn,
@@ -20,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { invokeTauri } from "@/lib/tauriInvoke";
 import type { PeakHourSlot } from "@/types/parking";
 import { ReportsExport } from "./components/ReportsExport";
+import { HeatmapDayVehicle } from "./components/HeatmapDayVehicle";
 
 function HourSlotsCard({
   title,
@@ -341,47 +341,12 @@ export const MetricasPage = () => {
           </div>
         )}
 
-        <div className="bg-card border border-border rounded-xl p-6">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <LayoutGrid className="h-5 w-5 text-muted-foreground" />
-              {t("metrics.heatMap")}
-            </h3>
-            <div className="grid grid-cols-10 gap-1">
-              {Array.from({ length: 50 }).map((_, i) => {
-                const intensity = Math.random();
-                return (
-                  <div
-                    key={i}
-                    className={cn(
-                      "aspect-square rounded transition-colors",
-                      intensity > 0.7
-                        ? "bg-destructive/70"
-                        : intensity > 0.4
-                          ? "bg-warning/70"
-                          : intensity > 0.2
-                            ? "bg-success/50"
-                            : "bg-secondary"
-                    )}
-                    title={`${t("metrics.zone")} ${i + 1}`}
-                  />
-                );
-              })}
-            </div>
-            <div className="flex items-center justify-center gap-4 mt-4 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded bg-secondary" /> {t("metrics.free")}
-              </span>
-              <span className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded bg-success/50" /> {t("metrics.normal")}
-              </span>
-              <span className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded bg-warning/70" /> {t("metrics.high")}
-              </span>
-              <span className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded bg-destructive/70" /> {t("metrics.critical")}
-              </span>
-            </div>
+        {isTauri && (
+          <div className="w-full">
+            <HeatmapDayVehicle />
           </div>
+        )}
+
       </div>
     </div>
   );

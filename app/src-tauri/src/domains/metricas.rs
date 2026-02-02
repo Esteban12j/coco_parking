@@ -299,3 +299,82 @@ pub fn metricas_get_occupancy_by_hour(
 
     Ok(build_24_slots(&counts_by_hour))
 }
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HeatmapDayVehicleRow {
+    pub day_of_week: u8,
+    pub vehicle_type: String,
+    pub count: u32,
+}
+
+fn hour_in_period(hour: u8, period: &str) -> bool {
+    match period {
+        "morning" => (6..=11).contains(&hour),
+        "midday" => (12..=14).contains(&hour),
+        "afternoon" => (15..=18).contains(&hour),
+        "night" => hour >= 19 || hour <= 5,
+        _ => true,
+    }
+}
+
+/// Heatmap: count of completed vehicles by day of week and vehicle type.
+/// Optional period filter: morning (6–12), midday (12–15), afternoon (15–19), night (19–6).
+/// Vehicle types are distinct values from the vehicles table (not a fixed list).
+#[tauri::command]
+pub fn metricas_get_heatmap_day_vehicle(
+    state: State<AppState>,
+    date_from: Option<String>,
+    date_to: Option<String>,
+    period: Option<String>,
+) -> Result<Vec<HeatmapDayVehicleRow>, String> {
+    state.check_permission(permissions::METRICAS_DASHBOARD_READ)?;
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+
+    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let (from_bound, to_next, _, _) =
+        date_bounds(date_from.as_deref(), date_to.as_deref(), &today)?;
+
+    let period_key = period.as_deref().unwrap_or("");
+
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT
+                CAST(COALESCE(strftime('%w', substr(entry_time, 1, 10)), '0') AS INTEGER) as dow,
+                CAST(substr(entry_time, 12, 2) AS INTEGER) as h,
+                vehicle_type,
+                COUNT(*) as cnt
+            FROM vehicles
+            WHERE length(entry_time) >= 13 AND entry_time >= ?1 AND entry_time < ?2 AND exit_time IS NOT NULL
+            GROUP BY dow, h, vehicle_type
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+    let mut rows = stmt
+        .query(params![&from_bound, &to_next])
+        .map_err(|e| e.to_string())?;
+
+    let mut acc: std::collections::HashMap<(u8, String), u32> = std::collections::HashMap::new();
+    while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+        let dow: u8 = row.get::<_, i64>(0).map_err(|e| e.to_string())? as u8;
+        let h: u8 = row.get::<_, i64>(1).map_err(|e| e.to_string())? as u8;
+        let vt: String = row.get(2).map_err(|e| e.to_string())?;
+        let cnt: u32 = row.get::<_, i64>(3).map_err(|e| e.to_string())? as u32;
+        if !hour_in_period(h, period_key) {
+            continue;
+        }
+        *acc.entry((dow, vt)).or_insert(0) += cnt;
+    }
+
+    let out: Vec<HeatmapDayVehicleRow> = acc
+        .into_iter()
+        .map(|((day_of_week, vehicle_type), count)| HeatmapDayVehicleRow {
+            day_of_week,
+            vehicle_type,
+            count,
+        })
+        .collect();
+
+    Ok(out)
+}

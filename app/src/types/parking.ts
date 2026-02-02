@@ -41,6 +41,19 @@ export interface PeakHourSlot {
   count: number;
 }
 
+export interface HeatmapDayVehicleRow {
+  dayOfWeek: number;
+  vehicleType: string;
+  count: number;
+}
+
+export type DayPeriodFilter =
+  | "morning"
+  | "midday"
+  | "afternoon"
+  | "night"
+  | "";
+
 /** Tesorería: una sola fuente, tabla transactions. */
 export interface TreasuryData {
   expectedCash: number;
