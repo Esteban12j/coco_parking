@@ -319,6 +319,7 @@ fn hour_in_period(hour: u8, period: &str) -> bool {
 }
 
 /// Heatmap: count of completed vehicles by day of week and vehicle type.
+/// Counts vehicles whose turn ended (exit_time) in the date range; day of week and period come from exit_time.
 /// Optional period filter: morning (6–12), midday (12–15), afternoon (15–19), night (19–6).
 /// Vehicle types are distinct values from the vehicles table (not a fixed list).
 #[tauri::command]
@@ -341,12 +342,12 @@ pub fn metricas_get_heatmap_day_vehicle(
         .prepare(
             r#"
             SELECT
-                CAST(COALESCE(strftime('%w', substr(entry_time, 1, 10)), '0') AS INTEGER) as dow,
-                CAST(substr(entry_time, 12, 2) AS INTEGER) as h,
+                CAST(COALESCE(strftime('%w', substr(exit_time, 1, 10)), '0') AS INTEGER) as dow,
+                CAST(substr(exit_time, 12, 2) AS INTEGER) as h,
                 vehicle_type,
                 COUNT(*) as cnt
             FROM vehicles
-            WHERE length(entry_time) >= 13 AND entry_time >= ?1 AND entry_time < ?2 AND exit_time IS NOT NULL
+            WHERE exit_time IS NOT NULL AND length(exit_time) >= 13 AND exit_time >= ?1 AND exit_time < ?2
             GROUP BY dow, h, vehicle_type
             "#,
         )
