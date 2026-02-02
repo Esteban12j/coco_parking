@@ -20,6 +20,7 @@ export const ScannerInput = ({
   const resolvedPlaceholder = placeholder ?? t("vehicles.scanPlaceholder");
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (autoFocus && inputRef.current) {
@@ -28,8 +29,9 @@ export const ScannerInput = ({
   }, [autoFocus]);
 
   useEffect(() => {
-    const handleClick = () => {
-      if (inputRef.current) {
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (formRef.current?.contains(target) && inputRef.current) {
         inputRef.current.focus();
       }
     };
@@ -46,7 +48,11 @@ export const ScannerInput = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="relative w-full max-w-2xl mx-auto">
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      className="relative w-full max-w-2xl mx-auto"
+    >
       <div className="relative">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
           <Scan className="h-5 w-5" />

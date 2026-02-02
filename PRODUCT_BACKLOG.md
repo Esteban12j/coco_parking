@@ -14,8 +14,9 @@
 
 ## Resumen de avance (Épicas 1–8)
 
-**Hecho:** Historias 1.1–1.3, 2.1–2.3, 3.1–3.2, 4.1–4.2, 5.1, 6.0–6.3, 7.1–7.4, 8.1–8.3, **9.1**, **10.1**, **10.2**, **10.3**, **10.4**. **Eliminada:** 5.2 (Sincronización Drive).  
+**Hecho:** Historias 1.1–1.3, 2.1–2.3, 3.1–3.2, 4.1–4.2, 5.1, 6.0–6.3, 7.1–7.4, 8.1–8.3, **9.1**, **10.1**, **10.2**, **10.3**, **10.4**, **13.1**. **Eliminada:** 5.2 (Sincronización Drive).  
 **Siguiente en desarrollo:** 10.5 (filtros y tabla en reportes).  
+**Nota para Scrum Master:** 13.1 (Historial por placa) completada: sección "Historial por placa" integrada en página Vehículos; campo placa + búsqueda con `vehiculos_get_vehicles_by_plate`; tabla con columnas ticket, placa, tipo, entrada, salida, estado, monto/deuda; enlace "Ver detalle deuda" abre modal con sesiones y pagos (`vehiculos_get_debt_detail_by_plate`). Solo visible en Tauri (backend).  
 Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, permisos, scanner. Frontend: rutas vehicles, till, debtors, metrics, roles, backup, dev-console; permisos en nav y acciones; i18n es/en.
 
 ---
@@ -79,7 +80,7 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 - **Scrum Master — update:** Story **11.1** is implemented. `app/src/index.css` uses soft non–pure white: `--background` 98%, `--card` / `--popover` / `--sidebar-background` 99% (hue 210°). Acceptance criteria met; please move to Done and run acceptance if needed.
 | 11.2 | Modo suave (no oscuro) | usuario | un tema intermedio con tonos más suaves para los ojos, no dark completo | reducir impacto visual | • Añadir tema "suave" (ej. grises claros, tonos neutros) como opción; no sustituir dark actual si existe, sino ofrecer tercera opción o sustituir dark por este modo suave según decisión de producto. | 3 | Hecho |
 - **Scrum Master — update:** Story **11.2** is implemented. Theme "Soft" added as third option (Light / Soft / Dark). `next-themes` ThemeProvider with `themes={["light", "dark", "soft"]}`; CSS variables for `.soft` in `app/src/index.css` (same hue family and brand palette: primary, success, destructive, info, warning unchanged; backgrounds/surfaces use lighter neutral grays). Theme selector in sidebar (AppLayout) with i18n (`theme.light`, `theme.soft`, `theme.dark`). Preference persisted in `localStorage` key `coco-parking-theme`. Please move to Done and run acceptance if needed.
-| 11.3 | Tipografía legible y ajustable | usuario | que la tipografía sea legible y, si es posible, ajustable (tamaño o zoom) | accesibilidad | • Tamaño de fuente base suficiente para lectura cómoda.<br>• Opción de ajuste: control de zoom global (ej. 90 %, 100 %, 110 %) o selector de tamaño de fuente (pequeño/medio/grande) persistido en preferencias. | 3 | Por hacer |
+| 11.3 | Tipografía legible y ajustable | usuario | que la tipografía sea legible y, si es posible, ajustable (tamaño o zoom) | accesibilidad | • Tamaño de fuente base suficiente para lectura cómoda.<br>• Opción de ajuste: control de zoom global (ej. 90 %, 100 %, 110 %) o selector de tamaño de fuente (pequeño/medio/grande) persistido en preferencias. | 3 | despriorizado |
 
 ---
 
@@ -89,7 +90,7 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 
 | ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
 |----|----------|--------|---------|--------|--------------------------|-----|--------|
-| 12.1 | Layout responsive a tamaño de ventana | usuario | que al redimensionar la ventana el contenido se adapte sin overflow horizontal ni bloques rotos | usabilidad en distintos monitores | • Grids y contenedores usan breakpoints o unidades flexibles (%, min/max, clamp) para adaptarse al ancho de ventana.<br>• Tablas con scroll horizontal si es necesario; navegación y acciones accesibles en ventanas pequeñas.<br>• Revisión en ventana pequeña, estándar y grande. | 3 | Por hacer |
+| 12.1 | Layout responsive a tamaño de ventana | usuario | que al redimensionar la ventana el contenido se adapte sin overflow horizontal ni bloques rotos | usabilidad en distintos monitores | • Grids y contenedores usan breakpoints o unidades flexibles (%, min/max, clamp) para adaptarse al ancho de ventana.<br>• Tablas con scroll horizontal si es necesario; navegación y acciones accesibles en ventanas pequeñas.<br>• Revisión en ventana pequeña, estándar y grande. | 3 | despriorizado|
 
 ---
 
@@ -99,7 +100,7 @@ Backend: SQLite, dominios vehiculos/caja/metricas/roles/auth/backup/reportes, pe
 
 | ID | Historia | Como… | Quiero… | Para… | Criterios de aceptación | Pts | Estado |
 |----|----------|--------|---------|--------|--------------------------|-----|--------|
-| 13.1 | Historial por placa | operador/admin | buscar el historial de un coche por su placa (activos + completados) | consultar sesiones y pagos de esa placa | • Pantalla o sección "Historial por placa" (o integrada en Vehículos): campo placa y tabla con todos los vehículos de esa placa (vehiculos_get_vehicles_by_plate).<br>• Columnas: ticket, placa, tipo, entrada, salida, estado, monto/deuda según corresponda; opcional enlace a detalle deuda si aplica. | 5 | Por hacer |
+| 13.1 | Historial por placa | operador/admin | buscar el historial de un coche por su placa (activos + completados) | consultar sesiones y pagos de esa placa | • Pantalla o sección "Historial por placa" (o integrada en Vehículos): campo placa y tabla con todos los vehículos de esa placa (vehiculos_get_vehicles_by_plate).<br>• Columnas: ticket, placa, tipo, entrada, salida, estado, monto/deuda según corresponda; opcional enlace a detalle deuda si aplica. | 5 | **Hecho** |
 | 13.2 | Búsqueda progresiva por placa | operador | que al escribir más caracteres de la placa se reduzcan las coincidencias mostradas | encontrar más rápido el vehículo o historial | • En la búsqueda por placa (y donde se liste por placa): consulta al backend con debounce (ej. ≥2 caracteres); resultados que coincidan con el texto introducido; listado que se actualiza al seguir escribiendo. | 3 | Por hacer |
 | 13.3 | Acceso rápido "Vehículos de hoy" | operador | ver desde un solo lugar los vehículos del día (activos y ya pagados) sin ir a Métricas y aplicar filtros | menos clics para una consulta frecuente | • Enlace o sección "Vehículos de hoy" (en nav o en Vehículos) que muestre listado de vehículos con entrada o salida hoy (activos + completados hoy); filtro de fecha "hoy" aplicado por defecto; sin pasar por Métricas ni varios clics. | 3 | Por hacer |
 

@@ -99,6 +99,11 @@ export const es: Translations = {
     pageOfFormat: "Página {{current}} de {{total}}",
     longStay: "Estadía prolongada",
     hasDebt: "Tiene deuda",
+    plateHistorySectionTitle: "Historial por placa",
+    plateHistoryPlaceholder: "Placa a buscar...",
+    plateHistoryEmpty: "No hay registros para esa placa.",
+    plateHistoryViewDebtDetail: "Ver detalle deuda",
+    plateHistoryAmountOrDebt: "Monto / Deuda",
     vehiclePlateOptional: "Placa (solo auto, moto o camión; bicicletas no llevan placa)",
     errorRegisteringEntry: "Error al registrar entrada",
     errors: {

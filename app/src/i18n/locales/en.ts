@@ -99,6 +99,11 @@ export const en: Translations = {
     pageOfFormat: "Page {{current}} of {{total}}",
     longStay: "Long stay",
     hasDebt: "Has debt",
+    plateHistorySectionTitle: "History by plate",
+    plateHistoryPlaceholder: "Plate to search...",
+    plateHistoryEmpty: "No records for that plate.",
+    plateHistoryViewDebtDetail: "View debt detail",
+    plateHistoryAmountOrDebt: "Amount / Debt",
     vehiclePlateOptional: "Plate (cars, motorcycles, trucks only; bicycles have no plate)",
     errorRegisteringEntry: "Error registering entry",
     errors: {

@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 import { ScannerInput } from "./components/ScannerInput";
 import { VehicleEntryForm } from "./components/VehicleEntryForm";
 import { ActiveVehiclesGrid } from "./components/ActiveVehiclesGrid";
+import { PlateHistorySection } from "./components/PlateHistorySection";
 import { CheckoutPanel } from "@/features/caja/components/CheckoutPanel";
 import { RegisterConflictDialog } from "./components/RegisterConflictDialog";
 import { useParkingStore } from "@/hooks/useParkingStore";
@@ -272,6 +273,11 @@ export const VehiculosPage = () => {
           )}
         </div>
       </section>
+
+      <PlateHistorySection
+        getVehiclesByPlate={getVehiclesByPlate}
+        isTauri={isTauri}
+      />
 
       <RegisterConflictDialog
         pending={pendingRegisterConflict}

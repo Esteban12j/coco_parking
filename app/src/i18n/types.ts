@@ -99,6 +99,11 @@ export interface Translations {
     pageOfFormat: string;
     longStay: string;
     hasDebt: string;
+    plateHistorySectionTitle: string;
+    plateHistoryPlaceholder: string;
+    plateHistoryEmpty: string;
+    plateHistoryViewDebtDetail: string;
+    plateHistoryAmountOrDebt: string;
     /** Placa opcional para bicicletas/monopatines */
     vehiclePlateOptional: string;
     errorRegisteringEntry: string;
