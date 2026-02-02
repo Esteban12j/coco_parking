@@ -91,13 +91,30 @@ pub struct PaymentBreakdown {
     pub transfer: f64,
 }
 
+fn date_prefix_for_treasury(date_override: Option<&str>) -> String {
+    let date_str = match date_override.and_then(|s| {
+        let s = s.trim();
+        if s.len() == 10
+            && s.as_bytes().get(4) == Some(&b'-')
+            && s.as_bytes().get(7) == Some(&b'-')
+        {
+            Some(s.to_string())
+        } else {
+            None
+        }
+    }) {
+        Some(d) => d,
+        None => chrono::Utc::now().format("%Y-%m-%d").to_string(),
+    };
+    format!("{}%", date_str)
+}
+
 #[tauri::command]
-pub fn caja_get_treasury(state: State<AppState>) -> Result<TreasuryData, String> {
+pub fn caja_get_treasury(state: State<AppState>, date: Option<String>) -> Result<TreasuryData, String> {
     state.check_permission(permissions::CAJA_TREASURY_READ)?;
     let conn = state.db.get().map_err(|e| e.to_string())?;
 
-    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let today_prefix = format!("{}%", today);
+    let today_prefix = date_prefix_for_treasury(date.as_deref());
 
     let (total_transactions, cash, card, transfer): (u32, f64, f64, f64) = conn
         .query_row(

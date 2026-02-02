@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>;
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 9;
+const SCHEMA_VERSION: i64 = 12;
 
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
@@ -217,6 +217,94 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
 
     if current < 9 {
         conn.execute("INSERT INTO schema_version (version) VALUES (9)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 10 {
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS custom_tariffs (
+                id TEXT PRIMARY KEY,
+                plate_or_ref TEXT NOT NULL,
+                description TEXT,
+                amount REAL NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_custom_tariffs_plate_or_ref ON custom_tariffs(plate_or_ref);
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (10)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 11 {
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS default_rates (
+                vehicle_type TEXT PRIMARY KEY,
+                amount REAL NOT NULL
+            );
+            INSERT OR IGNORE INTO default_rates (vehicle_type, amount) VALUES ('car', 50), ('motorcycle', 30), ('truck', 80), ('bicycle', 15);
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (11)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 12 {
+        conn.execute_batch(
+            r#"
+            ALTER TABLE custom_tariffs ADD COLUMN vehicle_type TEXT;
+            UPDATE custom_tariffs SET vehicle_type = 'car' WHERE vehicle_type IS NULL;
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute(
+            r#"
+            INSERT INTO custom_tariffs (id, vehicle_type, plate_or_ref, description, amount, created_at)
+            SELECT 'default_car', vehicle_type, '', NULL, amount, datetime('now') FROM default_rates WHERE vehicle_type = 'car'
+            "#,
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute(
+            r#"
+            INSERT INTO custom_tariffs (id, vehicle_type, plate_or_ref, description, amount, created_at)
+            SELECT 'default_motorcycle', vehicle_type, '', NULL, amount, datetime('now') FROM default_rates WHERE vehicle_type = 'motorcycle'
+            "#,
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute(
+            r#"
+            INSERT INTO custom_tariffs (id, vehicle_type, plate_or_ref, description, amount, created_at)
+            SELECT 'default_truck', vehicle_type, '', NULL, amount, datetime('now') FROM default_rates WHERE vehicle_type = 'truck'
+            "#,
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute(
+            r#"
+            INSERT INTO custom_tariffs (id, vehicle_type, plate_or_ref, description, amount, created_at)
+            SELECT 'default_bicycle', vehicle_type, '', NULL, amount, datetime('now') FROM default_rates WHERE vehicle_type = 'bicycle'
+            "#,
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute(
+            "DELETE FROM custom_tariffs WHERE (plate_or_ref IS NULL OR plate_or_ref = '') AND vehicle_type IN ('car','motorcycle','truck','bicycle') AND id NOT LIKE 'default_%'",
+            [],
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute("DROP TABLE IF EXISTS default_rates", [])
+            .map_err(|e| e.to_string())?;
+        conn.execute_batch(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_custom_tariffs_vehicle_plate ON custom_tariffs(vehicle_type, COALESCE(plate_or_ref, ''));",
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (12)", [])
             .map_err(|e| e.to_string())?;
     }
 

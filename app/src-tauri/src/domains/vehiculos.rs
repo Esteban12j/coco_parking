@@ -6,16 +6,6 @@ use crate::id_gen;
 use crate::permissions;
 use crate::state::AppState;
 
-/// Hourly rates by vehicle type (same as frontend).
-fn rate_for_type(vehicle_type: &VehicleType) -> f64 {
-    match vehicle_type {
-        VehicleType::Car => 50.0,
-        VehicleType::Motorcycle => 30.0,
-        VehicleType::Truck => 80.0,
-        VehicleType::Bicycle => 15.0,
-    }
-}
-
 fn normalize_plate_for_index(plate: &str) -> String {
     plate.trim().to_uppercase()
 }
@@ -490,6 +480,7 @@ pub fn vehiculos_process_exit(
     ticket_code: String,
     partial_payment: Option<f64>,
     payment_method: Option<String>,
+    custom_parking_cost: Option<f64>,
 ) -> Result<Vehicle, String> {
     state.check_permission(permissions::CAJA_TRANSACTIONS_CREATE)?;
     let conn = state.db.get().map_err(|e| e.to_string())?;
@@ -503,16 +494,24 @@ pub fn vehiculos_process_exit(
         .map_err(|_| "Vehicle not found or already completed".to_string())?;
 
     let exit_time = chrono::Utc::now().to_rfc3339();
-    let entry_ts = chrono::DateTime::parse_from_rfc3339(&vehicle.entry_time)
-        .map_err(|e| e.to_string())?
-        .with_timezone(&chrono::Utc);
-    let exit_ts = chrono::DateTime::parse_from_rfc3339(&exit_time)
-        .map_err(|e| e.to_string())?
-        .with_timezone(&chrono::Utc);
-    let duration_minutes = (exit_ts - entry_ts).num_minutes().max(0) as f64;
-    let hours = (duration_minutes / 60.0).ceil().max(1.0);
-    let rate = rate_for_type(&vehicle.vehicle_type);
-    let parking_cost = hours * rate;
+    let parking_cost = match custom_parking_cost {
+        Some(c) if c >= 0.0 => c,
+        _ => {
+            let entry_ts = chrono::DateTime::parse_from_rfc3339(&vehicle.entry_time)
+                .map_err(|e| e.to_string())?
+                .with_timezone(&chrono::Utc);
+            let exit_ts = chrono::DateTime::parse_from_rfc3339(&exit_time)
+                .map_err(|e| e.to_string())?
+                .with_timezone(&chrono::Utc);
+            let duration_minutes = (exit_ts - entry_ts).num_minutes().max(0) as f64;
+            let hours = (duration_minutes / 60.0).ceil().max(1.0);
+            let rate = crate::domains::custom_tariffs::get_default_rate_from_db(
+                &conn,
+                vehicle_type_to_str(&vehicle.vehicle_type),
+            )?;
+            hours * rate
+        }
+    };
     let debt = vehicle.debt.unwrap_or(0.0);
     let total_with_debt = parking_cost + debt;
 

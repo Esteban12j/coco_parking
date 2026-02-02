@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DollarSign, Users, TrendingUp, Wallet, RefreshCw, AlertCircle, History } from "lucide-react";
 import { MetricCard } from "@/components/MetricCard";
 import { useParkingStore } from "@/hooks/useParkingStore";
@@ -41,9 +41,16 @@ export const CajaPage = () => {
     treasuryError,
     isTauri,
     invalidateParking,
+    refetchTreasury,
     closeShift,
     isClosingShift,
   } = useParkingStore();
+
+  useEffect(() => {
+    if (isTauri && refetchTreasury) {
+      refetchTreasury();
+    }
+  }, [isTauri, refetchTreasury]);
   const totalBreakdown =
     treasury.paymentBreakdown.cash +
     treasury.paymentBreakdown.card +
@@ -85,6 +92,11 @@ export const CajaPage = () => {
           <AlertCircle className="h-5 w-5 shrink-0" />
           <span>{String(treasuryError ?? t("common.error"))}</span>
         </div>
+      )}
+      {!isLoading && !isTreasuryError && treasury.totalTransactions === 0 && (
+        <p className="mb-6 text-sm text-muted-foreground">
+          {t("till.noTransactionsHint")}
+        </p>
       )}
 
       <div className="space-y-6">

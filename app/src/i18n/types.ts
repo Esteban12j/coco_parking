@@ -33,6 +33,7 @@ export interface Translations {
     till: string;
     debtors: string;
     metrics: string;
+    tariffs: string;
     roles: string;
     backup: string;
     devConsole: string;
@@ -131,6 +132,7 @@ export interface Translations {
     notesPlaceholder: string;
     submitCloseShift: string;
     noClosuresYet: string;
+    noTransactionsHint: string;
   };
   metrics: {
     title: string;
@@ -306,6 +308,34 @@ export interface Translations {
     motorcycle: string;
     truck: string;
     bicycle: string;
+    useDefaultRate: string;
+    useCustomRate: string;
+  };
+  customTariff: {
+    title: string;
+    searchPlaceholder: string;
+    createHere: string;
+    plateOrRef: string;
+    description: string;
+    amount: string;
+    createAndApply: string;
+    noResults: string;
+    createError: string;
+  };
+  tariffs: {
+    title: string;
+    subtitle: string;
+    allRates: string;
+    allRatesNote: string;
+    addTariff: string;
+    defaultLabel: string;
+    optional: string;
+    edit: string;
+    delete: string;
+    save: string;
+    confirmDelete: string;
+    deleted: string;
+    updated: string;
   };
   notFound: {
     title: string;

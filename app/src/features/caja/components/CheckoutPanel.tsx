@@ -5,6 +5,7 @@ import {
   CreditCard,
   Banknote,
   ArrowRightLeft,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,10 +14,20 @@ import { Vehicle, VehicleType } from "@/types/parking";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { getDefaultRate } from "@/lib/defaultRates";
+import { useDefaultRates } from "@/hooks/useDefaultRates";
+import { CustomTariffSelector } from "./CustomTariffSelector";
+
+function isTauri(): boolean {
+  return typeof window !== "undefined" && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
+}
 
 interface CheckoutPanelProps {
   vehicle: Vehicle;
-  onCheckout: (partialPayment?: number, paymentMethod?: "cash" | "card" | "transfer") => void;
+  onCheckout: (
+    partialPayment?: number,
+    paymentMethod?: "cash" | "card" | "transfer",
+    customParkingCost?: number
+  ) => void;
   onCancel: () => void;
 }
 
@@ -26,6 +37,12 @@ export const CheckoutPanel = ({
   onCancel,
 }: CheckoutPanelProps) => {
   const { t } = useTranslation();
+  const tauri = isTauri();
+  const { rates: defaultRates } = useDefaultRates();
+  const hourlyRate =
+    tauri && defaultRates?.[vehicle.vehicleType] != null
+      ? defaultRates[vehicle.vehicleType]
+      : getDefaultRate(vehicle.vehicleType);
   const vehicleLabels: Record<VehicleType, string> = {
     car: t("checkout.car"),
     motorcycle: t("checkout.motorcycle"),
@@ -42,6 +59,8 @@ export const CheckoutPanel = ({
   >("cash");
   const [partialAmount, setPartialAmount] = useState<string>("");
   const [showPartial, setShowPartial] = useState(false);
+  const [customParkingCost, setCustomParkingCost] = useState<number | null>(null);
+  const [customTariffSelectorOpen, setCustomTariffSelectorOpen] = useState(false);
 
   useEffect(() => {
     const calculateElapsed = () => {
@@ -60,19 +79,28 @@ export const CheckoutPanel = ({
     return () => clearInterval(interval);
   }, [vehicle.entryTime]);
 
-  const hourlyRate = getDefaultRate(vehicle.vehicleType);
   const hoursCharged = Math.max(
     1,
     Math.ceil((elapsed.hours * 60 + elapsed.minutes) / 60)
   );
-  const parkingCost = hoursCharged * hourlyRate;
+  const defaultParkingCost = hoursCharged * hourlyRate;
+  const parkingCost =
+    customParkingCost !== null ? customParkingCost : defaultParkingCost;
   const totalWithDebt = parkingCost + (vehicle.debt || 0);
 
   const handleCheckout = () => {
     if (showPartial && partialAmount) {
-      onCheckout(parseFloat(partialAmount), paymentMethod);
+      onCheckout(
+        parseFloat(partialAmount),
+        paymentMethod,
+        customParkingCost ?? undefined
+      );
     } else {
-      onCheckout(undefined, paymentMethod);
+      onCheckout(
+        undefined,
+        paymentMethod,
+        customParkingCost ?? undefined
+      );
     }
   };
 
@@ -111,17 +139,58 @@ export const CheckoutPanel = ({
         </div>
       </div>
 
-      <div className="space-y-3 mb-6">
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">{t("checkout.hourlyRate")}</span>
-          <span className="font-medium">${hourlyRate.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">{t("checkout.hoursCharged")}</span>
-          <span className="font-medium">
-            {hoursCharged} hr{hoursCharged > 1 ? "s" : ""}
+      <div className="space-y-2 mb-4">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-muted-foreground">
+            {t("checkout.useDefaultRate")}
           </span>
+          <Button
+            type="button"
+            variant={customParkingCost === null ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCustomParkingCost(null)}
+          >
+            {t("checkout.useDefaultRate")}
+          </Button>
+          <Button
+            type="button"
+            variant={customParkingCost !== null ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCustomTariffSelectorOpen(true)}
+          >
+            <Tag className="h-3.5 w-3.5 mr-1" />
+            {t("checkout.useCustomRate")}
+          </Button>
+          {customParkingCost !== null && (
+            <span className="text-sm font-medium">
+              ${customParkingCost.toFixed(2)}
+            </span>
+          )}
         </div>
+      </div>
+      <CustomTariffSelector
+        open={customTariffSelectorOpen}
+        onClose={() => setCustomTariffSelectorOpen(false)}
+        onSelect={(amount) => {
+          setCustomParkingCost(amount);
+          setCustomTariffSelectorOpen(false);
+        }}
+      />
+      <div className="space-y-3 mb-6">
+        {customParkingCost === null && (
+          <>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">{t("checkout.hourlyRate")}</span>
+              <span className="font-medium">${hourlyRate.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">{t("checkout.hoursCharged")}</span>
+              <span className="font-medium">
+                {hoursCharged} hr{hoursCharged > 1 ? "s" : ""}
+              </span>
+            </div>
+          </>
+        )}
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">{t("checkout.parkingCost")}</span>
           <span className="font-medium">${parkingCost.toFixed(2)}</span>

@@ -39,6 +39,42 @@ function getRegisterErrorKey(msg: string): string | null {
   return null;
 }
 
+function normalizeTreasuryData(raw: unknown): TreasuryData | null {
+  if (raw == null || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const hasCamel = typeof r.expectedCash === 'number';
+  const hasSnake = typeof r.expected_cash === 'number';
+  if (hasCamel) {
+    const pb = r.paymentBreakdown as Record<string, unknown> | undefined;
+    return {
+      expectedCash: Number(r.expectedCash) || 0,
+      actualCash: Number(r.actualCash) || 0,
+      discrepancy: Number(r.discrepancy) || 0,
+      totalTransactions: Number(r.totalTransactions) || 0,
+      paymentBreakdown: {
+        cash: Number(pb?.cash) || 0,
+        card: Number(pb?.card) || 0,
+        transfer: Number(pb?.transfer) || 0,
+      },
+    };
+  }
+  if (hasSnake) {
+    const pb = r.payment_breakdown as Record<string, unknown> | undefined;
+    return {
+      expectedCash: Number(r.expected_cash) || 0,
+      actualCash: Number(r.actual_cash) || 0,
+      discrepancy: Number(r.discrepancy) || 0,
+      totalTransactions: Number(r.total_transactions) || 0,
+      paymentBreakdown: {
+        cash: Number(pb?.cash) || 0,
+        card: Number(pb?.card) || 0,
+        transfer: Number(pb?.transfer) || 0,
+      },
+    };
+  }
+  return null;
+}
+
 type RegisterArgs = {
   plate: string;
   vehicleType: VehicleType;
@@ -86,8 +122,13 @@ export const useParkingStore = () => {
 
   const treasuryQuery = useQuery({
     queryKey: ['parking', 'treasury'],
-    queryFn: () => invokeTauri<TreasuryData>('caja_get_treasury'),
+    queryFn: () => {
+      const now = new Date();
+      const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      return invokeTauri<TreasuryData>('caja_get_treasury', { date: localDate });
+    },
     enabled: tauri,
+    refetchOnWindowFocus: true,
   });
 
   const shiftClosuresQuery = useQuery({
@@ -100,7 +141,7 @@ export const useParkingStore = () => {
   const vehicles = tauri ? (vehiclesPageData?.items ?? []) : localVehicles;
   const totalActiveCount = tauri ? (vehiclesPageData?.total ?? 0) : localVehicles.filter((v) => v.status === 'active').length;
   const metricsData = tauri ? metricsQuery.data : null;
-  const treasuryData = tauri ? treasuryQuery.data : null;
+  const treasuryData = tauri ? normalizeTreasuryData(treasuryQuery.data) : null;
 
   // Historia 1.3: en Tauri no hay cálculo duplicado; métricas y tesorería solo desde backend (mismo almacén que vehículos).
   const ZERO_METRICS: DailyMetrics = {
@@ -128,6 +169,12 @@ export const useParkingStore = () => {
   const invalidateParkingTreasury = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['parking', 'treasury'] });
   }, [queryClient]);
+
+  const refetchTreasury = useCallback(() => {
+    if (tauri) {
+      queryClient.refetchQueries({ queryKey: ['parking', 'treasury'] });
+    }
+  }, [tauri, queryClient]);
 
   const invalidateParkingMetrics = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['parking', 'metrics'] });
@@ -187,11 +234,13 @@ export const useParkingStore = () => {
       ticketCode: string;
       payPartial?: number;
       paymentMethod?: string;
+      customParkingCost?: number;
     }) => {
       const v = await invokeTauri<VehicleFromBackend>('vehiculos_process_exit', {
         ticketCode: args.ticketCode,
         partialPayment: args.payPartial ?? null,
         paymentMethod: args.paymentMethod ?? null,
+        customParkingCost: args.customParkingCost ?? null,
       });
       return vehicleFromBackend(v);
     },
@@ -289,9 +338,19 @@ export const useParkingStore = () => {
   );
 
   const processExit = useCallback(
-    (ticketCode: string, payPartial?: number, paymentMethod?: string) => {
+    (
+      ticketCode: string,
+      payPartial?: number,
+      paymentMethod?: string,
+      customParkingCost?: number
+    ) => {
       if (tauri) {
-        processExitMutation.mutate({ ticketCode, payPartial, paymentMethod });
+        processExitMutation.mutate({
+          ticketCode,
+          payPartial,
+          paymentMethod,
+          customParkingCost,
+        });
         return null;
       }
       const vehicle = vehicles.find((v) => v.ticketCode === ticketCode && v.status === 'active');
@@ -300,8 +359,11 @@ export const useParkingStore = () => {
       const durationMs = now.getTime() - new Date(vehicle.entryTime).getTime();
       const durationMinutes = Math.ceil(durationMs / (1000 * 60));
       const hours = Math.ceil(durationMinutes / 60);
-      const rate = getDefaultRate(vehicle.vehicleType);
-      const parkingCost = hours * rate;
+      const defaultCost = hours * getDefaultRate(vehicle.vehicleType);
+      const parkingCost =
+        customParkingCost !== undefined && customParkingCost >= 0
+          ? customParkingCost
+          : defaultCost;
       const totalWithDebt = parkingCost + (vehicle.debt ?? 0);
       let finalAmount = totalWithDebt;
       let newDebt = 0;
@@ -536,6 +598,7 @@ export const useParkingStore = () => {
     getPlateDebt,
     clearScanResult,
     invalidateParking,
+    refetchTreasury,
     isLoading: tauri && (vehiclesQuery.isLoading || metricsQuery.isLoading || treasuryQuery.isLoading),
     isTauri: tauri,
     isTreasuryError: tauri && treasuryQuery.isError,

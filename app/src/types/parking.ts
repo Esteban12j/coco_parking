@@ -100,6 +100,16 @@ export interface PlateConflict {
   vehicles: Vehicle[];
 }
 
+/** Tariff (default or custom): vehicle type + optional plate/ref + amount. One per (vehicleType, plateOrRef). */
+export interface CustomTariff {
+  id: string;
+  vehicleType: string;
+  plateOrRef?: string | null;
+  description?: string | null;
+  amount: number;
+  createdAt: string;
+}
+
 /** Debtor row: plate, total debt, sessions count, oldest exit time. */
 export interface DebtorEntry {
   plate: string;

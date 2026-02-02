@@ -21,6 +21,7 @@ use dev::{
 use domains::{
     backup::{backup_create, backup_list, backup_restore},
     caja::{caja_close_shift, caja_get_debug, caja_get_treasury, caja_list_shift_closures},
+    custom_tariffs::{custom_tariffs_create, custom_tariffs_list, custom_tariffs_update, custom_tariffs_delete},
     metricas::metricas_get_daily,
     reportes::{reportes_fetch, reportes_get_column_definitions, reportes_write_csv},
     roles::{
@@ -98,6 +99,10 @@ pub fn run() {
             vehiculos_list_vehicles,
             vehiculos_register_entry,
             vehiculos_process_exit,
+            custom_tariffs_list,
+            custom_tariffs_create,
+            custom_tariffs_update,
+            custom_tariffs_delete,
             vehiculos_find_by_plate,
             vehiculos_find_by_ticket,
             vehiculos_get_debt_detail_by_plate,

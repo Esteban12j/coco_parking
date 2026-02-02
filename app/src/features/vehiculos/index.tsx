@@ -94,9 +94,18 @@ export const VehiculosPage = () => {
     clearScanResult();
   };
 
-  const handleCheckout = (partialPayment?: number, paymentMethod?: "cash" | "card" | "transfer") => {
+  const handleCheckout = (
+    partialPayment?: number,
+    paymentMethod?: "cash" | "card" | "transfer",
+    customParkingCost?: number
+  ) => {
     if (selectedVehicle) {
-      processExit(selectedVehicle.ticketCode, partialPayment, paymentMethod);
+      processExit(
+        selectedVehicle.ticketCode,
+        partialPayment,
+        paymentMethod,
+        customParkingCost
+      );
       setSelectedVehicle(null);
       setViewMode("scanner");
       clearScanResult();
