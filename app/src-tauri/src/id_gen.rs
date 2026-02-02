@@ -7,6 +7,7 @@ pub const ID_LENGTH: usize = 25;
 pub const PREFIX_VEHICLE: &str = "VH";
 pub const PREFIX_TRANSACTION: &str = "TX";
 pub const PREFIX_SHIFT_CLOSURE: &str = "SC";
+pub const PREFIX_CUSTOM_TARIFF: &str = "CT";
 pub const PREFIX_USER: &str = "US";
 #[allow(dead_code)]
 pub const PREFIX_ROLE: &str = "RL";
