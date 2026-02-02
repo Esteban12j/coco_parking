@@ -15,6 +15,9 @@ pub struct CustomTariff {
     pub plate_or_ref: Option<String>,
     pub description: Option<String>,
     pub amount: f64,
+    pub rate_unit: Option<String>,
+    pub rate_duration_hours: Option<i64>,
+    pub rate_duration_minutes: Option<i64>,
     pub created_at: String,
 }
 
@@ -43,6 +46,8 @@ pub fn get_default_rate_from_db(conn: &rusqlite::Connection, vehicle_type: &str)
     }))
 }
 
+const VALID_RATE_UNITS: &[&str] = &["hour", "minute"];
+
 fn row_to_tariff(row: &rusqlite::Row) -> rusqlite::Result<CustomTariff> {
     let plate: String = row.get("plate_or_ref")?;
     let name: Option<String> = row
@@ -50,6 +55,17 @@ fn row_to_tariff(row: &rusqlite::Row) -> rusqlite::Result<CustomTariff> {
         .ok()
         .flatten()
         .filter(|s| !s.is_empty());
+    let rate_unit: Option<String> = row
+        .get::<_, Option<String>>("rate_unit")
+        .ok()
+        .flatten()
+        .filter(|s| VALID_RATE_UNITS.contains(&s.as_str()));
+    let rate_duration_hours: Option<i64> = row.get("rate_duration_hours").ok();
+    let rate_duration_minutes: Option<i64> = row.get("rate_duration_minutes").ok();
+    let (dur_h, dur_m) = match (rate_duration_hours, rate_duration_minutes) {
+        (Some(h), Some(m)) if h >= 0 && m >= 0 && (h > 0 || m > 0) => (Some(h), Some(m)),
+        _ => (Some(1), Some(0)),
+    };
     Ok(CustomTariff {
         id: row.get("id")?,
         vehicle_type: row.get::<_, Option<String>>("vehicle_type")?.unwrap_or_else(|| "car".to_string()),
@@ -57,6 +73,9 @@ fn row_to_tariff(row: &rusqlite::Row) -> rusqlite::Result<CustomTariff> {
         plate_or_ref: if plate.is_empty() { None } else { Some(plate) },
         description: row.get("description")?,
         amount: row.get("amount")?,
+        rate_unit: rate_unit.or_else(|| Some("hour".to_string())),
+        rate_duration_hours: dur_h,
+        rate_duration_minutes: dur_m,
         created_at: row.get("created_at")?,
     })
 }
@@ -71,11 +90,11 @@ pub fn custom_tariffs_list(
 
     let (sql, param): (String, Option<String>) = match search.as_deref().map(str::trim) {
         Some(s) if !s.is_empty() => (
-            "SELECT id, vehicle_type, name, plate_or_ref, description, amount, created_at FROM custom_tariffs WHERE name LIKE ?1 OR plate_or_ref LIKE ?1 OR description LIKE ?1 OR vehicle_type LIKE ?1 ORDER BY vehicle_type ASC, COALESCE(plate_or_ref, '') ASC LIMIT 100".to_string(),
+            "SELECT id, vehicle_type, name, plate_or_ref, description, amount, rate_unit, rate_duration_hours, rate_duration_minutes, created_at FROM custom_tariffs WHERE name LIKE ?1 OR plate_or_ref LIKE ?1 OR description LIKE ?1 OR vehicle_type LIKE ?1 ORDER BY vehicle_type ASC, COALESCE(plate_or_ref, '') ASC LIMIT 100".to_string(),
             Some(format!("%{}%", s)),
         ),
         _ => (
-            "SELECT id, vehicle_type, name, plate_or_ref, description, amount, created_at FROM custom_tariffs ORDER BY vehicle_type ASC, COALESCE(plate_or_ref, '') ASC LIMIT 100".to_string(),
+            "SELECT id, vehicle_type, name, plate_or_ref, description, amount, rate_unit, rate_duration_hours, rate_duration_minutes, created_at FROM custom_tariffs ORDER BY vehicle_type ASC, COALESCE(plate_or_ref, '') ASC LIMIT 100".to_string(),
             None,
         ),
     };
@@ -109,6 +128,9 @@ pub(crate) struct CreateCustomTariffArgs {
     plate_or_ref: Option<String>,
     amount: f64,
     description: Option<String>,
+    rate_unit: Option<String>,
+    rate_duration_hours: Option<i64>,
+    rate_duration_minutes: Option<i64>,
 }
 
 #[tauri::command]
@@ -134,6 +156,18 @@ pub fn custom_tariffs_create(
     }
     let name = args.name.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(String::from);
     let description = args.description;
+    let rate_unit = args
+        .rate_unit
+        .as_deref()
+        .map(str::trim)
+        .map(str::to_lowercase)
+        .filter(|s| VALID_RATE_UNITS.contains(&s.as_str()))
+        .unwrap_or_else(|| "hour".to_string());
+    let dur_h = args.rate_duration_hours.unwrap_or(1).max(0);
+    let dur_m = args.rate_duration_minutes.unwrap_or(0).max(0).min(59);
+    if dur_h == 0 && dur_m == 0 {
+        return Err("Rate duration must be at least 1 minute (hours and/or minutes)".to_string());
+    }
 
     let conn = state.db.get().map_err(|e| e.to_string())?;
     let exists: i64 = conn
@@ -151,8 +185,8 @@ pub fn custom_tariffs_create(
     let created_at = chrono::Utc::now().to_rfc3339();
 
     conn.execute(
-        "INSERT INTO custom_tariffs (id, vehicle_type, name, plate_or_ref, description, amount, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        params![id, vehicle_type, name, plate_key, description, amount, created_at],
+        "INSERT INTO custom_tariffs (id, vehicle_type, name, plate_or_ref, description, amount, rate_unit, rate_duration_hours, rate_duration_minutes, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        params![id, vehicle_type, name, plate_key, description, amount, rate_unit, dur_h, dur_m, created_at],
     )
     .map_err(|e| e.to_string())?;
 
@@ -163,6 +197,9 @@ pub fn custom_tariffs_create(
         plate_or_ref,
         description,
         amount,
+        rate_unit: Some(rate_unit),
+        rate_duration_hours: Some(dur_h),
+        rate_duration_minutes: Some(dur_m),
         created_at,
     })
 }
@@ -176,6 +213,9 @@ pub(crate) struct UpdateCustomTariffArgs {
     plate_or_ref: Option<String>,
     amount: Option<f64>,
     description: Option<String>,
+    rate_unit: Option<String>,
+    rate_duration_hours: Option<i64>,
+    rate_duration_minutes: Option<i64>,
 }
 
 #[tauri::command]
@@ -187,16 +227,16 @@ pub fn custom_tariffs_update(
     let id = args.id.trim().to_string();
     let conn = state.db.get().map_err(|e| e.to_string())?;
 
-    let existing: Option<(String, Option<String>, String, Option<String>, f64)> = conn
+    let existing: Option<(String, Option<String>, String, Option<String>, f64, Option<String>, Option<i64>, Option<i64>)> = conn
         .query_row(
-            "SELECT vehicle_type, name, plate_or_ref, description, amount FROM custom_tariffs WHERE id = ?1",
+            "SELECT vehicle_type, name, plate_or_ref, description, amount, rate_unit, rate_duration_hours, rate_duration_minutes FROM custom_tariffs WHERE id = ?1",
             params![&id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?)),
         )
         .ok();
 
     match existing {
-        Some((vt, existing_name, p, d, a)) => {
+        Some((vt, existing_name, p, d, a, existing_rate_unit, existing_dur_h, existing_dur_m)) => {
             let new_vehicle_type = args
                 .vehicle_type
                 .as_deref()
@@ -230,9 +270,23 @@ pub fn custom_tariffs_update(
             }
             let new_name = args.name.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(String::from).or(existing_name);
             let new_description = args.description.or(d);
+            let new_rate_unit = args
+                .rate_unit
+                .as_deref()
+                .map(str::trim)
+                .map(str::to_lowercase)
+                .filter(|s| VALID_RATE_UNITS.contains(&s.as_str()))
+                .map(String::from)
+                .or_else(|| existing_rate_unit.filter(|s| VALID_RATE_UNITS.contains(&s.as_str())))
+                .unwrap_or_else(|| "hour".to_string());
+            let new_dur_h = args.rate_duration_hours.or(existing_dur_h).unwrap_or(1).max(0);
+            let new_dur_m = args.rate_duration_minutes.or(existing_dur_m).unwrap_or(0).max(0).min(59);
+            if new_dur_h == 0 && new_dur_m == 0 {
+                return Err("Rate duration must be at least 1 minute (hours and/or minutes)".to_string());
+            }
             conn.execute(
-                "UPDATE custom_tariffs SET vehicle_type = ?1, name = ?2, plate_or_ref = ?3, description = ?4, amount = ?5 WHERE id = ?6",
-                params![new_vehicle_type, new_name, new_plate_key, new_description, new_amount, &id],
+                "UPDATE custom_tariffs SET vehicle_type = ?1, name = ?2, plate_or_ref = ?3, description = ?4, amount = ?5, rate_unit = ?6, rate_duration_hours = ?7, rate_duration_minutes = ?8 WHERE id = ?9",
+                params![new_vehicle_type, new_name, new_plate_key, new_description, new_amount, new_rate_unit, new_dur_h, new_dur_m, &id],
             )
             .map_err(|e| e.to_string())?;
         }
@@ -240,7 +294,7 @@ pub fn custom_tariffs_update(
     }
 
     conn.query_row(
-        "SELECT id, vehicle_type, name, plate_or_ref, description, amount, created_at FROM custom_tariffs WHERE id = ?1",
+        "SELECT id, vehicle_type, name, plate_or_ref, description, amount, rate_unit, rate_duration_hours, rate_duration_minutes, created_at FROM custom_tariffs WHERE id = ?1",
         params![&id],
         |row| row_to_tariff(&row),
     )

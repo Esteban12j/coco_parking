@@ -38,7 +38,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslation } from "@/i18n";
 import { invokeTauri } from "@/lib/tauriInvoke";
-import { CustomTariff } from "@/types/parking";
+import { CustomTariff, TariffRateUnit } from "@/types/parking";
 import { VehicleType } from "@/types/parking";
 import { toast } from "@/hooks/use-toast";
 
@@ -62,6 +62,9 @@ export const TariffsPage = () => {
   const [formPlateOrRef, setFormPlateOrRef] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formAmount, setFormAmount] = useState("");
+  const [formRateUnit, setFormRateUnit] = useState<TariffRateUnit>("hour");
+  const [formDurationHours, setFormDurationHours] = useState<string>("1");
+  const [formDurationMinutes, setFormDurationMinutes] = useState<string>("0");
 
   const listQuery = useQuery({
     queryKey: ["custom_tariffs", search],
@@ -79,6 +82,9 @@ export const TariffsPage = () => {
       plateOrRef?: string | null;
       amount: number;
       description?: string | null;
+      rateUnit?: TariffRateUnit | null;
+      rateDurationHours?: number | null;
+      rateDurationMinutes?: number | null;
     }) =>
       invokeTauri<CustomTariff>("custom_tariffs_create", {
         args: {
@@ -87,6 +93,9 @@ export const TariffsPage = () => {
           plateOrRef: args.plateOrRef?.trim() || null,
           amount: args.amount,
           description: args.description ?? null,
+          rateUnit: args.rateUnit ?? "hour",
+          rateDurationHours: args.rateDurationHours ?? 1,
+          rateDurationMinutes: args.rateDurationMinutes ?? 0,
         },
       }),
     onSuccess: () => {
@@ -108,6 +117,9 @@ export const TariffsPage = () => {
       plateOrRef?: string | null;
       amount?: number;
       description?: string | null;
+      rateUnit?: TariffRateUnit | null;
+      rateDurationHours?: number | null;
+      rateDurationMinutes?: number | null;
     }) =>
       invokeTauri<CustomTariff>("custom_tariffs_update", {
         args: {
@@ -117,6 +129,9 @@ export const TariffsPage = () => {
           plateOrRef: args.plateOrRef?.trim() || null,
           amount: args.amount ?? null,
           description: args.description ?? null,
+          rateUnit: args.rateUnit ?? null,
+          rateDurationHours: args.rateDurationHours ?? null,
+          rateDurationMinutes: args.rateDurationMinutes ?? null,
         },
       }),
     onSuccess: () => {
@@ -157,6 +172,9 @@ export const TariffsPage = () => {
     setFormPlateOrRef("");
     setFormDescription("");
     setFormAmount("");
+    setFormRateUnit("hour");
+    setFormDurationHours("1");
+    setFormDurationMinutes("0");
   }
 
   const openEdit = (tariff: CustomTariff) => {
@@ -166,6 +184,9 @@ export const TariffsPage = () => {
     setFormPlateOrRef(tariff.plateOrRef ?? "");
     setFormDescription(tariff.description ?? "");
     setFormAmount(String(tariff.amount));
+    setFormRateUnit((tariff.rateUnit as TariffRateUnit) || "hour");
+    setFormDurationHours(String(tariff.rateDurationHours ?? 1));
+    setFormDurationMinutes(String(tariff.rateDurationMinutes ?? 0));
     setEditDialogOpen(true);
   };
 
@@ -174,10 +195,23 @@ export const TariffsPage = () => {
     setCreateDialogOpen(true);
   };
 
+  const parseDuration = () => {
+    const h = Math.max(0, parseInt(formDurationHours, 10) || 0);
+    const m = Math.max(0, Math.min(59, parseInt(formDurationMinutes, 10) || 0));
+    return { h, m };
+  };
+
+  const isDurationValid = () => {
+    const { h, m } = parseDuration();
+    return h > 0 || m > 0;
+  };
+
   const handleSaveEdit = () => {
     if (!editingTariff) return;
     const amount = parseFloat(String(formAmount).replace(",", "."));
     if (Number.isNaN(amount) || amount < 0) return;
+    if (!isDurationValid()) return;
+    const { h, m } = parseDuration();
     updateMutation.mutate({
       id: editingTariff.id,
       vehicleType: formVehicleType,
@@ -185,19 +219,40 @@ export const TariffsPage = () => {
       plateOrRef: formPlateOrRef.trim() || null,
       amount,
       description: formDescription.trim() || null,
+      rateUnit: formRateUnit,
+      rateDurationHours: h,
+      rateDurationMinutes: m,
     });
   };
 
   const handleCreate = () => {
     const amount = parseFloat(String(formAmount).replace(",", "."));
     if (Number.isNaN(amount) || amount < 0) return;
+    if (!isDurationValid()) return;
+    const { h, m } = parseDuration();
     createMutation.mutate({
       vehicleType: formVehicleType,
       name: formName.trim() || null,
       plateOrRef: formPlateOrRef.trim() || null,
       amount,
       description: formDescription.trim() || null,
+      rateUnit: formRateUnit,
+      rateDurationHours: h,
+      rateDurationMinutes: m,
     });
+  };
+
+  const rateUnitLabel = (unit: TariffRateUnit | null | undefined) =>
+    unit === "minute" ? t("customTariff.rateUnitMinute") : t("customTariff.rateUnitHour");
+
+  const durationLabel = (hours: number | null | undefined, minutes: number | null | undefined) => {
+    const h = hours ?? 0;
+    const m = minutes ?? 0;
+    if (h === 0 && m === 0) return "1h";
+    const parts: string[] = [];
+    if (h > 0) parts.push(`${h}h`);
+    if (m > 0) parts.push(`${m}min`);
+    return parts.join(" ") || "1h";
   };
 
   const nameDisplay = (tariff: CustomTariff) =>
@@ -206,7 +261,8 @@ export const TariffsPage = () => {
   const isFormValid =
     formAmount.trim() !== "" &&
     !Number.isNaN(parseFloat(String(formAmount).replace(",", "."))) &&
-    parseFloat(String(formAmount).replace(",", ".")) >= 0;
+    parseFloat(String(formAmount).replace(",", ".")) >= 0 &&
+    isDurationValid();
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -254,6 +310,7 @@ export const TariffsPage = () => {
                     <TableHead>{t("customTariff.plateOrRef")}</TableHead>
                     <TableHead>{t("customTariff.description")}</TableHead>
                     <TableHead className="text-right">{t("customTariff.amount")}</TableHead>
+                    <TableHead>{t("customTariff.durationBlock")}</TableHead>
                     <TableHead className="w-[100px]" />
                   </TableRow>
                 </TableHeader>
@@ -268,6 +325,9 @@ export const TariffsPage = () => {
                       </TableCell>
                       <TableCell className="text-right font-mono">
                         ${tariff.amount.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm font-mono">
+                        {durationLabel(tariff.rateDurationHours, tariff.rateDurationMinutes)}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -349,6 +409,30 @@ export const TariffsPage = () => {
               placeholder="0.00"
               inputMode="decimal"
             />
+            <Label>{t("customTariff.durationBlock")}</Label>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Label className="text-muted-foreground text-xs">{t("customTariff.durationHours")}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={formDurationHours}
+                  onChange={(e) => setFormDurationHours(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="flex-1">
+                <Label className="text-muted-foreground text-xs">{t("customTariff.durationMinutes")}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={59}
+                  value={formDurationMinutes}
+                  onChange={(e) => setFormDurationMinutes(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+            </div>
             <div className="flex gap-2 pt-2">
               <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
                 {t("common.cancel")}
@@ -417,6 +501,30 @@ export const TariffsPage = () => {
                 placeholder="0.00"
                 inputMode="decimal"
               />
+              <Label>{t("customTariff.durationBlock")}</Label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Label className="text-muted-foreground text-xs">{t("customTariff.durationHours")}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={formDurationHours}
+                    onChange={(e) => setFormDurationHours(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label className="text-muted-foreground text-xs">{t("customTariff.durationMinutes")}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={59}
+                    value={formDurationMinutes}
+                    onChange={(e) => setFormDurationMinutes(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
               <div className="flex gap-2 pt-2">
                 <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
                   {t("common.cancel")}

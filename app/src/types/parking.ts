@@ -100,7 +100,9 @@ export interface PlateConflict {
   vehicles: Vehicle[];
 }
 
-/** Tariff (default or custom): vehicle type + optional name/plate/ref + amount. One per (vehicleType, plateOrRef). */
+export type TariffRateUnit = 'hour' | 'minute';
+
+/** Tariff (default or custom): vehicle type + optional name/plate/ref + amount + time duration. One per (vehicleType, plateOrRef). */
 export interface CustomTariff {
   id: string;
   vehicleType: string;
@@ -108,6 +110,11 @@ export interface CustomTariff {
   plateOrRef?: string | null;
   description?: string | null;
   amount: number;
+  rateUnit?: TariffRateUnit | null;
+  /** Duration block: hours (0 or more). */
+  rateDurationHours?: number | null;
+  /** Duration block: minutes (0–59). Total block must be >= 1 minute. */
+  rateDurationMinutes?: number | null;
   createdAt: string;
 }
 

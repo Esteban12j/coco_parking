@@ -20,7 +20,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTranslation } from "@/i18n";
 import { invokeTauri } from "@/lib/tauriInvoke";
-import { CustomTariff } from "@/types/parking";
+import { CustomTariff, TariffRateUnit } from "@/types/parking";
 import type { VehicleType } from "@/types/parking";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -34,7 +34,7 @@ const VEHICLE_TYPE_KEYS: VehicleType[] = ["car", "motorcycle", "truck", "bicycle
 interface CustomTariffSelectorProps {
   open: boolean;
   onClose: () => void;
-  onSelect: (amount: number) => void;
+  onSelect: (amount: number, rateUnit: TariffRateUnit) => void;
   /** When set (e.g. from checkout), only tariffs for this vehicle type are shown/selectable and create form uses this type. */
   fixedVehicleType?: VehicleType;
   /** When set (e.g. from checkout), create form plate field is pre-filled with this value. */
@@ -58,6 +58,7 @@ export const CustomTariffSelector = ({
   const [createPlateOrRef, setCreatePlateOrRef] = useState(fixedPlateOrRef ?? "");
   const [createDescription, setCreateDescription] = useState("");
   const [createAmount, setCreateAmount] = useState("");
+  const [createRateUnit, setCreateRateUnit] = useState<TariffRateUnit>("hour");
 
   useEffect(() => {
     if (open) {
@@ -84,6 +85,7 @@ export const CustomTariffSelector = ({
       plateOrRef?: string | null;
       amount: number;
       description?: string | null;
+      rateUnit?: TariffRateUnit | null;
     }) =>
       invokeTauri<CustomTariff>("custom_tariffs_create", {
         args: {
@@ -92,6 +94,7 @@ export const CustomTariffSelector = ({
           plateOrRef: args.plateOrRef?.trim() || null,
           amount: args.amount,
           description: args.description ?? null,
+          rateUnit: args.rateUnit ?? "hour",
         },
       }),
     onSuccess: (data) => {
@@ -102,7 +105,8 @@ export const CustomTariffSelector = ({
       setCreatePlateOrRef(fixedPlateOrRef ?? "");
       setCreateDescription("");
       setCreateAmount("");
-      onSelect(data.amount);
+      setCreateRateUnit("hour");
+      onSelect(data.amount, (data.rateUnit as TariffRateUnit) ?? "hour");
       onClose();
     },
     onError: (err) => {
@@ -127,10 +131,13 @@ export const CustomTariffSelector = ({
     bicycle: t("checkout.bicycle"),
   };
 
-  const handleSelect = (amount: number) => {
-    onSelect(amount);
+  const handleSelect = (tariff: CustomTariff) => {
+    onSelect(tariff.amount, (tariff.rateUnit as TariffRateUnit) ?? "hour");
     onClose();
   };
+
+  const rateUnitSuffix = (unit: TariffRateUnit | null | undefined) =>
+    unit === "minute" ? "/min" : "/h";
 
   const effectiveCreateVehicleType = fixedVehicleType ?? createVehicleType;
 
@@ -146,10 +153,12 @@ export const CustomTariffSelector = ({
         plateOrRef: createPlateOrRef.trim() || null,
         amount,
         description: createDescription.trim() || null,
+        rateUnit: createRateUnit,
       });
     } else {
-      onSelect(amount);
+      onSelect(amount, createRateUnit);
       setCreateAmount("");
+      setCreateRateUnit("hour");
       setShowCreateForm(false);
       onClose();
     }
@@ -201,7 +210,7 @@ export const CustomTariffSelector = ({
                       <li key={tariff.id}>
                         <button
                           type="button"
-                          onClick={() => handleSelect(tariff.amount)}
+                          onClick={() => handleSelect(tariff)}
                           className={cn(
                             "w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm",
                             "hover:bg-accent transition-colors"
@@ -216,7 +225,7 @@ export const CustomTariffSelector = ({
                             </span>
                           </span>
                           <span className="font-medium shrink-0">
-                            ${tariff.amount.toFixed(2)}
+                            ${tariff.amount.toFixed(2)}{rateUnitSuffix(tariff.rateUnit)}
                           </span>
                         </button>
                       </li>
@@ -285,6 +294,19 @@ export const CustomTariffSelector = ({
                 placeholder="0.00"
                 inputMode="decimal"
               />
+              <Label>{t("customTariff.rateUnit")}</Label>
+              <Select
+                value={createRateUnit}
+                onValueChange={(v) => setCreateRateUnit(v as TariffRateUnit)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hour">{t("customTariff.rateUnitHour")}</SelectItem>
+                  <SelectItem value="minute">{t("customTariff.rateUnitMinute")}</SelectItem>
+                </SelectContent>
+              </Select>
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -293,9 +315,10 @@ export const CustomTariffSelector = ({
                     setShowCreateForm(false);
                     setCreateVehicleType(fixedVehicleType ?? "car");
                     setCreateName("");
-                    setCreatePlateOrRef(fixedPlateOrRef ?? "");
-                    setCreateDescription("");
-                    setCreateAmount("");
+                  setCreatePlateOrRef(fixedPlateOrRef ?? "");
+                  setCreateDescription("");
+                  setCreateAmount("");
+                  setCreateRateUnit("hour");
                   }}
                 >
                   {t("common.cancel")}

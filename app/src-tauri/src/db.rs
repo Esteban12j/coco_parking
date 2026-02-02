@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>;
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 13;
+const SCHEMA_VERSION: i64 = 15;
 
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
@@ -314,6 +314,34 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
         )
         .map_err(|e| e.to_string())?;
         conn.execute("INSERT INTO schema_version (version) VALUES (13)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 14 {
+        conn.execute_batch(
+            r#"
+            ALTER TABLE custom_tariffs ADD COLUMN rate_unit TEXT;
+            UPDATE custom_tariffs SET rate_unit = 'hour' WHERE rate_unit IS NULL;
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (14)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 15 {
+        conn.execute_batch(
+            r#"
+            ALTER TABLE custom_tariffs ADD COLUMN rate_duration_hours INTEGER;
+            ALTER TABLE custom_tariffs ADD COLUMN rate_duration_minutes INTEGER;
+            UPDATE custom_tariffs SET rate_duration_hours = 1, rate_duration_minutes = 0 WHERE rate_unit IS NULL OR rate_unit = 'hour';
+            UPDATE custom_tariffs SET rate_duration_hours = 0, rate_duration_minutes = 1 WHERE rate_unit = 'minute';
+            UPDATE custom_tariffs SET rate_duration_hours = 1, rate_duration_minutes = 0 WHERE rate_duration_hours IS NULL;
+            UPDATE custom_tariffs SET rate_duration_minutes = 0 WHERE rate_duration_minutes IS NULL;
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (15)", [])
             .map_err(|e| e.to_string())?;
     }
 

@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Vehicle, VehicleType } from "@/types/parking";
+import { Vehicle, VehicleType, TariffRateUnit } from "@/types/parking";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { getDefaultRate } from "@/lib/defaultRates";
@@ -59,7 +59,8 @@ export const CheckoutPanel = ({
   >("cash");
   const [partialAmount, setPartialAmount] = useState<string>("");
   const [showPartial, setShowPartial] = useState(false);
-  const [customParkingCost, setCustomParkingCost] = useState<number | null>(null);
+  const [customTariffAmount, setCustomTariffAmount] = useState<number | null>(null);
+  const [customTariffRateUnit, setCustomTariffRateUnit] = useState<TariffRateUnit | null>(null);
   const [customTariffSelectorOpen, setCustomTariffSelectorOpen] = useState(false);
 
   useEffect(() => {
@@ -79,28 +80,23 @@ export const CheckoutPanel = ({
     return () => clearInterval(interval);
   }, [vehicle.entryTime]);
 
-  const hoursCharged = Math.max(
-    1,
-    Math.ceil((elapsed.hours * 60 + elapsed.minutes) / 60)
-  );
+  const totalMinutes = elapsed.hours * 60 + elapsed.minutes;
+  const hoursCharged = Math.max(1, Math.ceil(totalMinutes / 60));
   const defaultParkingCost = hoursCharged * hourlyRate;
   const parkingCost =
-    customParkingCost !== null ? customParkingCost : defaultParkingCost;
+    customTariffAmount !== null && customTariffRateUnit !== null
+      ? customTariffRateUnit === "minute"
+        ? Math.ceil(totalMinutes) * customTariffAmount
+        : hoursCharged * customTariffAmount
+      : defaultParkingCost;
   const totalWithDebt = parkingCost + (vehicle.debt || 0);
 
   const handleCheckout = () => {
+    const costToSend = customTariffAmount !== null ? parkingCost : undefined;
     if (showPartial && partialAmount) {
-      onCheckout(
-        parseFloat(partialAmount),
-        paymentMethod,
-        customParkingCost ?? undefined
-      );
+      onCheckout(parseFloat(partialAmount), paymentMethod, costToSend);
     } else {
-      onCheckout(
-        undefined,
-        paymentMethod,
-        customParkingCost ?? undefined
-      );
+      onCheckout(undefined, paymentMethod, costToSend);
     }
   };
 
@@ -146,24 +142,28 @@ export const CheckoutPanel = ({
           </span>
           <Button
             type="button"
-            variant={customParkingCost === null ? "default" : "outline"}
+            variant={customTariffAmount === null ? "default" : "outline"}
             size="sm"
-            onClick={() => setCustomParkingCost(null)}
+            onClick={() => {
+              setCustomTariffAmount(null);
+              setCustomTariffRateUnit(null);
+            }}
           >
             {t("checkout.useDefaultRate")}
           </Button>
           <Button
             type="button"
-            variant={customParkingCost !== null ? "default" : "outline"}
+            variant={customTariffAmount !== null ? "default" : "outline"}
             size="sm"
             onClick={() => setCustomTariffSelectorOpen(true)}
           >
             <Tag className="h-3.5 w-3.5 mr-1" />
             {t("checkout.useCustomRate")}
           </Button>
-          {customParkingCost !== null && (
+          {customTariffAmount !== null && customTariffRateUnit !== null && (
             <span className="text-sm font-medium">
-              ${customParkingCost.toFixed(2)}
+              ${customTariffAmount.toFixed(2)}
+              {customTariffRateUnit === "minute" ? "/min" : "/h"} → ${parkingCost.toFixed(2)}
             </span>
           )}
         </div>
@@ -171,15 +171,16 @@ export const CheckoutPanel = ({
       <CustomTariffSelector
         open={customTariffSelectorOpen}
         onClose={() => setCustomTariffSelectorOpen(false)}
-        onSelect={(amount) => {
-          setCustomParkingCost(amount);
+        onSelect={(amount, rateUnit) => {
+          setCustomTariffAmount(amount);
+          setCustomTariffRateUnit(rateUnit);
           setCustomTariffSelectorOpen(false);
         }}
         fixedVehicleType={vehicle.vehicleType}
         fixedPlateOrRef={vehicle.plate}
       />
       <div className="space-y-3 mb-6">
-        {customParkingCost === null && (
+        {customTariffAmount === null && (
           <>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{t("checkout.hourlyRate")}</span>
