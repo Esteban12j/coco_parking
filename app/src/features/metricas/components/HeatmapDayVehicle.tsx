@@ -114,14 +114,14 @@ export function HeatmapDayVehicle() {
 
   return (
     <div className="w-full rounded-xl border border-border bg-card p-6">
-      <h3 className="font-semibold mb-1">{t("metrics.heatmapDayVehicle.title")}</h3>
-      <p className="text-xs text-muted-foreground mb-4">
+      <h3 className="text-lg font-semibold mb-1">{t("metrics.heatmapDayVehicle.title")}</h3>
+      <p className="text-sm text-muted-foreground mb-4">
         {t("metrics.heatmapDayVehicle.hint")}
       </p>
 
       <div className="flex flex-wrap items-end gap-4 mb-4">
         <div className="space-y-2">
-          <Label>{t("metrics.heatmapDayVehicle.dateFrom")}</Label>
+          <Label className="text-sm">{t("metrics.heatmapDayVehicle.dateFrom")}</Label>
           <Input
             type="date"
             value={dateFrom}
@@ -129,7 +129,7 @@ export function HeatmapDayVehicle() {
           />
         </div>
         <div className="space-y-2">
-          <Label>{t("metrics.heatmapDayVehicle.dateTo")}</Label>
+          <Label className="text-sm">{t("metrics.heatmapDayVehicle.dateTo")}</Label>
           <Input
             type="date"
             value={dateTo}
@@ -137,7 +137,7 @@ export function HeatmapDayVehicle() {
           />
         </div>
         <div className="space-y-2">
-          <Label>{t("metrics.heatmapDayVehicle.period")}</Label>
+          <Label className="text-sm">{t("metrics.heatmapDayVehicle.period")}</Label>
           <Select
             value={period || "none"}
             onValueChange={(v) => setPeriod((v === "none" ? "" : v) as DayPeriodFilter)}
@@ -186,39 +186,44 @@ export function HeatmapDayVehicle() {
 
       {!query.isLoading && rows.length > 0 && (
         <TooltipProvider delayDuration={200}>
-          <div className="overflow-x-auto">
-            <div className="min-w-[400px] inline-block">
-              <div className="grid gap-1" style={{ gridTemplateColumns: `auto repeat(${vehicleTypes.length}, minmax(2rem, 1fr))` }}>
-                <div className="rounded bg-transparent p-1 text-xs font-medium text-muted-foreground" />
-                {vehicleTypes.map((vt) => (
+          <div className="flex items-start gap-4">
+            <div className="overflow-x-auto overflow-y-auto max-h-[70vh] w-full min-w-0 flex-1">
+              <div
+                className="grid gap-px w-full h-full min-h-[140px]"
+                style={{
+                  gridTemplateColumns: `auto repeat(${DAY_ORDER.length}, minmax(14px, 1fr))`,
+                  gridTemplateRows: `auto repeat(${vehicleTypes.length}, minmax(14px, 1fr))`,
+                  height: "clamp(140px, 45vh, 20vh)",
+                  width: "100%",
+                }}
+              >
+                <div className="rounded bg-transparent p-0.5 text-xs font-medium text-muted-foreground min-w-[3rem]" />
+                {DAY_ORDER.map((dow) => (
                   <div
-                    key={vt}
-                    className="rounded bg-muted/50 p-1 text-center text-xs font-medium"
+                    key={dow}
+                    className="rounded bg-muted/50 p-0.5 text-center text-xs font-medium min-w-[14px]"
                   >
-                    {t(getVehicleTypeLabelKey(vt))}
+                    {t(getDayLabelKey(dow))}
                   </div>
                 ))}
-                {DAY_ORDER.map((dow) => (
-                  <Fragment key={dow}>
-                    <div className="rounded bg-muted/50 p-1 text-xs font-medium flex items-center">
-                      {t(getDayLabelKey(dow))}
+                {vehicleTypes.map((vt) => (
+                  <Fragment key={vt}>
+                    <div className="rounded bg-muted/50 p-0.5 text-xs font-medium flex items-center min-w-[3rem] min-h-[14px]">
+                      {t(getVehicleTypeLabelKey(vt))}
                     </div>
-                    {vehicleTypes.map((vt) => {
+                    {DAY_ORDER.map((dow) => {
                       const count = matrix.get(dow)?.get(vt) ?? 0;
                       return (
                         <Tooltip key={`${dow}-${vt}`}>
                           <TooltipTrigger asChild>
                             <div
                               className={cn(
-                                "aspect-square rounded min-h-[2rem] flex items-center justify-center text-xs font-medium transition-colors",
-                                intensityClass(count, maxCount),
-                                count > 0 ? "text-primary-foreground" : "text-muted-foreground"
+                                "w-full h-full min-w-[14px] min-h-[14px] rounded-sm transition-colors cursor-default",
+                                intensityClass(count, maxCount)
                               )}
-                            >
-                              {count > 0 ? count : ""}
-                            </div>
+                            />
                           </TooltipTrigger>
-                          <TooltipContent>
+                          <TooltipContent className="text-sm">
                             <p>{t(getDayLabelKey(dow))} · {t(getVehicleTypeLabelKey(vt))}</p>
                             <p className="font-semibold">{count} {t("metrics.transactionsLabel").toLowerCase()}</p>
                           </TooltipContent>
@@ -229,25 +234,21 @@ export function HeatmapDayVehicle() {
                 ))}
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center justify-center gap-6 mt-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <div className="w-4 h-4 rounded bg-secondary" />
-              {t("metrics.heatmapDayVehicle.legendLow")}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <div className="w-4 h-4 rounded bg-success/50" />
-              {t("metrics.heatmapDayVehicle.legendLow")} / {t("metrics.heatmapDayVehicle.legendMedium")}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <div className="w-4 h-4 rounded bg-warning/70" />
-              {t("metrics.heatmapDayVehicle.legendMedium")}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <div className="w-4 h-4 rounded bg-destructive/70" />
-              {t("metrics.heatmapDayVehicle.legendHigh")}
-            </span>
+            <div className="flex flex-col gap-2 shrink-0 py-1 text-xs text-muted-foreground border-l border-border pl-3">
+              <span className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-sm bg-secondary shrink-0" />
+                {t("metrics.heatmapDayVehicle.legendLow")}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-sm bg-success/50 shrink-0" />
+                {t("metrics.heatmapDayVehicle.legendMedium")}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-sm bg-warning/70 shrink-0" />
+                {t("metrics.heatmapDayVehicle.legendHigh")}
+              </span>
+            </div>
           </div>
         </TooltipProvider>
       )}
