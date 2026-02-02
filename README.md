@@ -22,13 +22,7 @@ npm run tauri:dev
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [app/README.md](app/README.md) | Development, build, barcode scanner, security |
-| [PRODUCT_BACKLOG.md](PRODUCT_BACKLOG.md) | Product backlog and epics |
-| [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) | Database schema |
-| [docs/BUILD_WINDOWS_INSTALLER.md](docs/BUILD_WINDOWS_INSTALLER.md) | Windows installer build |
-| [docs/WINDOWS_INSTALLATION_CHECKLIST.md](docs/WINDOWS_INSTALLATION_CHECKLIST.md) | Installation verification |
+- [app/README.md](app/README.md) — Development, build, barcode scanner, security
 
 ## License
 
