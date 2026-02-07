@@ -12,6 +12,8 @@ crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+argon2 = { version = "0.5", features = ["std"] }
+password-hash = "0.5"
 
 [dependencies]
 tauri = { version = "2", features = [] }

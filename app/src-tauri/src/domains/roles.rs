@@ -161,7 +161,7 @@ pub fn roles_list_users(state: State<AppState>) -> Result<Vec<User>, String> {
     let conn = state.db.get().map_err(|e| e.to_string())?;
     let mut stmt = conn
         .prepare(
-            "SELECT u.id, u.username, u.display_name, u.role_id, u.created_at, r.name FROM users u JOIN roles r ON u.role_id = r.id ORDER BY u.username",
+            "SELECT u.id, u.username, u.display_name, u.role_id, u.created_at, r.name FROM users u JOIN roles r ON u.role_id = r.id WHERE COALESCE(u.hidden, 0) = 0 ORDER BY u.username",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt

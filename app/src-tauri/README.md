@@ -171,6 +171,16 @@ For deployment and installer notes (offline, new devices), see the **app README*
 
 Only in **debug** or with **`COCO_DEV=1`**: `dev_login_as_developer`, `dev_get_current_user_id`, `dev_set_current_user`, `dev_list_commands`, **`dev_get_db_path`**, **`dev_get_db_snapshot`**. In release they return an error unless `COCO_DEV=1`.
 
+### Developer account (hidden seed user)
+
+A hidden user `developer` is created on install/migration with role "developer" (backup + dev console only). The password is **never** in source or logs: set it at **build time** so the hash is embedded:
+
+```bash
+COCO_DEV_PASSWORD='your-secure-password' cargo build
+```
+
+If `COCO_DEV_PASSWORD` is not set, the developer user is not created. Login with username `developer` and the password you used when building.
+
 **Una sola fuente de datos:** Toda la app (Till, métricas, vehículos, Dev Console) usa el mismo archivo SQLite. La ruta se muestra en Dev Console y se puede obtener con **`dev_get_db_path`** (argumentos `{}`). Para inspeccionar con `sqlite3`: usa esa ruta.
 
 **Ver datos:** En Dev Console ejecuta **`dev_get_db_snapshot`** (argumentos `{}`) para ver vehicles/transactions. **`caja_get_debug`** (argumentos `{}`) devuelve filtro de hoy, conteos, suma y últimas transacciones.

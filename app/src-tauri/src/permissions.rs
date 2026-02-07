@@ -91,3 +91,18 @@ pub fn operator_permissions() -> Vec<&'static str> {
         METRICAS_DASHBOARD_READ,
     ]
 }
+
+pub const ROLE_DEVELOPER_ID: &str = "role_developer";
+pub const DEVELOPER_USER_ID: &str = "user_developer";
+pub const DEVELOPER_USERNAME: &str = "developer";
+
+pub fn developer_permissions() -> Vec<&'static str> {
+    vec![
+        BACKUP_LIST_READ,
+        BACKUP_CREATE,
+        BACKUP_RESTORE,
+        BACKUP_CONFIG_READ,
+        BACKUP_CONFIG_MODIFY,
+        DEV_CONSOLE_ACCESS,
+    ]
+}

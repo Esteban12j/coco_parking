@@ -187,6 +187,7 @@ pub fn dev_clear_database(state: State<AppState>) -> Result<String, String> {
     conn.execute("PRAGMA foreign_keys = ON", [])
         .map_err(|e| e.to_string())?;
     crate::db::seed_users_roles(&conn).map_err(|e| e.to_string())?;
+    crate::db::seed_developer_role_and_user_public(&conn).map_err(|e| e.to_string())?;
     Ok("Database cleared. Admin user (admin/admin) re-seeded. Use Backup > Restore to load a backup.".to_string())
 }
 
