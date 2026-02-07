@@ -40,7 +40,7 @@ export const es: Translations = {
     till: "Caja",
     debtors: "Deudores",
     metrics: "Métricas",
-    barcode: "BarCode",
+    barcode: "Código de barras",
     tariffs: "Tarifas",
     roles: "Roles",
     backup: "Backup",
