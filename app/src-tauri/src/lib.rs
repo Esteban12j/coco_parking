@@ -19,7 +19,14 @@ use dev::{
     dev_set_current_user,
 };
 use domains::{
-    backup::{backup_config_get, backup_config_set, backup_create, backup_list, backup_restore},
+    backup::{
+        backup_config_get,
+        backup_config_set,
+        backup_create,
+        backup_list,
+        backup_restore,
+        backup_run_full,
+    },
     barcodes::{
         barcodes_create,
         barcodes_delete,
@@ -168,6 +175,7 @@ pub fn run() {
             roles_update_role_permissions,
             backup_create,
             backup_restore,
+            backup_run_full,
             backup_list,
             backup_config_get,
             backup_config_set,

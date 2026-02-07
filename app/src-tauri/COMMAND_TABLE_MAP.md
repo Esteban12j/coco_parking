@@ -33,6 +33,7 @@ Simple map of **which Tauri command reads or writes which SQL table**. Use it to
 | `backup_config_get` | drive_config | R | Read backup_interval_hours, backup_output_directory, backup_max_retained; defaults when missing |
 | `backup_config_set` | drive_config | W | INSERT/UPDATE drive_config for backup keys; validates interval and max_retained ≥ 1 |
 | `backup_create` | (full DB) | — | SQLite backup API, no SQL |
+| `backup_run_full` | (full DB), drive_config | — | Copy DB to temp, gzip to configured path; naming `backup_YYYY-MM-DD_HH-mm.sqlite.gz` |
 | `backup_list` | — | — | No DB access |
 | `backup_restore` | — | schema_version, roles, role_permissions, users, vehicles, transactions, shift_closures, barcodes | Overwrites listed tables from backup file |
 | `caja_close_shift` | transactions | shift_closures | Reads since last closure; INSERT shift_closures |

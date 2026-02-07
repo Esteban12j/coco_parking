@@ -472,6 +472,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "dotenvy",
+ "flate2",
  "password-hash",
  "r2d2",
  "r2d2_sqlite",

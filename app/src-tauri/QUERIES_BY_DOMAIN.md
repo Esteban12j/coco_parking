@@ -163,6 +163,7 @@ This document maps each Tauri command to its domain module, SQL tables used (rea
 | `backup_config_get` | drive_config | R | Read backup_interval_hours, backup_output_directory, backup_max_retained; defaults: 12 h, app_data_dir/backups, 7 |
 | `backup_config_set` | drive_config | W | INSERT/UPDATE drive_config for backup keys (partial update); validates interval_hours and max_retained ≥ 1 |
 | `backup_create` | (full DB) | R | SQLite backup API (no SQL; copies entire DB) |
+| `backup_run_full` | (full DB), drive_config | R | Copy DB to temp file, gzip to configured output dir; filename `backup_YYYY-MM-DD_HH-mm.sqlite.gz` |
 | `backup_restore` | schema_version, roles, role_permissions, users, vehicles, transactions, shift_closures, barcodes | W | ATTACH backup; DELETE main.*; INSERT main.* SELECT * FROM backup_db.*; DETACH. Note: custom_tariffs, drive_config not in DATA_TABLES (restore overwrites only listed tables). |
 | `backup_list` | (none) | - | Returns empty list (no DB read) |
 

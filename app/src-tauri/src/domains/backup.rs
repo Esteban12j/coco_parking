@@ -1,5 +1,8 @@
-use std::path::Path;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
@@ -26,6 +29,31 @@ pub struct BackupEntry {
 pub struct BackupResult {
     pub path: String,
     pub size_bytes: u64,
+}
+
+fn resolve_output_directory(conn: &Connection, app: &AppHandle) -> String {
+    get_config_value(conn, CONFIG_KEY_OUTPUT_DIR)
+        .ok()
+        .flatten()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| {
+            app.path()
+                .app_data_dir()
+                .map(|p| p.join("backups").to_string_lossy().into_owned())
+                .unwrap_or_else(|_| String::new())
+        })
+}
+
+fn compress_file_to_gzip(source_path: &Path, dest_path: &Path) -> Result<u64, String> {
+    let mut reader =
+        std::fs::File::open(source_path).map_err(|e| format!("open source: {}", e))?;
+    let mut gz = GzEncoder::new(
+        std::fs::File::create(dest_path).map_err(|e| format!("create gzip: {}", e))?,
+        Compression::default(),
+    );
+    std::io::copy(&mut reader, &mut gz).map_err(|e| e.to_string())?;
+    gz.finish().map_err(|e| e.to_string())?;
+    std::fs::metadata(dest_path).map_err(|e| e.to_string()).map(|m| m.len())
 }
 
 pub(crate) fn run_backup_to_path(source_conn: &Connection, dest_path: &Path) -> Result<u64, String> {
@@ -88,6 +116,30 @@ fn run_restore_from_path(main_conn: &Connection, backup_path: &Path) -> Result<(
         .execute("PRAGMA foreign_keys = ON", [])
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+pub fn backup_run_full(app: AppHandle, state: State<AppState>) -> Result<BackupResult, String> {
+    state.check_permission(permissions::BACKUP_CREATE)?;
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+    let output_dir = resolve_output_directory(&conn, &app);
+    if output_dir.is_empty() {
+        return Err("Backup output directory could not be resolved".to_string());
+    }
+    let output_path = PathBuf::from(&output_dir);
+    std::fs::create_dir_all(&output_path).map_err(|e| e.to_string())?;
+    let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M");
+    let filename_gz = format!("backup_{}.sqlite.gz", timestamp);
+    let filename_tmp = format!("backup_{}.sqlite.tmp", timestamp);
+    let final_path = output_path.join(&filename_gz);
+    let temp_path = output_path.join(&filename_tmp);
+    run_backup_to_path(&conn, &temp_path)?;
+    let size = compress_file_to_gzip(&temp_path, &final_path)?;
+    let _ = std::fs::remove_file(&temp_path);
+    Ok(BackupResult {
+        path: final_path.to_string_lossy().into_owned(),
+        size_bytes: size,
+    })
 }
 
 #[tauri::command]
