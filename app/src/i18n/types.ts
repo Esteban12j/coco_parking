@@ -48,6 +48,23 @@ export interface Translations {
   };
   barcodes: {
     subtitle: string;
+    code: string;
+    label: string;
+    createdAt: string;
+    actions: string;
+    generateExport: string;
+    delete: string;
+    searchOrCreatePlaceholder: string;
+    scannerReady: string;
+    noBarcodes: string;
+    createSuccess: string;
+    deleteConfirmTitle: string;
+    deleteConfirmDescription: string;
+    deleteSuccess: string;
+    exportSuccess: string;
+    invalidCodeFormat: string;
+    noPermissionToCreate: string;
+    clearFilter: string;
   };
   debtors: {
     title: string;

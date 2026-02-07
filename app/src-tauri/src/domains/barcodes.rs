@@ -11,8 +11,8 @@ use crate::id_gen;
 use crate::permissions;
 use crate::state::AppState;
 
-const CODE_MIN: i64 = 10_000_000;
-const CODE_MAX: i64 = 99_999_999;
+const CODE_MIN_LEN: usize = 1;
+const CODE_MAX_LEN: usize = 24;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,19 +25,19 @@ pub struct Barcode {
 
 fn validate_code(code: &str) -> Result<String, String> {
     let trimmed = code.trim();
-    if trimmed.len() != 8 {
-        return Err(
-            "Barcode code must be exactly 8 digits (range 10000000–99999999).".to_string(),
-        );
+    if trimmed.is_empty() {
+        return Err("Barcode code cannot be empty.".to_string());
     }
-    let num: i64 = trimmed.parse().map_err(|_| {
-        "Barcode code must be numeric (8 digits, range 10000000–99999999).".to_string()
-    })?;
-    if num < CODE_MIN || num > CODE_MAX {
+    if trimmed.len() < CODE_MIN_LEN || trimmed.len() > CODE_MAX_LEN {
         return Err(format!(
-            "Barcode code must be in range 10000000–99999999 (got {}).",
-            num
+            "Barcode code must be between {} and {} characters (got {}).",
+            CODE_MIN_LEN,
+            CODE_MAX_LEN,
+            trimmed.len()
         ));
+    }
+    if !trimmed.chars().all(|c| c.is_ascii_digit()) {
+        return Err("Barcode code must contain only digits.".to_string());
     }
     Ok(trimmed.to_string())
 }

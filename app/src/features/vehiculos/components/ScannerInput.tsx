@@ -6,6 +6,7 @@ import { useTranslation } from "@/i18n";
 interface ScannerInputProps {
   onScan: (code: string) => void;
   placeholder?: string;
+  bottomText?: string;
   autoFocus?: boolean;
   disabled?: boolean;
 }
@@ -13,11 +14,13 @@ interface ScannerInputProps {
 export const ScannerInput = ({
   onScan,
   placeholder,
+  bottomText,
   autoFocus = true,
   disabled = false,
 }: ScannerInputProps) => {
   const { t } = useTranslation();
   const resolvedPlaceholder = placeholder ?? t("vehicles.scanPlaceholder");
+  const resolvedBottomText = bottomText ?? t("vehicles.scannerReady");
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -75,7 +78,7 @@ export const ScannerInput = ({
         </button>
       </div>
       <p className="text-center text-sm text-muted-foreground mt-2">
-        {t("vehicles.scannerReady")}
+        {resolvedBottomText}
       </p>
     </form>
   );
