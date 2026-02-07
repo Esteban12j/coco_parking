@@ -113,6 +113,7 @@ export const en: Translations = {
     vehiclesTodayLink: "Today's vehicles",
     vehiclesTodayCountLabel: "vehicles",
     vehiclePlateOptional: "Plate (cars, motorcycles, trucks only; bicycles have no plate)",
+    removed: "Removed",
     errorRegisteringEntry: "Error registering entry",
     errors: {
       ticketAlreadyInUse: "That ticket or barcode is already in use. You must close the previous turn before reusing the card.",

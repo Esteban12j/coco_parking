@@ -94,8 +94,12 @@ export const PlateHistorySection = ({
   const vehicleTypeLabel = (type: VehicleType): string =>
     t(`vehicles.${type}` as "vehicles.car");
 
-  const statusLabel = (status: "active" | "completed"): string =>
-    status === "active" ? t("conflicts.active") : t("conflicts.completed");
+  const statusLabel = (status: "active" | "completed" | "removed"): string =>
+    status === "active"
+      ? t("conflicts.active")
+      : status === "completed"
+        ? t("conflicts.completed")
+        : t("vehicles.removed");
 
   if (!isTauri) return null;
 

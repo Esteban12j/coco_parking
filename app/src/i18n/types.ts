@@ -114,6 +114,7 @@ export interface Translations {
     vehiclesTodayCountLabel: string;
     /** Placa opcional para bicicletas/monopatines */
     vehiclePlateOptional: string;
+    removed: string;
     errorRegisteringEntry: string;
     errors: {
       ticketAlreadyInUse: string;

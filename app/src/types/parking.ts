@@ -8,7 +8,7 @@ export interface Vehicle {
   observations?: string;
   entryTime: Date;
   exitTime?: Date;
-  status: 'active' | 'completed';
+  status: 'active' | 'completed' | 'removed';
   totalAmount?: number;
   debt?: number;
   specialRate?: number;

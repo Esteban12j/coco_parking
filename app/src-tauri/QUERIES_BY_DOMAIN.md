@@ -36,6 +36,7 @@ This document maps each Tauri command to its domain module, SQL tables used (rea
 | `vehiculos_get_debt_detail_by_plate` | vehicles, transactions | R | Sessions with debt + transactions for vehicle_ids |
 | `vehiculos_register_entry` | vehicles | R,W | Check ticket_code/plate_upper in use; SELECT debt for plate; INSERT vehicle |
 | `vehiculos_process_exit` | vehicles, transactions | R,W | SELECT vehicle by ticket; UPDATE vehicle (exit_time, status, total_amount, debt); optional UPDATE other vehicles (debt=0); INSERT transaction |
+| `vehiculos_remove_from_parking` | vehicles | R,W | SELECT by vehicle_id or ticket_code (active); UPDATE exit_time, status='removed', total_amount=NULL, debt=0; no transaction row |
 | `vehiculos_find_by_ticket` | vehicles | R | SELECT by ticket_code and status='active' |
 | `vehiculos_find_by_plate` | vehicles | R | SELECT by plate_upper and status='active' |
 | `vehiculos_get_vehicles_by_plate` | vehicles | R | SELECT all by plate_upper, ORDER BY entry_time DESC |

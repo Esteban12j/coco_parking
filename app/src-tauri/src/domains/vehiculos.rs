@@ -33,12 +33,14 @@ fn status_to_str(s: &VehicleStatus) -> &'static str {
     match s {
         VehicleStatus::Active => "active",
         VehicleStatus::Completed => "completed",
+        VehicleStatus::Removed => "removed",
     }
 }
 
 fn status_from_str(s: &str) -> VehicleStatus {
     match s {
         "completed" => VehicleStatus::Completed,
+        "removed" => VehicleStatus::Removed,
         _ => VehicleStatus::Active,
     }
 }
@@ -89,6 +91,7 @@ pub enum VehicleType {
 pub enum VehicleStatus {
     Active,
     Completed,
+    Removed,
 }
 
 const DEFAULT_LIST_LIMIT: u32 = 50;
@@ -114,7 +117,7 @@ pub fn vehiculos_list_vehicles(
     let conn = state.db.get().map_err(|e| e.to_string())?;
 
     let (count_sql, list_sql) = match status.as_deref() {
-        Some("active") | Some("completed") => (
+        Some("active") | Some("completed") | Some("removed") => (
             format!(
                 "SELECT COUNT(*) FROM vehicles WHERE status = '{}'",
                 status.as_deref().unwrap_or("active")
@@ -587,6 +590,53 @@ pub fn vehiculos_process_exit(
         status: VehicleStatus::Completed,
         total_amount: Some(final_amount),
         debt: if new_debt > 0.0 { Some(new_debt) } else { None },
+        ..vehicle
+    };
+    Ok(updated)
+}
+
+#[tauri::command]
+pub fn vehiculos_remove_from_parking(
+    state: State<AppState>,
+    vehicle_id: Option<String>,
+    ticket_code: Option<String>,
+) -> Result<Vehicle, String> {
+    state.check_permission(permissions::VEHICULOS_ENTRIES_MODIFY)?;
+    let by_id = vehicle_id.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty());
+    let by_ticket = ticket_code.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty());
+    match (by_id, by_ticket) {
+        (Some(_), Some(_)) => return Err("Provide either vehicleId or ticketCode, not both".to_string()),
+        (None, None) => return Err("Provide vehicleId or ticketCode".to_string()),
+        _ => {}
+    }
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+    let vehicle: Vehicle = if let Some(id) = by_id {
+        conn.query_row(
+            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE id = ?1 AND status = 'active'",
+            params![id],
+            |row| row_to_vehicle(row),
+        )
+        .map_err(|_| "Vehicle not found or not active".to_string())?
+    } else {
+        let ticket = by_ticket.unwrap();
+        conn.query_row(
+            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE ticket_code = ?1 AND status = 'active'",
+            params![ticket],
+            |row| row_to_vehicle(row),
+        )
+        .map_err(|_| "Vehicle not found or not active".to_string())?
+    };
+    let exit_time = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "UPDATE vehicles SET exit_time = ?1, status = 'removed', total_amount = NULL, debt = 0 WHERE id = ?2",
+        params![exit_time, vehicle.id],
+    )
+    .map_err(|e| e.to_string())?;
+    let updated = Vehicle {
+        exit_time: Some(exit_time),
+        status: VehicleStatus::Removed,
+        total_amount: None,
+        debt: None,
         ..vehicle
     };
     Ok(updated)

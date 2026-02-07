@@ -13,7 +13,7 @@ export interface VehicleBackend {
   observations?: string | null;
   entryTime: string;
   exitTime?: string | null;
-  status: "active" | "completed";
+  status: "active" | "completed" | "removed";
   totalAmount?: number | null;
   debt?: number | null;
   specialRate?: number | null;
@@ -61,6 +61,13 @@ export function processExit(args: {
   customParkingCost?: number | null;
 }): Promise<VehicleBackend> {
   return invokeTauri<VehicleBackend>("vehiculos_process_exit", args);
+}
+
+export function removeVehicleFromParking(args: {
+  vehicleId?: string | null;
+  ticketCode?: string | null;
+}): Promise<VehicleBackend> {
+  return invokeTauri<VehicleBackend>("vehiculos_remove_from_parking", args);
 }
 
 export function getPlateDebt(plate: string): Promise<number> {
