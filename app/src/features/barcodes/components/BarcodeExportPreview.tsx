@@ -1,6 +1,9 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { jsPDF } from "jspdf";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeFile } from "@tauri-apps/plugin-fs";
 import { useTranslation } from "@/i18n";
+import { useToast } from "@/hooks/use-toast";
 import type { Barcode } from "@/types/parking";
 import {
   Dialog,
@@ -15,14 +18,14 @@ import { FileImage, FileText } from "lucide-react";
 
 const PNG_DATA_URL_PREFIX = "data:image/png;base64,";
 
-function downloadPngFromBase64(base64: string, filename: string): void {
-  const link = document.createElement("a");
-  link.href = `${PNG_DATA_URL_PREFIX}${base64}`;
-  link.download = filename;
-  link.click();
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
 }
 
-function downloadPdfFromBase64(base64: string, code: string, filename: string): void {
+function buildPdfBytes(base64: string, code: string): Uint8Array {
   const doc = new jsPDF({ unit: "mm", format: "a6" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -34,7 +37,26 @@ function downloadPdfFromBase64(base64: string, code: string, filename: string): 
   doc.addImage(dataUrl, "PNG", x, y, imgW, imgH);
   doc.setFontSize(10);
   doc.text(code, pageW / 2, y + imgH + 8, { align: "center" });
-  doc.save(filename);
+  const arrayBuffer = doc.output("arraybuffer");
+  return new Uint8Array(arrayBuffer);
+}
+
+function downloadPngFallback(base64: string, filename: string): void {
+  const link = document.createElement("a");
+  link.href = `${PNG_DATA_URL_PREFIX}${base64}`;
+  link.download = filename;
+  link.click();
+}
+
+function downloadPdfFallback(base64: string, code: string, filename: string): void {
+  const bytes = buildPdfBytes(base64, code);
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 interface BarcodeExportPreviewProps {
@@ -42,6 +64,7 @@ interface BarcodeExportPreviewProps {
   onOpenChange: (open: boolean) => void;
   barcode: Barcode | null;
   imageBase64: string | null;
+  isTauri: boolean;
   onDownloadPng: (barcode: Barcode, base64: string) => void;
   onDownloadPdf: (barcode: Barcode, base64: string) => void;
 }
@@ -51,22 +74,78 @@ export function BarcodeExportPreview({
   onOpenChange,
   barcode,
   imageBase64,
+  isTauri,
   onDownloadPng,
   onDownloadPdf,
 }: BarcodeExportPreviewProps) {
   const { t } = useTranslation();
+  const { toast } = useToast();
+  const [savingPng, setSavingPng] = useState(false);
+  const [savingPdf, setSavingPdf] = useState(false);
 
-  const handleDownloadPng = useCallback(() => {
+  const handleDownloadPng = useCallback(async () => {
     if (!barcode || !imageBase64) return;
-    downloadPngFromBase64(imageBase64, `barcode-${barcode.code}.png`);
-    onDownloadPng(barcode, imageBase64);
-  }, [barcode, imageBase64, onDownloadPng]);
+    const filename = `barcode-${barcode.code}.png`;
+    if (isTauri) {
+      let path: string | null = null;
+      try {
+        path = await save({
+          defaultPath: filename,
+          filters: [{ name: "PNG", extensions: ["png"] }],
+        });
+      } catch (e) {
+        toast({ title: t("common.error"), description: String(e), variant: "destructive" });
+        return;
+      }
+      if (path == null) return;
+      setSavingPng(true);
+      try {
+        await writeFile(path, base64ToUint8Array(imageBase64));
+        onDownloadPng(barcode, imageBase64);
+        toast({ title: t("barcodes.exportSuccess") });
+      } catch (e) {
+        toast({ title: t("common.error"), description: String(e), variant: "destructive" });
+      } finally {
+        setSavingPng(false);
+      }
+    } else {
+      downloadPngFallback(imageBase64, filename);
+      onDownloadPng(barcode, imageBase64);
+      toast({ title: t("barcodes.exportSuccess") });
+    }
+  }, [barcode, imageBase64, isTauri, onDownloadPng, t, toast]);
 
-  const handleDownloadPdf = useCallback(() => {
+  const handleDownloadPdf = useCallback(async () => {
     if (!barcode || !imageBase64) return;
-    downloadPdfFromBase64(imageBase64, barcode.code, `barcode-${barcode.code}.pdf`);
-    onDownloadPdf(barcode, imageBase64);
-  }, [barcode, imageBase64, onDownloadPdf]);
+    const filename = `barcode-${barcode.code}.pdf`;
+    if (isTauri) {
+      let path: string | null = null;
+      try {
+        path = await save({
+          defaultPath: filename,
+          filters: [{ name: "PDF", extensions: ["pdf"] }],
+        });
+      } catch (e) {
+        toast({ title: t("common.error"), description: String(e), variant: "destructive" });
+        return;
+      }
+      if (path == null) return;
+      setSavingPdf(true);
+      try {
+        await writeFile(path, buildPdfBytes(imageBase64, barcode.code));
+        onDownloadPdf(barcode, imageBase64);
+        toast({ title: t("barcodes.exportSuccess") });
+      } catch (e) {
+        toast({ title: t("common.error"), description: String(e), variant: "destructive" });
+      } finally {
+        setSavingPdf(false);
+      }
+    } else {
+      downloadPdfFallback(imageBase64, barcode.code, filename);
+      onDownloadPdf(barcode, imageBase64);
+      toast({ title: t("barcodes.exportSuccess") });
+    }
+  }, [barcode, imageBase64, isTauri, onDownloadPdf, t, toast]);
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
@@ -100,22 +179,22 @@ export function BarcodeExportPreview({
           <Button
             variant="outline"
             size="sm"
-            onClick={handleDownloadPng}
-            disabled={!imageBase64}
+            onClick={() => void handleDownloadPng()}
+            disabled={!imageBase64 || savingPng}
             className="gap-2"
           >
             <FileImage className="h-4 w-4" />
-            {t("barcodes.downloadPng")}
+            {savingPng ? t("common.loading") : t("barcodes.downloadPng")}
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={handleDownloadPdf}
-            disabled={!imageBase64}
+            onClick={() => void handleDownloadPdf()}
+            disabled={!imageBase64 || savingPdf}
             className="gap-2"
           >
             <FileText className="h-4 w-4" />
-            {t("barcodes.downloadPdf")}
+            {savingPdf ? t("common.loading") : t("barcodes.downloadPdf")}
           </Button>
           <Button variant="secondary" size="sm" onClick={handleClose}>
             {t("barcodes.previewClose")}

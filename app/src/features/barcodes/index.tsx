@@ -192,6 +192,7 @@ export const BarcodesPage = () => {
         onOpenChange={handlePreviewOpenChange}
         barcode={previewBarcode}
         imageBase64={previewBase64}
+        isTauri={tauri}
         onDownloadPng={handleDownloadPng}
         onDownloadPdf={handleDownloadPdf}
       />
