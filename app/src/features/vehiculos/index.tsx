@@ -12,6 +12,16 @@ import { useParkingStore } from "@/hooks/useParkingStore";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
 import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -54,6 +64,7 @@ export const VehiculosPage = () => {
   const [currentTicket, setCurrentTicket] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [manualPlate, setManualPlate] = useState("");
+  const [vehicleToRemove, setVehicleToRemove] = useState<Vehicle | null>(null);
   const debouncedManualPlate = useDebouncedValue(manualPlate.trim().toUpperCase(), 350);
   const [searchingByPlate, setSearchingByPlate] = useState(false);
   const [plateSuggestions, setPlateSuggestions] = useState<Vehicle[]>([]);
@@ -319,7 +330,7 @@ export const VehiculosPage = () => {
             canRemoveFromParking={canRemoveFromParking}
             onRemoveFromParking={
               canRemoveFromParking
-                ? (vehicle) => removeVehicleFromParking(vehicle.id)
+                ? (vehicle) => setVehicleToRemove(vehicle)
                 : undefined
             }
             isRemovingFromParking={isRemovingFromParking}
@@ -365,6 +376,32 @@ export const VehiculosPage = () => {
         onDeleteAndRegister={(id) => void deleteExistingAndRetryRegister(id)}
         onCancel={clearPendingRegisterConflict}
       />
+
+      <AlertDialog open={!!vehicleToRemove} onOpenChange={(o) => !o && setVehicleToRemove(null)}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("vehicles.removeFromParkingConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("vehicles.removeFromParkingConfirmDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (vehicleToRemove) {
+                  removeVehicleFromParking(vehicleToRemove.id);
+                  setVehicleToRemove(null);
+                }
+              }}
+              disabled={isRemovingFromParking}
+            >
+              {isRemovingFromParking ? t("common.loading") : t("vehicles.removeFromParkingConfirmButton")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

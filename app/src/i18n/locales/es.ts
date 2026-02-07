@@ -115,6 +115,9 @@ export const es: Translations = {
     vehiclePlateOptional: "Placa (solo auto, moto o camión; bicicletas no llevan placa)",
     removed: "Retirado",
     removeFromParking: "Quitar del estacionamiento",
+    removeFromParkingConfirmTitle: "Quitar del estacionamiento",
+    removeFromParkingConfirmDescription: "¿Quitar este vehículo del estacionamiento? No se puede deshacer. Usar solo para corrección de errores.",
+    removeFromParkingConfirmButton: "Quitar",
     errorRemoveFromParking: "Error al quitar el vehículo del estacionamiento",
     errorRegisteringEntry: "Error al registrar entrada",
     errors: {

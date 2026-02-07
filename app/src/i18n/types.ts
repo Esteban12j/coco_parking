@@ -116,6 +116,9 @@ export interface Translations {
     vehiclePlateOptional: string;
     removed: string;
     removeFromParking: string;
+    removeFromParkingConfirmTitle: string;
+    removeFromParkingConfirmDescription: string;
+    removeFromParkingConfirmButton: string;
     errorRemoveFromParking: string;
     errorRegisteringEntry: string;
     errors: {

@@ -115,6 +115,9 @@ export const en: Translations = {
     vehiclePlateOptional: "Plate (cars, motorcycles, trucks only; bicycles have no plate)",
     removed: "Removed",
     removeFromParking: "Remove from parking",
+    removeFromParkingConfirmTitle: "Remove from parking",
+    removeFromParkingConfirmDescription: "Remove this vehicle from parking? This cannot be undone. Use only for error correction.",
+    removeFromParkingConfirmButton: "Remove",
     errorRemoveFromParking: "Error removing vehicle from parking",
     errorRegisteringEntry: "Error registering entry",
     errors: {
