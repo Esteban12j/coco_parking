@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
 import { generatePrefixedId } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { BackupSettingsSection } from "./components/BackupSettingsSection";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -129,9 +130,11 @@ export const BackupPage = () => {
   return (
     <div className="container mx-auto px-4 py-6">
       <PageHeader title={t("backup.title")} subtitle={t("backup.subtitle")} />
-      <div className="grid gap-4 md:grid-cols-2 max-w-2xl">
-        <div className="bg-card border border-border rounded-xl p-6 flex flex-col gap-4">
-          <Download className="h-10 w-10 text-muted-foreground" />
+      <div className="space-y-6 max-w-2xl">
+        <BackupSettingsSection />
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="bg-card border border-border rounded-xl p-6 flex flex-col gap-4">
+            <Download className="h-10 w-10 text-muted-foreground" />
           <div>
             <h2 className="font-semibold text-lg mb-1">{t("backup.exportButton")}</h2>
             <p className="text-sm text-muted-foreground">
@@ -162,6 +165,7 @@ export const BackupPage = () => {
           >
             {restoring ? "..." : t("backup.restoreButton")}
           </Button>
+        </div>
         </div>
       </div>
       <AlertDialog open={restoreDialogOpen} onOpenChange={setRestoreDialogOpen}>

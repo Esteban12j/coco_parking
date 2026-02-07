@@ -350,6 +350,18 @@ export interface Translations {
     exportDescription: string;
     restoreDescription: string;
     error: string;
+    settingsTitle: string;
+    settingsDescription: string;
+    intervalHours: string;
+    intervalHoursHint: string;
+    outputDirectory: string;
+    selectDirectory: string;
+    outputDirectoryHint: string;
+    maxRetained: string;
+    maxRetainedHint: string;
+    saveSettings: string;
+    settingsSaved: string;
+    settingsError: string;
   };
   devConsole: {
     title: string;
