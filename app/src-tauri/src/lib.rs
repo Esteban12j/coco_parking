@@ -27,6 +27,7 @@ use domains::{
         backup_restore,
         backup_run_full,
         spawn_backup_scheduler,
+        trigger_backup_on_exit,
     },
     barcodes::{
         barcodes_create,
@@ -113,6 +114,11 @@ pub fn run() {
             scanner::spawn_barcode_listener(app.handle().clone());
             spawn_backup_scheduler(app.handle().clone());
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                trigger_backup_on_exit(window.app_handle().clone());
+            }
         })
         .invoke_handler(tauri::generate_handler![
             dev_login_as_developer,

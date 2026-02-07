@@ -296,6 +296,20 @@ pub fn backup_config_set(
     backup_config_get(app, state)
 }
 
+pub fn trigger_backup_on_exit(app: AppHandle) {
+    std::thread::spawn(move || {
+        let state = match app.try_state::<AppState>() {
+            Some(s) => s,
+            None => return,
+        };
+        let conn = match state.db.get() {
+            Ok(c) => c,
+            Err(_) => return,
+        };
+        let _ = run_full_backup_with_retention(&conn, &app);
+    });
+}
+
 pub fn spawn_backup_scheduler(app: AppHandle) {
     std::thread::spawn(move || {
         loop {
