@@ -1,11 +1,10 @@
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 use crate::permissions;
 use crate::state::AppState;
@@ -39,7 +38,7 @@ fn resolve_output_directory(conn: &Connection, app: &AppHandle) -> String {
         .unwrap_or_else(|| {
             app.path()
                 .app_data_dir()
-                .map(|p| p.join("backups").to_string_lossy().into_owned())
+                .map(|p: PathBuf| p.join("backups").to_string_lossy().into_owned())
                 .unwrap_or_else(|_| String::new())
         })
 }
@@ -215,7 +214,7 @@ pub fn backup_config_get(app: AppHandle, state: State<AppState>) -> Result<Backu
         .unwrap_or_else(|| {
             app.path()
                 .app_data_dir()
-                .map(|p| p.join("backups").to_string_lossy().into_owned())
+                .map(|p: PathBuf| p.join("backups").to_string_lossy().into_owned())
                 .unwrap_or_else(|_| "".to_string())
         });
     Ok(BackupConfig {
