@@ -12,8 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const BACKUP_CONFIG_QUERY_KEY = ["backup", "config"];
+const BACKUP_LIST_QUERY_KEY = ["backup", "list"];
 
-export function BackupSettingsSection() {
+interface BackupSettingsSectionProps {
+  embedded?: boolean;
+}
+
+export function BackupSettingsSection({ embedded = false }: BackupSettingsSectionProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -44,6 +49,7 @@ export function BackupSettingsSection() {
       setBackupConfig(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: BACKUP_CONFIG_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: BACKUP_LIST_QUERY_KEY });
       toast({ title: t("backup.settingsSaved") });
     },
     onError: (err: unknown) => {
@@ -99,16 +105,8 @@ export function BackupSettingsSection() {
   const isLoading = configQuery.isLoading;
   const isSaving = saveMutation.isPending;
 
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Settings className="h-5 w-5 text-muted-foreground" />
-          <CardTitle>{t("backup.settingsTitle")}</CardTitle>
-        </div>
-        <CardDescription>{t("backup.settingsDescription")}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  const content = (
+    <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="backup-interval">{t("backup.intervalHours")}</Label>
           <Input
@@ -163,6 +161,22 @@ export function BackupSettingsSection() {
             {isSaving ? "..." : t("backup.saveSettings")}
           </Button>
         )}
+    </div>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Settings className="h-5 w-5 text-muted-foreground" />
+          <CardTitle>{t("backup.settingsTitle")}</CardTitle>
+        </div>
+        <CardDescription>{t("backup.settingsDescription")}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {content}
       </CardContent>
     </Card>
   );

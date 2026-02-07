@@ -10,6 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/dateTime";
 import { Vehicle } from "@/types/parking";
 import { PendingRegisterConflict } from "@/types/parking";
 import { useTranslation } from "@/i18n";
@@ -81,7 +82,7 @@ export function RegisterConflictDialog({
                 >
                   <span>
                     {t(vehicleTypeLabelKey[v.vehicleType] ?? v.vehicleType)} · {v.plate} ·{" "}
-                    {new Date(v.entryTime).toLocaleString()} · {t(`conflicts.${v.status}`)}
+                    {formatDateTime(v.entryTime)} · {t(`conflicts.${v.status}`)}
                   </span>
                   <Button
                     variant="destructive"

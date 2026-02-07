@@ -362,6 +362,14 @@ export interface Translations {
     saveSettings: string;
     settingsSaved: string;
     settingsError: string;
+    historyTitle: string;
+    historyDescription: string;
+    historyEmpty: string;
+    historyDate: string;
+    historySize: string;
+    historyPath: string;
+    exportRestoreTitle: string;
+    exportRestoreDescription: string;
   };
   devConsole: {
     title: string;

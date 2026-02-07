@@ -35,6 +35,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 import type { AuthUser, Role } from "@/types/parking";
+import { formatDate } from "@/lib/dateTime";
 
 function isTauri(): boolean {
   return typeof window !== "undefined" && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
@@ -199,7 +200,7 @@ export const RolesPage = () => {
                     <TableCell>{u.displayName}</TableCell>
                     <TableCell>{u.roleName}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">
-                      {new Date(u.createdAt).toLocaleDateString()}
+                      {formatDate(u.createdAt)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">

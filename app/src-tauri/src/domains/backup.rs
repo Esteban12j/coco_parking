@@ -205,10 +205,54 @@ pub fn backup_restore(state: State<AppState>, path: String) -> Result<(), String
     run_restore_from_path(&conn, path_buf)
 }
 
+fn created_at_from_filename(path: &Path) -> String {
+    path.file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .strip_prefix(BACKUP_FILENAME_PREFIX)
+        .unwrap_or("")
+        .replace('_', " ")
+}
+
+fn list_backup_entries_from_dir(output_dir: &Path) -> Result<Vec<BackupEntry>, String> {
+    let mut entries: Vec<BackupEntry> = std::fs::read_dir(output_dir)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| {
+            p.is_file()
+                && p.file_name().and_then(|n| n.to_str()).map_or(false, |n| {
+                    n.starts_with(BACKUP_FILENAME_PREFIX) && n.ends_with(BACKUP_FILENAME_SUFFIX)
+                })
+        })
+        .filter_map(|path| {
+            let path_str = path.to_string_lossy().to_string();
+            let size_bytes = std::fs::metadata(&path).ok().map(|m| m.len()).unwrap_or(0);
+            let created_at = created_at_from_filename(&path);
+            Some(BackupEntry {
+                path: path_str,
+                created_at,
+                size_bytes,
+            })
+        })
+        .collect();
+    entries.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    Ok(entries)
+}
+
 #[tauri::command]
-pub fn backup_list(state: State<AppState>) -> Result<Vec<BackupEntry>, String> {
+pub fn backup_list(app: AppHandle, state: State<AppState>) -> Result<Vec<BackupEntry>, String> {
     state.check_permission(permissions::BACKUP_LIST_READ)?;
-    Ok(Vec::new())
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+    let output_dir_str = resolve_output_directory(&conn, &app);
+    if output_dir_str.is_empty() {
+        return Ok(Vec::new());
+    }
+    let output_dir = Path::new(&output_dir_str);
+    if !output_dir.exists() || !output_dir.is_dir() {
+        return Ok(Vec::new());
+    }
+    list_backup_entries_from_dir(output_dir)
 }
 
 fn get_config_value(conn: &Connection, key: &str) -> Result<Option<String>, String> {

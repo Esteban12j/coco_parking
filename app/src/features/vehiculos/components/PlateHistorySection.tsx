@@ -23,22 +23,10 @@ import { getDebtDetailByPlate } from "@/api/vehiculos";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import type { Vehicle, VehicleType } from "@/types/parking";
 import type { DebtDetailByPlateResult } from "@/types/parking";
+import { formatDateTime } from "@/lib/dateTime";
 
 const MIN_PLATE_CHARS = 2;
 const DEBOUNCE_MS = 350;
-
-function formatDateTime(iso: string | Date | null | undefined): string {
-  if (iso == null) return "—";
-  try {
-    const d = typeof iso === "string" ? new Date(iso) : iso;
-    return d.toLocaleString(undefined, {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
-  } catch {
-    return "—";
-  }
-}
 
 interface PlateHistorySectionProps {
   searchVehiclesByPlatePrefix: (platePrefix: string) => Promise<Vehicle[]>;

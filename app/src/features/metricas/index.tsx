@@ -94,10 +94,7 @@ function HourSlotsCard({
   );
 }
 
-function getTodayLocalDate(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-}
+import { getLocalDateString } from "@/lib/dateTime";
 
 export const MetricasPage = () => {
   const { t } = useTranslation();
@@ -112,7 +109,7 @@ export const MetricasPage = () => {
     invalidateParking,
   } = useParkingStore();
 
-  const today = getTodayLocalDate();
+  const today = getLocalDateString();
   const [dateFrom, setDateFrom] = useState(today);
   const [dateTo, setDateTo] = useState(today);
 

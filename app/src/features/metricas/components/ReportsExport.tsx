@@ -41,6 +41,7 @@ import type {
   ReportData,
   ReportFilters,
 } from "@/types/parking";
+import { getLocalDateString } from "@/lib/dateTime";
 import { cn, generatePrefixedId } from "@/lib/utils";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
 
@@ -58,10 +59,6 @@ const REPORT_TYPES: { value: ReportTypeKey; labelKey: string }[] = [
   { value: "vehicle_exits", labelKey: "metrics.reports.typeVehicleExits" },
   { value: "debtors", labelKey: "metrics.reports.typeDebtors" },
 ];
-
-function formatDateLocal(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
 
 function buildCsvFromReportData(
   data: ReportData,
@@ -90,7 +87,7 @@ export const ReportsExport = () => {
   const { toast } = useToast();
   const { hasPermission } = useMyPermissions();
   const [reportType, setReportType] = useState<ReportTypeKey>("transactions");
-  const today = formatDateLocal(new Date());
+  const today = getLocalDateString();
   const [dateFrom, setDateFrom] = useState(today);
   const [dateTo, setDateTo] = useState(today);
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);

@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatDateTime, getLocalDateString } from "@/lib/dateTime";
 import { Vehicle } from "@/types/parking";
 
 function vehicleFromBackend(v: VehicleBackend): Vehicle {
@@ -25,24 +26,6 @@ function vehicleFromBackend(v: VehicleBackend): Vehicle {
   };
 }
 
-function getTodayLocalDate(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-}
-
-function formatDateTime(iso: string | Date | null | undefined): string {
-  if (iso == null) return "—";
-  try {
-    const d = typeof iso === "string" ? new Date(iso) : iso;
-    return d.toLocaleString(undefined, {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
-  } catch {
-    return "—";
-  }
-}
-
 function isTauriEnv(): boolean {
   return typeof window !== "undefined" && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
 }
@@ -51,7 +34,7 @@ const PAGE_SIZE = 50;
 
 export const VehiclesTodayPage = () => {
   const { t } = useTranslation();
-  const today = getTodayLocalDate();
+  const today = getLocalDateString();
   const [selectedDate, setSelectedDate] = useState(today);
   const [page, setPage] = useState(1);
   const isTauri = isTauriEnv();

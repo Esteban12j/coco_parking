@@ -27,20 +27,14 @@ import {
 import type { DebtorEntry } from "@/types/parking";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useParkingStore } from "@/hooks/useParkingStore";
+import { formatDateTime } from "@/lib/dateTime";
 
 const DEBTORS_PAGE_SIZE = 20;
 
 function formatSinceWhen(iso: string | null): string {
   if (!iso) return "—";
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
-  } catch {
-    return iso;
-  }
+  const out = formatDateTime(iso);
+  return out === "—" ? iso : out;
 }
 
 export const DebtorsPage = () => {

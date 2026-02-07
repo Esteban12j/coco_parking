@@ -16,16 +16,11 @@ import {
 import { PageHeader } from "@/components/layout/PageHeader";
 import { CloseShiftDialog } from "./components/CloseShiftDialog";
 
+import { formatDateTime } from "@/lib/dateTime";
+
 function formatClosedAt(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, {
-      dateStyle: "short",
-      timeStyle: "short",
-    });
-  } catch {
-    return iso;
-  }
+  const out = formatDateTime(iso);
+  return out === "—" ? iso : out;
 }
 
 export const CajaPage = () => {

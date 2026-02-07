@@ -12,6 +12,16 @@ export interface BackupConfigUpdate {
   maxRetained?: number;
 }
 
+export interface BackupEntry {
+  path: string;
+  createdAt: string;
+  sizeBytes: number;
+}
+
+export function listBackups(): Promise<BackupEntry[]> {
+  return invokeTauri<BackupEntry[]>("backup_list", {});
+}
+
 export function createBackup(path: string): Promise<{ path: string; sizeBytes: number }> {
   return invokeTauri<{ path: string; sizeBytes: number }>("backup_create", { path });
 }

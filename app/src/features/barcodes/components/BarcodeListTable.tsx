@@ -1,6 +1,6 @@
 import { Download, Loader2, Trash2 } from "lucide-react";
-import { format } from "date-fns";
 import { useTranslation } from "@/i18n";
+import { formatDateTimeIso } from "@/lib/dateTime";
 import type { Barcode } from "@/types/parking";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -121,7 +121,7 @@ export function BarcodeListTable({
                   {barcode.label ?? "—"}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {format(new Date(barcode.createdAt), "yyyy-MM-dd HH:mm")}
+                  {formatDateTimeIso(barcode.createdAt)}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
