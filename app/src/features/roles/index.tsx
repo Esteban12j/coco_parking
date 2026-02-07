@@ -598,7 +598,7 @@ function RolePermissionsDialog({
             {isAllPermissionsLoading ? (
               <p className="text-sm text-muted-foreground py-4">{t("common.loading")}</p>
             ) : (
-            allPermissions.map((p) => (
+            [...allPermissions].sort((a, b) => a.localeCompare(b)).map((p) => (
               <div key={p} className="flex items-center space-x-2">
                 <Checkbox
                   id={p}

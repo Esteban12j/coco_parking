@@ -402,7 +402,12 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
 fn sync_role_permissions_from_code(conn: &Connection) -> Result<(), String> {
     use crate::permissions;
     let admin_role_id = "role_admin";
-    for perm in permissions::all_permissions() {
+    conn.execute(
+        "DELETE FROM role_permissions WHERE role_id = ?1 AND permission = ?2",
+        [admin_role_id, permissions::DEV_CONSOLE_ACCESS],
+    )
+    .map_err(|e| e.to_string())?;
+    for perm in permissions::admin_permissions() {
         let exists: i64 = conn
             .query_row(
                 "SELECT COUNT(*) FROM role_permissions WHERE role_id = ?1 AND permission = ?2",
@@ -513,7 +518,7 @@ pub fn seed_users_roles(conn: &Connection) -> Result<(), String> {
         conn.execute("INSERT INTO roles (id, name) VALUES (?1, ?2)", [operator_role_id, "operator"])
             .map_err(|e| e.to_string())?;
 
-        for perm in permissions::all_permissions() {
+        for perm in permissions::admin_permissions() {
             conn.execute(
                 "INSERT INTO role_permissions (role_id, permission) VALUES (?1, ?2)",
                 [admin_role_id, perm],

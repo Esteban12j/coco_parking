@@ -77,6 +77,13 @@ pub fn all_permissions() -> Vec<&'static str> {
     ]
 }
 
+pub fn admin_permissions() -> Vec<&'static str> {
+    all_permissions()
+        .into_iter()
+        .filter(|p| *p != DEV_CONSOLE_ACCESS)
+        .collect()
+}
+
 pub fn operator_permissions() -> Vec<&'static str> {
     vec![
         VEHICULOS_ENTRIES_READ,
