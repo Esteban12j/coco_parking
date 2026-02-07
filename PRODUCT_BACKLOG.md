@@ -121,7 +121,7 @@ The following decisions are **closed**. The Scrum Master should use the **Develo
 
 | ID | Ticket | Details | Deps |
 |----|--------|---------|------|
-| 2.1 | **DB: barcodes table** | Create table `barcodes` with columns: `id` (PK), `code` (TEXT or INTEGER, unique, 8-digit), `label` (TEXT, optional), `created_at`. Add migration/seed if applicable. | — |
+| 2.1 | **DB: barcodes table** ✅ *Done* | Create table `barcodes` with columns: `id` (PK), `code` (TEXT or INTEGER, unique, 8-digit), `label` (TEXT, optional), `created_at`. Add migration/seed if applicable. **Implemented:** Migration 16 in `db.rs`: table `barcodes` (id TEXT PK, code TEXT NOT NULL UNIQUE with CHECK 8-digit range 10000000–99999999, label TEXT, created_at TEXT). Included in backup/restore DATA_TABLES. No seed (user-created data). | — |
 | 2.2 | **API: CRUD barcodes** | Implement API: list barcodes, get by id/code, create (validate 8-digit, range 10000000–99999999, uniqueness), delete. Return clear errors for duplicate or invalid format. | 2.1 |
 | 2.3 | **API: generate barcode image** | Implement endpoint or utility that, given a code, generates a barcode image (e.g. Code128 or format used by the scanner). Return image (PNG) or base64; consider export path for file. | — |
 | 2.4 | **Sidebar: BarCode menu item** | Add "BarCode" to the main sidebar navigation, pointing to the new BarCode feature route. | — |
@@ -170,6 +170,8 @@ The following decisions are **closed**. The Scrum Master should use the **Develo
 ---
 
 ## Next steps for Scrum Master
+
+**Update (ticket 2.1 completed):** The `barcodes` table is implemented (migration 16). Epic 2 ticket **2.2 (API: CRUD barcodes)** is unblocked and can be scheduled.
 
 1. **Prioritize** epics with the PM (e.g. 1 → 4 → 2 → 3 or as business dictates).
 2. **Sprint planning:** Assign tickets by dependency (e.g. 1.1–1.2 and 2.1–2.2 in sprint 1; then 1.3–1.5, 2.4–2.9 in sprint 2).

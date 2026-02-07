@@ -17,6 +17,7 @@ This document maps each Tauri command to its domain module, SQL tables used (rea
 | `role_permissions` | Permission strings per role |
 | `users` | Username, password_hash, display_name, role_id |
 | `custom_tariffs` | Rates by vehicle_type and optional plate_or_ref |
+| `barcodes` | Barcode codes (8-digit, unique), optional label, created_at |
 | `schema_version` | Migration version (db.rs only) |
 | `drive_config` | Key-value config (db.rs migrations) |
 
@@ -146,7 +147,7 @@ This document maps each Tauri command to its domain module, SQL tables used (rea
 | Tauri command | Tables | R/W | Description |
 |---------------|--------|-----|-------------|
 | `backup_create` | (full DB) | R | SQLite backup API (no SQL; copies entire DB) |
-| `backup_restore` | schema_version, roles, role_permissions, users, vehicles, transactions, shift_closures | W | ATTACH backup; DELETE main.*; INSERT main.* SELECT * FROM backup_db.*; DETACH. Note: custom_tariffs, drive_config not in DATA_TABLES (restore overwrites only listed tables). |
+| `backup_restore` | schema_version, roles, role_permissions, users, vehicles, transactions, shift_closures, barcodes | W | ATTACH backup; DELETE main.*; INSERT main.* SELECT * FROM backup_db.*; DETACH. Note: custom_tariffs, drive_config not in DATA_TABLES (restore overwrites only listed tables). |
 | `backup_list` | (none) | - | Returns empty list (no DB read) |
 
 ---

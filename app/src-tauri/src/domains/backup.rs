@@ -43,6 +43,7 @@ const DATA_TABLES: &[&str] = &[
     "vehicles",
     "transactions",
     "shift_closures",
+    "barcodes",
 ];
 
 fn run_restore_from_path(main_conn: &Connection, backup_path: &Path) -> Result<(), String> {

@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>;
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 15;
+const SCHEMA_VERSION: i64 = 16;
 
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
@@ -342,6 +342,23 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
         )
         .map_err(|e| e.to_string())?;
         conn.execute("INSERT INTO schema_version (version) VALUES (15)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 16 {
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS barcodes (
+                id TEXT PRIMARY KEY,
+                code TEXT NOT NULL UNIQUE,
+                label TEXT,
+                created_at TEXT NOT NULL,
+                CHECK(LENGTH(code) = 8 AND CAST(code AS INTEGER) BETWEEN 10000000 AND 99999999)
+            );
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (16)", [])
             .map_err(|e| e.to_string())?;
     }
 

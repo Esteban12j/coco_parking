@@ -17,6 +17,7 @@ Simple map of **which Tauri command reads or writes which SQL table**. Use it to
 | `role_permissions`| Permission strings per role |
 | `users`           | Username, password_hash, display_name, role_id |
 | `custom_tariffs`  | Rates by vehicle_type and optional plate_or_ref |
+| `barcodes`        | Barcode codes (8-digit, unique), optional label, created_at |
 | `schema_version`  | Migration version (db.rs only) |
 
 ---
@@ -30,7 +31,7 @@ Simple map of **which Tauri command reads or writes which SQL table**. Use it to
 | `auth_logout` | — | — | In-memory only |
 | `backup_create` | (full DB) | — | SQLite backup API, no SQL |
 | `backup_list` | — | — | No DB access |
-| `backup_restore` | — | schema_version, roles, role_permissions, users, vehicles, transactions, shift_closures | Overwrites listed tables from backup file |
+| `backup_restore` | — | schema_version, roles, role_permissions, users, vehicles, transactions, shift_closures, barcodes | Overwrites listed tables from backup file |
 | `caja_close_shift` | transactions | shift_closures | Reads since last closure; INSERT shift_closures |
 | `caja_get_debug` | transactions | — | Counts and last 5 rows |
 | `caja_get_treasury` | transactions | — | COUNT + SUM by method for date |
