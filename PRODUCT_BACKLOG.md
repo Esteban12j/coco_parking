@@ -99,7 +99,7 @@ The following decisions are **closed**. The Scrum Master should use the **Develo
 
 ## Development tickets for Scrum Master
 
-**Scrum Master — update:** Ticket **1.1 (API: remove vehicle from parking)** is **done**. Backend command `vehiculos_remove_from_parking(vehicle_id?, ticket_code?)` and frontend `removeVehicleFromParking({ vehicleId?, ticketCode? })` are implemented. You can move 1.1 to completed and plan 1.2–1.5 as needed.
+**Scrum Master — update:** Ticket **1.1 (API: remove vehicle from parking)** is **done**. Ticket **1.2 (Permission: remove-from-parking)** is **done**. Implemented: new permission `vehiculos:entries:remove_from_parking`; enforced in API (`vehiculos_remove_from_parking`); UI shows "Remove from parking" only when the user has this permission (active vehicles grid). Admin role receives the new permission on next app start via sync; other roles must be granted it via Roles > Edit permissions. You can move 1.2 to completed and plan 1.3–1.5 as needed.
 
 **Instructions for Scrum Master:** Use these tickets to update the sprint backlog. Each ticket is a single unit of work for the development engineer. Order and split by sprint as needed; dependencies are noted.
 
@@ -110,7 +110,7 @@ The following decisions are **closed**. The Scrum Master should use the **Develo
 | ID | Ticket | Details | Deps |
 |----|--------|---------|------|
 | 1.1 | **API: remove vehicle from parking** ✅ *Done* | Add backend/API method (e.g. `removeVehicleFromParking(vehicleId or sessionId)`) that: marks the vehicle as removed, frees the slot, does not create a till movement or tariff charge. Ensure DB transaction and slot count update. **Implemented:** `vehiculos_remove_from_parking(vehicle_id?, ticket_code?)` in Rust; `removeVehicleFromParking({ vehicleId?, ticketCode? })` in frontend. Status `removed` added; no transaction row; slot count is derived from active count. | — |
-| 1.2 | **Permission: remove-from-parking** | Add permission (e.g. `vehicles.remove_from_parking` or reuse existing vehicle-management permission). Enforce in API and in UI (show "Remove from parking" only if allowed). | — |
+| 1.2 | **Permission: remove-from-parking** ✅ *Done* | Add permission (e.g. `vehicles.remove_from_parking` or reuse existing vehicle-management permission). Enforce in API and in UI (show "Remove from parking" only if allowed). **Implemented:** `vehiculos:entries:remove_from_parking`; API checks it in `vehiculos_remove_from_parking`; UI shows "Remove from parking" in active vehicles grid only when user has this permission. | — |
 | 1.3 | **UI: Remove from parking action** | In the active vehicles list/grid, add a control (button or row action) "Remove from parking" that calls the API from 1.1. | 1.1, 1.2 |
 | 1.4 | **UI: Confirmation dialog** | Before calling remove API, show a confirmation dialog: title "Remove from parking", message explaining the action is irreversible and for error correction only, Confirm / Cancel. | 1.3 |
 | 1.5 | **Audit/history (optional)** | If product requests audit trail: persist a "removed" status or event in history so reports can distinguish removed vehicles from normal exits. Refine with PM if needed. | 1.1 |

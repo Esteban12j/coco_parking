@@ -25,6 +25,7 @@ export const VehiculosPage = () => {
   const { hasPermission } = useMyPermissions();
   const canCreateEntry = hasPermission("vehiculos:entries:create");
   const canCheckout = hasPermission("caja:transactions:create");
+  const canRemoveFromParking = hasPermission("vehiculos:entries:remove_from_parking");
   const {
     activeVehicles,
     totalActiveCount,
@@ -34,6 +35,8 @@ export const VehiculosPage = () => {
     handleScan,
     registerEntry,
     processExit,
+    removeVehicleFromParking,
+    isRemovingFromParking,
     findByPlate,
     getPlateDebt,
     clearScanResult,
@@ -313,6 +316,13 @@ export const VehiculosPage = () => {
           <ActiveVehiclesGrid
             vehicles={activeVehicles}
             onSelect={handleVehicleSelect}
+            canRemoveFromParking={canRemoveFromParking}
+            onRemoveFromParking={
+              canRemoveFromParking
+                ? (vehicle) => removeVehicleFromParking(vehicle.id)
+                : undefined
+            }
+            isRemovingFromParking={isRemovingFromParking}
           />
           {isTauri && totalActiveCount > vehiclesPageSize && (
             <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-border">

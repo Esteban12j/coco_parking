@@ -115,6 +115,8 @@ export interface Translations {
     /** Placa opcional para bicicletas/monopatines */
     vehiclePlateOptional: string;
     removed: string;
+    removeFromParking: string;
+    errorRemoveFromParking: string;
     errorRegisteringEntry: string;
     errors: {
       ticketAlreadyInUse: string;

@@ -114,6 +114,8 @@ export const es: Translations = {
     vehiclesTodayCountLabel: "vehículos",
     vehiclePlateOptional: "Placa (solo auto, moto o camión; bicicletas no llevan placa)",
     removed: "Retirado",
+    removeFromParking: "Quitar del estacionamiento",
+    errorRemoveFromParking: "Error al quitar el vehículo del estacionamiento",
     errorRegisteringEntry: "Error al registrar entrada",
     errors: {
       ticketAlreadyInUse: "Ese ticket o código de barras ya está en uso. Debe cerrar el turno anterior antes de reutilizar la tarjeta.",

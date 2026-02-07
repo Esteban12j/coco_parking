@@ -254,6 +254,25 @@ export const useParkingStore = () => {
     },
   });
 
+  const removeFromParkingMutation = useMutation({
+    mutationFn: async (args: { vehicleId: string }) => {
+      const v = await apiVehiculos.removeVehicleFromParking({ vehicleId: args.vehicleId });
+      return vehicleFromBackend(v);
+    },
+    onSuccess: () => {
+      invalidateParkingVehicles();
+      invalidateParkingTreasury();
+      invalidateParkingMetrics();
+    },
+    onError: (err) => {
+      toast({
+        title: t('vehicles.errorRemoveFromParking'),
+        description: String(err),
+        variant: 'destructive',
+      });
+    },
+  });
+
   const closeShiftMutation = useMutation({
     mutationFn: async (args: {
       arqueoCash?: number | null;
@@ -616,6 +635,8 @@ export const useParkingStore = () => {
     getVehiclesByPlate,
     searchVehiclesByPlatePrefix,
     deleteVehicle,
+    removeVehicleFromParking: (vehicleId: string) => removeFromParkingMutation.mutate({ vehicleId }),
+    isRemovingFromParking: removeFromParkingMutation.isPending,
     deleteExistingAndRetryRegister,
     plateConflicts,
     resolvePlateConflict,

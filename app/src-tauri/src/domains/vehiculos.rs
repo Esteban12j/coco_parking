@@ -601,7 +601,7 @@ pub fn vehiculos_remove_from_parking(
     vehicle_id: Option<String>,
     ticket_code: Option<String>,
 ) -> Result<Vehicle, String> {
-    state.check_permission(permissions::VEHICULOS_ENTRIES_MODIFY)?;
+    state.check_permission(permissions::VEHICULOS_ENTRIES_REMOVE_FROM_PARKING)?;
     let by_id = vehicle_id.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty());
     let by_ticket = ticket_code.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty());
     match (by_id, by_ticket) {

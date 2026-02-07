@@ -11,6 +11,7 @@ pub const VEHICULOS_ENTRIES_READ: &str = "vehiculos:entries:read";
 pub const VEHICULOS_ENTRIES_CREATE: &str = "vehiculos:entries:create";
 pub const VEHICULOS_ENTRIES_MODIFY: &str = "vehiculos:entries:modify";
 pub const VEHICULOS_ENTRIES_DELETE: &str = "vehiculos:entries:delete";
+pub const VEHICULOS_ENTRIES_REMOVE_FROM_PARKING: &str = "vehiculos:entries:remove_from_parking";
 
 pub const CAJA_TREASURY_READ: &str = "caja:treasury:read";
 pub const CAJA_DEBTORS_READ: &str = "caja:debtors:read";
@@ -42,6 +43,7 @@ pub fn all_permissions() -> Vec<&'static str> {
         VEHICULOS_ENTRIES_CREATE,
         VEHICULOS_ENTRIES_MODIFY,
         VEHICULOS_ENTRIES_DELETE,
+        VEHICULOS_ENTRIES_REMOVE_FROM_PARKING,
         CAJA_TREASURY_READ,
         CAJA_DEBTORS_READ,
         CAJA_TRANSACTIONS_READ,
