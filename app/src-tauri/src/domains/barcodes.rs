@@ -53,6 +53,47 @@ fn row_to_barcode(row: &rusqlite::Row) -> rusqlite::Result<Barcode> {
     })
 }
 
+fn is_valid_barcode_format(code: &str) -> Option<String> {
+    let trimmed = code.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if trimmed.len() < CODE_MIN_LEN || trimmed.len() > CODE_MAX_LEN {
+        return None;
+    }
+    if !trimmed.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    Some(trimmed.to_string())
+}
+
+pub fn ensure_barcode_exists_for_ticket(
+    conn: &rusqlite::Connection,
+    code: &str,
+) -> Result<(), String> {
+    let Some(normalized) = is_valid_barcode_format(code) else {
+        return Ok(());
+    };
+    let exists = conn
+        .query_row(
+            "SELECT 1 FROM barcodes WHERE code = ?1 LIMIT 1",
+            params![&normalized],
+            |row| row.get::<_, i32>(0),
+        )
+        .is_ok();
+    if exists {
+        return Ok(());
+    }
+    let id = id_gen::generate_id(id_gen::PREFIX_BARCODE);
+    let created_at = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO barcodes (id, code, label, created_at) VALUES (?1, ?2, NULL, ?3)",
+        params![&id, &normalized, &created_at],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn barcodes_list(state: State<AppState>) -> Result<Vec<Barcode>, String> {
     state.check_permission(permissions::BARCODES_READ)?;

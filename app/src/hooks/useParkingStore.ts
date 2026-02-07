@@ -428,7 +428,7 @@ export const useParkingStore = () => {
           return undefined;
         }
       }
-      const activeVehicle = findActiveVehicle(code);
+      const activeVehicle = findActiveVehicle(code.trim());
       if (activeVehicle) {
         setScanResult({ type: 'exit', vehicle: activeVehicle });
       } else {

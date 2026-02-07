@@ -116,8 +116,10 @@ export const VehiculosPage = () => {
   }, [viewMode, debouncedManualPlate, searchVehiclesByPlatePrefix]);
 
   const handleScanInput = async (code: string) => {
-    setCurrentTicket(code);
-    const existing = await handleScan(code);
+    const normalized = code.trim();
+    if (!normalized) return;
+    setCurrentTicket(normalized);
+    const existing = await handleScan(normalized);
     if (existing) {
       setSelectedVehicle(existing);
       setViewMode(canCheckout ? "checkout" : "scanner");

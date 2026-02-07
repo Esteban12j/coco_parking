@@ -494,6 +494,8 @@ pub fn vehiculos_register_entry(
     )
     .map_err(|e| e.to_string())?;
 
+    let _ = crate::domains::barcodes::ensure_barcode_exists_for_ticket(&*conn, &code);
+
     let vehicle = Vehicle {
         id: id.clone(),
         ticket_code: code,
