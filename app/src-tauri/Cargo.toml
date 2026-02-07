@@ -30,6 +30,7 @@ argon2 = { version = "0.5", features = ["std"] }
 password-hash = "0.5"
 base64 = "0.22"
 dotenvy = "0.15"
+barcoders = { version = "2", features = ["image"] }
 
 [features]
 default = ["custom-protocol"]

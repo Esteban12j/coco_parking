@@ -23,3 +23,18 @@ export function createBarcode(args: {
 export function deleteBarcode(id: string): Promise<void> {
   return invokeTauri("barcodes_delete", { id });
 }
+
+export interface BarcodeImageResult {
+  base64: string;
+  path?: string;
+}
+
+export function generateBarcodeImage(args: {
+  code: string;
+  exportPath?: string | null;
+}): Promise<BarcodeImageResult> {
+  return invokeTauri<BarcodeImageResult>("barcodes_generate_image", {
+    code: args.code,
+    exportPath: args.exportPath ?? undefined,
+  });
+}

@@ -20,7 +20,14 @@ use dev::{
 };
 use domains::{
     backup::{backup_create, backup_list, backup_restore},
-    barcodes::{barcodes_list, barcodes_get_by_id, barcodes_get_by_code, barcodes_create, barcodes_delete},
+    barcodes::{
+        barcodes_create,
+        barcodes_delete,
+        barcodes_generate_image,
+        barcodes_get_by_code,
+        barcodes_get_by_id,
+        barcodes_list,
+    },
     caja::{caja_close_shift, caja_get_debug, caja_get_treasury, caja_list_shift_closures},
     custom_tariffs::{custom_tariffs_create, custom_tariffs_list, custom_tariffs_update, custom_tariffs_delete},
     metricas::{
@@ -120,6 +127,7 @@ pub fn run() {
             barcodes_get_by_code,
             barcodes_create,
             barcodes_delete,
+            barcodes_generate_image,
             vehiculos_find_by_plate,
             vehiculos_find_by_ticket,
             vehiculos_get_debt_detail_by_plate,

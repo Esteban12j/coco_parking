@@ -1,3 +1,8 @@
+use std::path::Path;
+
+use barcoders::generators::image::Image;
+use barcoders::sym::code128::Code128;
+use base64::prelude::{Engine as _, BASE64_STANDARD};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -169,4 +174,59 @@ pub fn barcodes_delete(state: State<AppState>, id: String) -> Result<(), String>
         return Err("Barcode not found.".to_string());
     }
     Ok(())
+}
+
+const BARCODE_IMAGE_HEIGHT_PX: u32 = 80;
+
+fn generate_barcode_png_bytes(code: &str) -> Result<Vec<u8>, String> {
+    let barcode = Code128::new(code).map_err(|e| e.to_string())?;
+    let encoded = barcode.encode();
+    let generator = Image::png(BARCODE_IMAGE_HEIGHT_PX);
+    let bytes = generator
+        .generate(&encoded[..])
+        .map_err(|e| e.to_string())?;
+    Ok(bytes)
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BarcodeImageResult {
+    pub base64: String,
+    pub path: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GenerateBarcodeImageArgs {
+    code: String,
+    export_path: Option<String>,
+}
+
+#[tauri::command]
+pub fn barcodes_generate_image(
+    state: State<AppState>,
+    args: GenerateBarcodeImageArgs,
+) -> Result<BarcodeImageResult, String> {
+    state.check_permission(permissions::BARCODES_READ)?;
+    let code = validate_code(&args.code)?;
+    let png_bytes = generate_barcode_png_bytes(&code)?;
+    let base64_data = BASE64_STANDARD.encode(&png_bytes);
+    let path = if let Some(ref export_path) = args.export_path {
+        let trimmed = export_path.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            let p = Path::new(trimmed);
+            if let Err(e) = std::fs::write(p, &png_bytes) {
+                return Err(format!("Failed to write barcode image to file: {}", e));
+            }
+            Some(p.to_string_lossy().into_owned())
+        }
+    } else {
+        None
+    };
+    Ok(BarcodeImageResult {
+        base64: base64_data,
+        path,
+    })
 }
