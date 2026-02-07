@@ -137,6 +137,14 @@ export interface CustomTariff {
   createdAt: string;
 }
 
+/** Barcode: 8-digit code (10000000–99999999), optional label. */
+export interface Barcode {
+  id: string;
+  code: string;
+  label?: string | null;
+  createdAt: string;
+}
+
 /** Debtor row: plate, total debt, sessions count, oldest exit time. */
 export interface DebtorEntry {
   plate: string;

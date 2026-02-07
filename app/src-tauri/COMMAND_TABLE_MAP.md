@@ -40,6 +40,11 @@ Simple map of **which Tauri command reads or writes which SQL table**. Use it to
 | `custom_tariffs_delete` | — | custom_tariffs | DELETE WHERE id |
 | `custom_tariffs_list` | custom_tariffs | — | Optional search filter |
 | `custom_tariffs_update` | custom_tariffs | custom_tariffs | SELECT then UPDATE |
+| `barcodes_list` | barcodes | — | ORDER BY created_at DESC |
+| `barcodes_get_by_id` | barcodes | — | SELECT by id |
+| `barcodes_get_by_code` | barcodes | — | SELECT by code |
+| `barcodes_create` | barcodes | barcodes | Validate 8-digit range; uniqueness check; INSERT |
+| `barcodes_delete` | — | barcodes | DELETE WHERE id |
 | `dev_clear_database` | — | transactions, vehicles, shift_closures, role_permissions, users, roles | Dev only; TRUNCATE-like |
 | `dev_get_current_user_id` | — | — | In-memory state |
 | `dev_get_db_path` | — | — | App state path |

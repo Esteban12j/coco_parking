@@ -101,6 +101,8 @@ The following decisions are **closed**. The Scrum Master should use the **Develo
 
 **Scrum Master — update:** Ticket **1.1 (API: remove vehicle from parking)** is **done**. Ticket **1.2 (Permission: remove-from-parking)** is **done**. Tickets **1.3 (UI: Remove from parking action)** and **1.4 (UI: Confirmation dialog)** are **done**. Ticket **1.5 (Audit/history)** is **done**. Implemented: "Remove from parking" control in the active vehicles grid (1.3) calling the API from 1.1; confirmation dialog (1.4) with title "Remove from parking", irreversible/error-correction message, and Confirm/Cancel before calling the API. For 1.5: the "removed" status was already persisted on the vehicle record; a new report type **"Vehicle exits (completed + removed)"** was added so reports can distinguish removed vehicles from normal exits. The report lists all vehicles with an exit in the date range and includes an **Exit type** column (completed | removed). You can move 1.5 to completed and consider Epic 1 closed.
 
+**Scrum Master — update (ticket 2.2):** Ticket **2.2 (API: CRUD barcodes)** is **done**. Backend: `barcodes_list`, `barcodes_get_by_id`, `barcodes_get_by_code`, `barcodes_create`, `barcodes_delete`; create validates 8-digit and range 10000000–99999999 and returns clear errors for invalid format or duplicate code. Permissions `barcodes:read`, `barcodes:create`, `barcodes:delete` are in place (assign to roles in Roles UI). Frontend API: `api/barcodes.ts` (listBarcodes, getBarcodeById, getBarcodeByCode, createBarcode, deleteBarcode). You can mark 2.2 completed and schedule 2.4, 2.5, 2.6, 2.8 as needed.
+
 **Instructions for Scrum Master:** Use these tickets to update the sprint backlog. Each ticket is a single unit of work for the development engineer. Order and split by sprint as needed; dependencies are noted.
 
 ---
@@ -122,7 +124,7 @@ The following decisions are **closed**. The Scrum Master should use the **Develo
 | ID | Ticket | Details | Deps |
 |----|--------|---------|------|
 | 2.1 | **DB: barcodes table** ✅ *Done* | Create table `barcodes` with columns: `id` (PK), `code` (TEXT or INTEGER, unique, 8-digit), `label` (TEXT, optional), `created_at`. Add migration/seed if applicable. **Implemented:** Migration 16 in `db.rs`: table `barcodes` (id TEXT PK, code TEXT NOT NULL UNIQUE with CHECK 8-digit range 10000000–99999999, label TEXT, created_at TEXT). Included in backup/restore DATA_TABLES. No seed (user-created data). | — |
-| 2.2 | **API: CRUD barcodes** | Implement API: list barcodes, get by id/code, create (validate 8-digit, range 10000000–99999999, uniqueness), delete. Return clear errors for duplicate or invalid format. | 2.1 |
+| 2.2 | **API: CRUD barcodes** ✅ *Done* | Implement API: list barcodes, get by id/code, create (validate 8-digit, range 10000000–99999999, uniqueness), delete. Return clear errors for duplicate or invalid format. **Implemented:** `barcodes_list`, `barcodes_get_by_id`, `barcodes_get_by_code`, `barcodes_create`, `barcodes_delete` in `domains/barcodes.rs`; validation for 8-digit and range; clear errors: "Barcode code must be exactly 8 digits...", "A barcode with this code already exists.", "Barcode not found." Permissions: `barcodes:read`, `barcodes:create`, `barcodes:delete`. Frontend API in `api/barcodes.ts`. | 2.1 |
 | 2.3 | **API: generate barcode image** | Implement endpoint or utility that, given a code, generates a barcode image (e.g. Code128 or format used by the scanner). Return image (PNG) or base64; consider export path for file. | — |
 | 2.4 | **Sidebar: BarCode menu item** | Add "BarCode" to the main sidebar navigation, pointing to the new BarCode feature route. | — |
 | 2.5 | **Page: BarCode list** | New page under BarCode: list all barcodes (table or grid) with columns: code, label, created_at, actions (generate/export, delete). Support manual code input and scanner input for search/create. | 2.2, 2.4 |
@@ -171,7 +173,7 @@ The following decisions are **closed**. The Scrum Master should use the **Develo
 
 ## Next steps for Scrum Master
 
-**Update (ticket 2.1 completed):** The `barcodes` table is implemented (migration 16). Epic 2 ticket **2.2 (API: CRUD barcodes)** is unblocked and can be scheduled.
+**Update (ticket 2.2 completed):** Epic 2 ticket **2.2 (API: CRUD barcodes)** is **done**. Implemented: list, get by id, get by code, create (with 8-digit range validation and uniqueness), delete. Clear error messages for invalid format and duplicate code. Permissions `barcodes:read`, `barcodes:create`, `barcodes:delete` added; assign to roles as needed. Tickets **2.4**, **2.5**, **2.6**, **2.8** (sidebar, list page, create flow, delete UI) are now unblocked.
 
 1. **Prioritize** epics with the PM (e.g. 1 → 4 → 2 → 3 or as business dictates).
 2. **Sprint planning:** Assign tickets by dependency (e.g. 1.1–1.2 and 2.1–2.2 in sprint 1; then 1.3–1.5, 2.4–2.9 in sprint 2).

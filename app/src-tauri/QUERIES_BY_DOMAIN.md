@@ -77,6 +77,20 @@ This document maps each Tauri command to its domain module, SQL tables used (rea
 
 ---
 
+## Domain: barcodes
+
+**File:** `src/domains/barcodes.rs`
+
+| Tauri command | Tables | R/W | Description |
+|---------------|--------|-----|-------------|
+| `barcodes_list` | barcodes | R | SELECT id, code, label, created_at ORDER BY created_at DESC |
+| `barcodes_get_by_id` | barcodes | R | SELECT by id; returns Option |
+| `barcodes_get_by_code` | barcodes | R | SELECT by code; returns Option |
+| `barcodes_create` | barcodes | R,W | Validate 8-digit, range 10000000–99999999, uniqueness; INSERT |
+| `barcodes_delete` | barcodes | W | DELETE WHERE id |
+
+---
+
 ## Domain: reportes
 
 **File:** `src/domains/reportes.rs`

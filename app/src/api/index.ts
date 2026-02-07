@@ -1,5 +1,6 @@
 export * from "./auth";
 export * from "./backup";
+export * from "./barcodes";
 export * from "./caja";
 export * from "./customTariffs";
 export * from "./dev";

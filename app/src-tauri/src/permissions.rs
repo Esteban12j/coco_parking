@@ -35,6 +35,10 @@ pub const BACKUP_LIST_READ: &str = "backup:list:read";
 pub const BACKUP_CREATE: &str = "backup:create";
 pub const BACKUP_RESTORE: &str = "backup:restore";
 
+pub const BARCODES_READ: &str = "barcodes:read";
+pub const BARCODES_CREATE: &str = "barcodes:create";
+pub const BARCODES_DELETE: &str = "barcodes:delete";
+
 pub const DEV_CONSOLE_ACCESS: &str = "dev:console:access";
 
 pub fn all_permissions() -> Vec<&'static str> {
@@ -62,6 +66,9 @@ pub fn all_permissions() -> Vec<&'static str> {
         BACKUP_LIST_READ,
         BACKUP_CREATE,
         BACKUP_RESTORE,
+        BARCODES_READ,
+        BARCODES_CREATE,
+        BARCODES_DELETE,
         DEV_CONSOLE_ACCESS,
     ]
 }
