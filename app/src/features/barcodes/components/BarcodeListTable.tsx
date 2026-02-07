@@ -1,4 +1,4 @@
-import { Download, Trash2 } from "lucide-react";
+import { Download, Loader2, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { useTranslation } from "@/i18n";
 import type { Barcode } from "@/types/parking";
@@ -143,7 +143,11 @@ export function BarcodeListTable({
                         disabled={!!isDeletingId}
                         title={t("barcodes.delete")}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {isDeletingId === barcode.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
                       </Button>
                     )}
                   </div>
