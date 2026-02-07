@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as apiDev from "@/api/dev";
-import { Terminal, User, Play, AlertTriangle, UserCog, ShieldX } from "lucide-react";
+import { Terminal, User, Play, AlertTriangle, UserCog, ShieldX, KeyRound } from "lucide-react";
 import { useMyPermissions, PERMISSION_DEV_CONSOLE } from "@/hooks/useMyPermissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,9 @@ export const DevConsolePage = () => {
   const [loading, setLoading] = useState(false);
   const [setUserInput, setSetUserInput] = useState<string>("");
   const [dbPath, setDbPath] = useState<string>("");
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<string>("");
+  const [resetPasswordNew, setResetPasswordNew] = useState<string>("");
+  const [resetPasswordPending, setResetPasswordPending] = useState(false);
 
   const loadCurrentUser = async () => {
     try {
@@ -153,6 +156,26 @@ export const DevConsolePage = () => {
     }
   };
 
+  const handleResetPassword = async () => {
+    const uid = resetPasswordUserId.trim();
+    if (!uid || resetPasswordNew.length < 4) return;
+    setResetPasswordPending(true);
+    try {
+      await apiDev.resetUserPassword(uid, resetPasswordNew);
+      toast({ title: t("devConsole.resetPasswordSuccess") });
+      setResetPasswordUserId("");
+      setResetPasswordNew("");
+    } catch (e) {
+      toast({
+        title: t("common.error"),
+        description: String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setResetPasswordPending(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-6">
       <PageHeader
@@ -186,6 +209,46 @@ export const DevConsolePage = () => {
             />
             <Button size="sm" variant="secondary" onClick={handleSetUser} disabled={loading}>
               {t("devConsole.setUser")}
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <KeyRound className="h-5 w-5 text-muted-foreground" />
+            <span className="text-sm font-medium">{t("devConsole.resetUserPasswordTitle")}</span>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            {t("devConsole.resetUserPasswordDescription")}
+          </p>
+          <div className="flex flex-wrap items-end gap-2">
+            <div>
+              <Label className="text-xs">{t("devConsole.resetUserPasswordUserId")}</Label>
+              <Input
+                placeholder="user_admin"
+                value={resetPasswordUserId}
+                onChange={(e) => setResetPasswordUserId(e.target.value)}
+                className="mt-1 h-9 w-48"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">{t("devConsole.resetUserPasswordNew")}</Label>
+              <Input
+                type="password"
+                placeholder="••••"
+                value={resetPasswordNew}
+                onChange={(e) => setResetPasswordNew(e.target.value)}
+                className="mt-1 h-9 w-40"
+                minLength={4}
+              />
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleResetPassword}
+              disabled={resetPasswordPending || !resetPasswordUserId.trim() || resetPasswordNew.length < 4}
+            >
+              {t("devConsole.resetPasswordButton")}
             </Button>
           </div>
         </div>

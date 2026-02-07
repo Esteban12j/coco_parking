@@ -16,10 +16,15 @@ use dev::{
     dev_get_db_snapshot,
     dev_list_commands,
     dev_login_as_developer,
+    dev_reset_user_password,
     dev_set_current_user,
 };
 use domains::{
-    first_run::{first_run_get_status, first_run_set_completed},
+    first_run::{
+        first_run_change_admin_password,
+        first_run_get_status,
+        first_run_set_completed,
+    },
     backup::{
         backup_config_get,
         backup_config_set,
@@ -125,6 +130,7 @@ pub fn run() {
             dev_login_as_developer,
             dev_get_current_user_id,
             dev_set_current_user,
+            dev_reset_user_password,
             dev_clear_database,
             dev_get_db_path,
             dev_get_db_snapshot,
@@ -188,6 +194,7 @@ pub fn run() {
             backup_list,
             backup_config_get,
             backup_config_set,
+            first_run_change_admin_password,
             first_run_get_status,
             first_run_set_completed,
         ])

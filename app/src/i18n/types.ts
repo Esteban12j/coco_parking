@@ -25,6 +25,16 @@ export interface Translations {
     title: string;
     description: string;
     continueToLogin: string;
+    currentPassword: string;
+    currentPasswordPlaceholder: string;
+    newPassword: string;
+    newPasswordPlaceholder: string;
+    confirmPassword: string;
+    confirmPasswordPlaceholder: string;
+    submit: string;
+    passwordsDoNotMatch: string;
+    passwordMinLength: string;
+    passwordChanged: string;
   };
   common: {
     cancel: string;
@@ -384,6 +394,12 @@ export interface Translations {
     setUser: string;
     userIdPlaceholder: string;
     userChanged: string;
+    resetUserPasswordTitle: string;
+    resetUserPasswordDescription: string;
+    resetUserPasswordUserId: string;
+    resetUserPasswordNew: string;
+    resetPasswordButton: string;
+    resetPasswordSuccess: string;
     devModeWarning: string;
     commandLabel: string;
     selectCommand: string;

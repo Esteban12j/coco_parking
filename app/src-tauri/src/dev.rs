@@ -191,6 +191,39 @@ pub fn dev_clear_database(state: State<AppState>) -> Result<String, String> {
     Ok("Database cleared. Admin user (admin/admin) re-seeded. Use Backup > Restore to load a backup.".to_string())
 }
 
+/// Developer-only: reset another user's password. Requires dev mode + dev:console:access (developer login).
+#[tauri::command]
+pub fn dev_reset_user_password(
+    state: State<AppState>,
+    user_id: String,
+    new_password: String,
+) -> Result<(), String> {
+    require_dev_console(&state)?;
+    let user_id = user_id.trim();
+    if user_id.is_empty() {
+        return Err("User ID is required".to_string());
+    }
+    if new_password.len() < 4 {
+        return Err("Password must be at least 4 characters".to_string());
+    }
+    use argon2::password_hash::{PasswordHasher, SaltString};
+    use password_hash::Error as PasswordHashError;
+    let salt = SaltString::from_b64("Y29jb19wYXJraW5nX3NhbHQ")
+        .map_err(|e: PasswordHashError| e.to_string())?;
+    let hash = argon2::Argon2::default()
+        .hash_password(new_password.as_bytes(), &salt)
+        .map_err(|e: PasswordHashError| e.to_string())?
+        .to_string();
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+    let n = conn
+        .execute("UPDATE users SET password_hash = ?1 WHERE id = ?2", [&hash, user_id])
+        .map_err(|e| e.to_string())?;
+    if n == 0 {
+        return Err("User not found".to_string());
+    }
+    Ok(())
+}
+
 /// List of invokable command names (for dev console). Requires dev:console:access.
 #[tauri::command]
 pub fn dev_list_commands(state: State<AppState>) -> Result<Vec<String>, String> {
@@ -217,6 +250,7 @@ pub fn dev_list_commands(state: State<AppState>) -> Result<Vec<String>, String> 
         "roles_create_user".to_string(),
         "roles_update_user".to_string(),
         "roles_set_password".to_string(),
+        "dev_reset_user_password".to_string(),
         "roles_delete_user".to_string(),
         "roles_get_current_user".to_string(),
         "roles_get_my_permissions".to_string(),

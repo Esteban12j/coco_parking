@@ -20,6 +20,13 @@ export function setCurrentUser(userId: string): Promise<void> {
   return invokeTauri("dev_set_current_user", { userId });
 }
 
+export function resetUserPassword(userId: string, newPassword: string): Promise<void> {
+  return invokeTauri("dev_reset_user_password", {
+    userId: userId.trim(),
+    newPassword,
+  });
+}
+
 export function runCommand(
   command: string,
   args: Record<string, unknown>
