@@ -40,10 +40,14 @@ export const es: Translations = {
     till: "Caja",
     debtors: "Deudores",
     metrics: "Métricas",
+    barcode: "BarCode",
     tariffs: "Tarifas",
     roles: "Roles",
     backup: "Backup",
     devConsole: "Consola Dev",
+  },
+  barcodes: {
+    subtitle: "Gestionar códigos de barras y generar imágenes para imprimir.",
   },
   debtors: {
     title: "Deudores",

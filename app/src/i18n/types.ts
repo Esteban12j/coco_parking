@@ -40,10 +40,14 @@ export interface Translations {
     till: string;
     debtors: string;
     metrics: string;
+    barcode: string;
     tariffs: string;
     roles: string;
     backup: string;
     devConsole: string;
+  };
+  barcodes: {
+    subtitle: string;
   };
   debtors: {
     title: string;

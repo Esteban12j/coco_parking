@@ -36,6 +36,7 @@ export const ROUTE_REQUIRED_PERMISSION: Record<string, string> = {
   "/till": "caja:treasury:read",
   "/debtors": "caja:debtors:read",
   "/metrics": "metricas:dashboard:read",
+  "/barcode": "barcodes:read",
   "/tariffs": "caja:transactions:read",
   "/roles": "roles:users:read",
   "/backup": "backup:list:read",

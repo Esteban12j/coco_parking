@@ -24,6 +24,7 @@ import { BackupPage } from "@/features/backup";
 import { DebtorsPage } from "@/features/debtors";
 import { TariffsPage } from "@/features/tariffs";
 import { DevConsolePage } from "@/features/dev-console";
+import { BarcodesPage } from "@/features/barcodes";
 import { LoginPage } from "@/pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -102,6 +103,7 @@ const App = () => (
                 <Route path="till" element={<CajaPage />} />
                 <Route path="debtors" element={<DebtorsPage />} />
                 <Route path="metrics" element={<MetricasPage />} />
+                <Route path="barcode" element={<BarcodesPage />} />
                 <Route path="tariffs" element={<TariffsPage />} />
                 <Route path="roles" element={<RolesPage />} />
                 <Route path="backup" element={<BackupPage />} />

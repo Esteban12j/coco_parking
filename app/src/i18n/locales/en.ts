@@ -40,10 +40,14 @@ export const en: Translations = {
     till: "Till",
     debtors: "Debtors",
     metrics: "Metrics",
+    barcode: "BarCode",
     tariffs: "Tariffs",
     roles: "Roles",
     backup: "Backup",
     devConsole: "Dev Console",
+  },
+  barcodes: {
+    subtitle: "Manage barcode codes and generate images for printing.",
   },
   debtors: {
     title: "Debtors",
