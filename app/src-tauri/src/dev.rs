@@ -191,7 +191,42 @@ pub fn dev_clear_database(state: State<AppState>) -> Result<String, String> {
     Ok("Database cleared. Admin user (admin/admin) re-seeded. Use Backup > Restore to load a backup.".to_string())
 }
 
+fn resolve_user_id_for_reset(conn: &rusqlite::Connection, input: &str) -> Result<String, String> {
+    let input = input.trim();
+    if input.is_empty() {
+        return Err("User ID or username is required".to_string());
+    }
+    let lower = input.to_lowercase();
+    if lower == "admin" {
+        return Ok(crate::permissions::ADMIN_USER_ID.to_string());
+    }
+    if lower == "developer" {
+        return Ok(crate::permissions::DEVELOPER_USER_ID.to_string());
+    }
+    let resolved: Option<String> = conn
+        .query_row(
+            "SELECT id FROM users WHERE LOWER(TRIM(username)) = LOWER(?1)",
+            [input],
+            |r| r.get(0),
+        )
+        .ok();
+    match resolved {
+        Some(id) => Ok(id),
+        None => {
+            let exists: i64 = conn
+                .query_row("SELECT COUNT(*) FROM users WHERE id = ?1", [input], |r| r.get(0))
+                .map_err(|e| e.to_string())?;
+            if exists > 0 {
+                Ok(input.to_string())
+            } else {
+                Err("User not found".to_string())
+            }
+        }
+    }
+}
+
 /// Developer-only: reset another user's password. Requires dev mode + dev:console:access (developer login).
+/// Accepts user ID (e.g. user_admin, user_developer) or username (e.g. admin, developer).
 #[tauri::command]
 pub fn dev_reset_user_password(
     state: State<AppState>,
@@ -199,13 +234,11 @@ pub fn dev_reset_user_password(
     new_password: String,
 ) -> Result<(), String> {
     require_dev_console(&state)?;
-    let user_id = user_id.trim();
-    if user_id.is_empty() {
-        return Err("User ID is required".to_string());
-    }
     if new_password.len() < 4 {
         return Err("Password must be at least 4 characters".to_string());
     }
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+    let resolved_id = resolve_user_id_for_reset(&conn, &user_id)?;
     use argon2::password_hash::{PasswordHasher, SaltString};
     use password_hash::Error as PasswordHashError;
     let salt = SaltString::from_b64("Y29jb19wYXJraW5nX3NhbHQ")
@@ -214,9 +247,8 @@ pub fn dev_reset_user_password(
         .hash_password(new_password.as_bytes(), &salt)
         .map_err(|e: PasswordHashError| e.to_string())?
         .to_string();
-    let conn = state.db.get().map_err(|e| e.to_string())?;
     let n = conn
-        .execute("UPDATE users SET password_hash = ?1 WHERE id = ?2", [&hash, user_id])
+        .execute("UPDATE users SET password_hash = ?1 WHERE id = ?2", [&hash, &resolved_id])
         .map_err(|e| e.to_string())?;
     if n == 0 {
         return Err("User not found".to_string());

@@ -90,7 +90,7 @@ export const RolesPage = () => {
 
   const updateUserMutation = useMutation({
     mutationFn: (args: { userId: string; displayName?: string; roleId?: string }) =>
-      apiRoles.updateUser({ id: args.userId, displayName: args.displayName, roleId: args.roleId }),
+      apiRoles.updateUser({ userId: args.userId, displayName: args.displayName, roleId: args.roleId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["roles", "users"] });
       setEditUser(null);

@@ -73,11 +73,14 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (firstRunCompleted === false && path !== "/first-run") {
+  if (firstRunCompleted === false && path !== "/login" && path !== "/first-run") {
+    return <Navigate to="/login" replace />;
+  }
+  if (user && firstRunCompleted === false && path !== "/first-run") {
     return <Navigate to="/first-run" replace />;
   }
   if (firstRunCompleted === true && path === "/first-run") {
-    return <Navigate to="/vehicles" replace />;
+    return <Navigate to="/login" replace />;
   }
   if (!user && path !== "/login" && path !== "/first-run") {
     return <Navigate to="/login" replace />;

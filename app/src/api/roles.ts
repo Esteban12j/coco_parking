@@ -31,8 +31,7 @@ export function createUser(args: {
 }
 
 export function updateUser(args: {
-  id: string;
-  username?: string;
+  userId: string;
   displayName?: string;
   roleId?: string;
 }): Promise<AuthUser> {

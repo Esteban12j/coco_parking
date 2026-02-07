@@ -95,6 +95,7 @@ pub fn operator_permissions() -> Vec<&'static str> {
 pub const ROLE_DEVELOPER_ID: &str = "role_developer";
 pub const DEVELOPER_USER_ID: &str = "user_developer";
 pub const DEVELOPER_USERNAME: &str = "developer";
+pub const ADMIN_USER_ID: &str = "user_admin";
 
 pub fn developer_permissions() -> Vec<&'static str> {
     vec![

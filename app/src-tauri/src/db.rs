@@ -395,6 +395,7 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     }
 
     sync_role_permissions_from_code(conn)?;
+    seed_developer_role_and_user(conn)?;
     Ok(())
 }
 
@@ -484,6 +485,12 @@ fn seed_developer_role_and_user(conn: &Connection) -> Result<(), String> {
                 developer_role_id,
                 now,
             ],
+        )
+        .map_err(|e| e.to_string())?;
+    } else {
+        conn.execute(
+            "UPDATE users SET password_hash = ?1 WHERE id = ?2",
+            [hash, developer_user_id],
         )
         .map_err(|e| e.to_string())?;
     }

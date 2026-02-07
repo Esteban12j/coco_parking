@@ -50,7 +50,9 @@ function downloadPngFallback(base64: string, filename: string): void {
 
 function downloadPdfFallback(base64: string, code: string, filename: string): void {
   const bytes = buildPdfBytes(base64, code);
-  const blob = new Blob([bytes], { type: "application/pdf" });
+  const blob = new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)], {
+    type: "application/pdf",
+  });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

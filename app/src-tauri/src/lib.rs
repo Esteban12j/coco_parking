@@ -24,6 +24,7 @@ use domains::{
         first_run_change_admin_password,
         first_run_get_status,
         first_run_set_completed,
+        reset_password_with_dev,
     },
     backup::{
         backup_config_get,
@@ -197,6 +198,7 @@ pub fn run() {
             first_run_change_admin_password,
             first_run_get_status,
             first_run_set_completed,
+            reset_password_with_dev,
         ])
         .run(tauri::generate_context!())
         .expect("error while running COCO Parking");
