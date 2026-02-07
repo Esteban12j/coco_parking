@@ -26,6 +26,7 @@ use domains::{
         backup_list,
         backup_restore,
         backup_run_full,
+        spawn_backup_scheduler,
     },
     barcodes::{
         barcodes_create,
@@ -110,6 +111,7 @@ pub fn run() {
             let canonical = db_path.canonicalize().unwrap_or_else(|_| db_path.clone());
             app.manage(state::AppState::new(std::sync::Arc::new(pool), canonical));
             scanner::spawn_barcode_listener(app.handle().clone());
+            spawn_backup_scheduler(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

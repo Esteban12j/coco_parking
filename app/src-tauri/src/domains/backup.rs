@@ -9,6 +9,9 @@ use tauri::{AppHandle, Manager, State};
 use crate::permissions;
 use crate::state::AppState;
 
+const BACKUP_FILENAME_PREFIX: &str = "backup_";
+const BACKUP_FILENAME_SUFFIX: &str = ".sqlite.gz";
+
 const CONFIG_KEY_INTERVAL_HOURS: &str = "backup_interval_hours";
 const CONFIG_KEY_OUTPUT_DIR: &str = "backup_output_directory";
 const CONFIG_KEY_MAX_RETAINED: &str = "backup_max_retained";
@@ -53,6 +56,30 @@ fn compress_file_to_gzip(source_path: &Path, dest_path: &Path) -> Result<u64, St
     std::io::copy(&mut reader, &mut gz).map_err(|e| e.to_string())?;
     gz.finish().map_err(|e| e.to_string())?;
     std::fs::metadata(dest_path).map_err(|e| e.to_string()).map(|m| m.len())
+}
+
+fn apply_retention(output_dir: &Path, max_retained: u32) -> Result<(), String> {
+    let entries: Vec<_> = std::fs::read_dir(output_dir)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| {
+            p.is_file()
+                && p.file_name().and_then(|n| n.to_str()).map_or(false, |n| {
+                    n.starts_with(BACKUP_FILENAME_PREFIX) && n.ends_with(BACKUP_FILENAME_SUFFIX)
+                })
+        })
+        .collect();
+    if entries.len() <= max_retained as usize {
+        return Ok(());
+    }
+    let mut sorted: Vec<PathBuf> = entries.into_iter().collect();
+    sorted.sort();
+    let to_remove = sorted.len() - max_retained as usize;
+    for path in sorted.into_iter().take(to_remove) {
+        let _ = std::fs::remove_file(&path);
+    }
+    Ok(())
 }
 
 pub(crate) fn run_backup_to_path(source_conn: &Connection, dest_path: &Path) -> Result<u64, String> {
@@ -117,28 +144,39 @@ fn run_restore_from_path(main_conn: &Connection, backup_path: &Path) -> Result<(
     Ok(())
 }
 
-#[tauri::command]
-pub fn backup_run_full(app: AppHandle, state: State<AppState>) -> Result<BackupResult, String> {
-    state.check_permission(permissions::BACKUP_CREATE)?;
-    let conn = state.db.get().map_err(|e| e.to_string())?;
-    let output_dir = resolve_output_directory(&conn, &app);
+fn run_full_backup_with_retention(
+    conn: &Connection,
+    app: &AppHandle,
+) -> Result<BackupResult, String> {
+    let output_dir = resolve_output_directory(conn, app);
     if output_dir.is_empty() {
         return Err("Backup output directory could not be resolved".to_string());
     }
+    let max_retained: u32 = get_config_value(conn, CONFIG_KEY_MAX_RETAINED)?
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(DEFAULT_MAX_RETAINED);
     let output_path = PathBuf::from(&output_dir);
     std::fs::create_dir_all(&output_path).map_err(|e| e.to_string())?;
     let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M");
-    let filename_gz = format!("backup_{}.sqlite.gz", timestamp);
-    let filename_tmp = format!("backup_{}.sqlite.tmp", timestamp);
+    let filename_gz = format!("{}{}{}", BACKUP_FILENAME_PREFIX, timestamp, BACKUP_FILENAME_SUFFIX);
+    let filename_tmp = format!("{}{}.sqlite.tmp", BACKUP_FILENAME_PREFIX, timestamp);
     let final_path = output_path.join(&filename_gz);
     let temp_path = output_path.join(&filename_tmp);
-    run_backup_to_path(&conn, &temp_path)?;
+    run_backup_to_path(conn, &temp_path)?;
     let size = compress_file_to_gzip(&temp_path, &final_path)?;
     let _ = std::fs::remove_file(&temp_path);
+    apply_retention(&output_path, max_retained)?;
     Ok(BackupResult {
         path: final_path.to_string_lossy().into_owned(),
         size_bytes: size,
     })
+}
+
+#[tauri::command]
+pub fn backup_run_full(app: AppHandle, state: State<AppState>) -> Result<BackupResult, String> {
+    state.check_permission(permissions::BACKUP_CREATE)?;
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+    run_full_backup_with_retention(&conn, &app)
 }
 
 #[tauri::command]
@@ -256,4 +294,43 @@ pub fn backup_config_set(
         set_config_value(&conn, CONFIG_KEY_MAX_RETAINED, &n.to_string())?;
     }
     backup_config_get(app, state)
+}
+
+pub fn spawn_backup_scheduler(app: AppHandle) {
+    std::thread::spawn(move || {
+        loop {
+            let interval_secs: u64 = {
+                let state = match app.try_state::<AppState>() {
+                    Some(s) => s,
+                    None => {
+                        std::thread::sleep(Duration::from_secs(60));
+                        continue;
+                    }
+                };
+                let conn = match state.db.get() {
+                    Ok(c) => c,
+                    Err(_) => {
+                        std::thread::sleep(Duration::from_secs(60));
+                        continue;
+                    }
+                };
+                get_config_value(&conn, CONFIG_KEY_INTERVAL_HOURS)
+                    .ok()
+                    .flatten()
+                    .and_then(|v| v.parse::<u32>().ok())
+                    .unwrap_or(DEFAULT_INTERVAL_HOURS) as u64
+                    * 3600
+            };
+            std::thread::sleep(Duration::from_secs(interval_secs));
+            let state = match app.try_state::<AppState>() {
+                Some(s) => s,
+                None => continue,
+            };
+            let conn = match state.db.get() {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+            let _ = run_full_backup_with_retention(&conn, &app);
+        }
+    });
 }
