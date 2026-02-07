@@ -17,7 +17,7 @@ export function createBarcode(args: {
   code: string;
   label?: string | null;
 }): Promise<Barcode> {
-  return invokeTauri<Barcode>("barcodes_create", args);
+  return invokeTauri<Barcode>("barcodes_create", { args });
 }
 
 export function deleteBarcode(id: string): Promise<void> {
@@ -34,7 +34,9 @@ export function generateBarcodeImage(args: {
   exportPath?: string | null;
 }): Promise<BarcodeImageResult> {
   return invokeTauri<BarcodeImageResult>("barcodes_generate_image", {
-    code: args.code,
-    exportPath: args.exportPath ?? undefined,
+    args: {
+      code: args.code,
+      exportPath: args.exportPath ?? undefined,
+    },
   });
 }

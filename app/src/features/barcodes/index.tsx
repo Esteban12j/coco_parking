@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as api from "@/api/barcodes";
 import { ScannerInput } from "@/features/vehiculos/components/ScannerInput";
 import { BarcodeListTable, isValidBarcodeCode } from "@/features/barcodes/components/BarcodeListTable";
+import { BarcodeExportPreview } from "@/features/barcodes/components/BarcodeExportPreview";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n";
@@ -24,13 +25,6 @@ function isTauri(): boolean {
   return typeof window !== "undefined" && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
 }
 
-function downloadPngFromBase64(base64: string, filename: string): void {
-  const link = document.createElement("a");
-  link.href = `data:image/png;base64,${base64}`;
-  link.download = filename;
-  link.click();
-}
-
 export const BarcodesPage = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -44,6 +38,9 @@ export const BarcodesPage = () => {
   const [barcodeToDelete, setBarcodeToDelete] = useState<Barcode | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [previewBarcode, setPreviewBarcode] = useState<Barcode | null>(null);
+  const [previewBase64, setPreviewBase64] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const barcodesQuery = useQuery({
     queryKey: ["barcodes"],
@@ -117,8 +114,9 @@ export const BarcodesPage = () => {
       setExportingId(barcode.id);
       try {
         const result = await api.generateBarcodeImage({ code: barcode.code });
-        downloadPngFromBase64(result.base64, `barcode-${barcode.code}.png`);
-        toast({ title: t("barcodes.exportSuccess") });
+        setPreviewBarcode(barcode);
+        setPreviewBase64(result.base64);
+        setPreviewOpen(true);
       } catch (err) {
         toast({
           title: t("common.error"),
@@ -131,6 +129,22 @@ export const BarcodesPage = () => {
     },
     [t, toast]
   );
+
+  const handlePreviewOpenChange = useCallback((open: boolean) => {
+    setPreviewOpen(open);
+    if (!open) {
+      setPreviewBarcode(null);
+      setPreviewBase64(null);
+    }
+  }, []);
+
+  const handleDownloadPng = useCallback(() => {
+    toast({ title: t("barcodes.exportSuccess") });
+  }, [t, toast]);
+
+  const handleDownloadPdf = useCallback(() => {
+    toast({ title: t("barcodes.exportSuccess") });
+  }, [t, toast]);
 
   const handleDeleteClick = useCallback((barcode: Barcode) => {
     setBarcodeToDelete(barcode);
@@ -171,6 +185,15 @@ export const BarcodesPage = () => {
         canDelete={canDelete}
         isExportingId={exportingId}
         isDeletingId={deletingId}
+      />
+
+      <BarcodeExportPreview
+        open={previewOpen}
+        onOpenChange={handlePreviewOpenChange}
+        barcode={previewBarcode}
+        imageBase64={previewBase64}
+        onDownloadPng={handleDownloadPng}
+        onDownloadPdf={handleDownloadPdf}
       />
 
       <AlertDialog open={!!barcodeToDelete} onOpenChange={(o) => !o && setBarcodeToDelete(null)}>

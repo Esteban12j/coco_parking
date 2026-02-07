@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use barcoders::generators::image::Image;
+use barcoders::generators::image::{Color, Image, Rotation};
 use barcoders::sym::code128::Code128;
 use base64::prelude::{Engine as _, BASE64_STANDARD};
 use rusqlite::params;
@@ -176,12 +176,30 @@ pub fn barcodes_delete(state: State<AppState>, id: String) -> Result<(), String>
     Ok(())
 }
 
-const BARCODE_IMAGE_HEIGHT_PX: u32 = 80;
+const BARCODE_IMAGE_HEIGHT_PX: u32 = 60;
+const BARCODE_XDIM: u32 = 3;
+
+/// Code128 in barcoders requires a leading character-set: À (A), Ɓ (B), or Ć (C).
+/// We use Ɓ (Code Set B) so digit-only codes are encoded as-is with no length constraint.
+fn code128_data_from_digits(code: &str) -> String {
+    let trimmed = code.trim();
+    if trimmed.is_empty() {
+        return "\u{0181}0".to_string();
+    }
+    format!("\u{0181}{}", trimmed)
+}
 
 fn generate_barcode_png_bytes(code: &str) -> Result<Vec<u8>, String> {
-    let barcode = Code128::new(code).map_err(|e| e.to_string())?;
+    let code128_data = code128_data_from_digits(code);
+    let barcode = Code128::new(&code128_data).map_err(|e| e.to_string())?;
     let encoded = barcode.encode();
-    let generator = Image::png(BARCODE_IMAGE_HEIGHT_PX);
+    let generator = Image::PNG {
+        height: BARCODE_IMAGE_HEIGHT_PX,
+        xdim: BARCODE_XDIM,
+        rotation: Rotation::Zero,
+        foreground: Color::new([0, 0, 0, 255]),
+        background: Color::new([255, 255, 255, 255]),
+    };
     let bytes = generator
         .generate(&encoded[..])
         .map_err(|e| e.to_string())?;

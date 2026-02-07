@@ -62,6 +62,11 @@ export interface Translations {
     deleteConfirmDescription: string;
     deleteSuccess: string;
     exportSuccess: string;
+    previewTitle: string;
+    previewDescription: string;
+    downloadPng: string;
+    downloadPdf: string;
+    previewClose: string;
     invalidCodeFormat: string;
     noPermissionToCreate: string;
     clearFilter: string;
