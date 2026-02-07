@@ -70,6 +70,14 @@ export interface Translations {
     invalidCodeFormat: string;
     noPermissionToCreate: string;
     clearFilter: string;
+    selectAll: string;
+    selectRow: string;
+    exportSelected: string;
+    exportAll: string;
+    exportAsPngFolder: string;
+    exportAsPdfFile: string;
+    exportBulkSuccess: string;
+    exportBulkError: string;
   };
   debtors: {
     title: string;
