@@ -23,6 +23,7 @@ npm run tauri:dev
 ## Documentation
 
 - [app/README.md](app/README.md) — Development, build, barcode scanner, security
+- [PRODUCT_BACKLOG.md](PRODUCT_BACKLOG.md) — Product backlog (SM / PM)
 
 ## License
 
