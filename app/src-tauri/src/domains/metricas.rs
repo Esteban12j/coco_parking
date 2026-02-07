@@ -5,13 +5,39 @@
 //! - Arrivals: hour of entry (when vehicles arrived, demand for spaces).
 //! - Occupancy: vehicles that were occupying a spot during each hour (busiest hours).
 //! - Exits (peak_hours): hour of checkout/payment (when spaces free up).
+//!
+//! All hourly aggregations use the app timezone (Colombia, UTC-5) so labels match local time.
 
+use chrono::{DateTime, FixedOffset, NaiveDate, Timelike, TimeZone, Utc};
 use rusqlite::params;
 use serde::Serialize;
 use tauri::State;
 
 use crate::permissions;
 use crate::state::AppState;
+
+fn utc_to_local_hour(utc_iso: &str) -> Option<u8> {
+    let dt = DateTime::parse_from_rfc3339(utc_iso).ok()?.with_timezone(&Utc);
+    let colombia = FixedOffset::west_opt(5 * 3600)?;
+    let local = dt.with_timezone(&colombia);
+    Some(local.hour() as u8)
+}
+
+fn local_date_hour_to_utc_range(
+    date: NaiveDate,
+    hour: u8,
+) -> Option<(chrono::DateTime<Utc>, chrono::DateTime<Utc>)> {
+    let colombia = FixedOffset::west_opt(5 * 3600)?;
+    let local_start = date.and_hms_opt(hour.into(), 0, 0)?;
+    let local_end = if hour == 23 {
+        date.succ_opt()?.and_hms_opt(0, 0, 0)?
+    } else {
+        date.and_hms_opt((hour + 1).into(), 0, 0)?
+    };
+    let utc_start = colombia.from_local_datetime(&local_start).single()?.with_timezone(&Utc);
+    let utc_end = colombia.from_local_datetime(&local_end).single()?.with_timezone(&Utc);
+    Some((utc_start, utc_end))
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -154,7 +180,7 @@ pub fn metricas_get_daily(state: State<AppState>) -> Result<DailyMetrics, String
 }
 
 /// Exits by hour: count of checkouts/payments per hour (when spaces free up).
-/// Only completed turns (transactions exist only when a vehicle has exited). Source: transactions.created_at.
+/// Only completed turns. Hour is in app timezone (Colombia).
 #[tauri::command]
 pub fn metricas_get_peak_hours(
     state: State<AppState>,
@@ -170,12 +196,7 @@ pub fn metricas_get_peak_hours(
 
     let mut stmt = conn
         .prepare(
-            r#"
-            SELECT CAST(substr(created_at, 12, 2) AS INTEGER) as h, COUNT(*) as cnt
-            FROM transactions
-            WHERE created_at >= ?1 AND created_at < ?2
-            GROUP BY h
-            "#,
+            "SELECT created_at FROM transactions WHERE created_at >= ?1 AND created_at < ?2",
         )
         .map_err(|e| e.to_string())?;
     let mut rows = stmt
@@ -184,10 +205,11 @@ pub fn metricas_get_peak_hours(
 
     let mut counts_by_hour: std::collections::HashMap<u8, u32> = (0..24).map(|h| (h, 0)).collect();
     while let Some(row) = rows.next().map_err(|e| e.to_string())? {
-        let h: u8 = row.get::<_, i64>(0).map_err(|e| e.to_string())? as u8;
-        let cnt: u32 = row.get::<_, i64>(1).map_err(|e| e.to_string())? as u32;
-        if h < 24 {
-            counts_by_hour.insert(h, cnt);
+        let created_at: String = row.get(0).map_err(|e| e.to_string())?;
+        if let Some(h) = utc_to_local_hour(&created_at) {
+            if h < 24 {
+                *counts_by_hour.get_mut(&h).unwrap() += 1;
+            }
         }
     }
 
@@ -195,7 +217,7 @@ pub fn metricas_get_peak_hours(
 }
 
 /// Arrivals by hour: count of vehicles that entered per hour (demand for spaces).
-/// Only completed turns (exit_time IS NOT NULL). Source: vehicles.entry_time.
+/// Only completed turns. Hour is in app timezone (Colombia).
 #[tauri::command]
 pub fn metricas_get_arrivals_by_hour(
     state: State<AppState>,
@@ -212,10 +234,8 @@ pub fn metricas_get_arrivals_by_hour(
     let mut stmt = conn
         .prepare(
             r#"
-            SELECT CAST(substr(entry_time, 12, 2) AS INTEGER) as h, COUNT(*) as cnt
-            FROM vehicles
+            SELECT entry_time FROM vehicles
             WHERE entry_time >= ?1 AND entry_time < ?2 AND exit_time IS NOT NULL
-            GROUP BY h
             "#,
         )
         .map_err(|e| e.to_string())?;
@@ -225,10 +245,11 @@ pub fn metricas_get_arrivals_by_hour(
 
     let mut counts_by_hour: std::collections::HashMap<u8, u32> = (0..24).map(|h| (h, 0)).collect();
     while let Some(row) = rows.next().map_err(|e| e.to_string())? {
-        let h: u8 = row.get::<_, i64>(0).map_err(|e| e.to_string())? as u8;
-        let cnt: u32 = row.get::<_, i64>(1).map_err(|e| e.to_string())? as u32;
-        if h < 24 {
-            counts_by_hour.insert(h, cnt);
+        let entry_time: String = row.get(0).map_err(|e| e.to_string())?;
+        if let Some(h) = utc_to_local_hour(&entry_time) {
+            if h < 24 {
+                *counts_by_hour.get_mut(&h).unwrap() += 1;
+            }
         }
     }
 
@@ -236,8 +257,7 @@ pub fn metricas_get_arrivals_by_hour(
 }
 
 /// Occupancy by hour: average number of vehicles occupying a spot during each hour (busiest hours).
-/// Only completed turns (exit_time IS NOT NULL). For each hour H, counts vehicles where
-/// entry_time < end_of(H) and exit_time > start_of(H). Over a date range, returns the average per hour of day.
+/// Only completed turns. Hour buckets are in app timezone (Colombia).
 #[tauri::command]
 pub fn metricas_get_occupancy_by_hour(
     state: State<AppState>,
@@ -278,15 +298,13 @@ pub fn metricas_get_occupancy_by_hour(
 
     let mut d = from_date;
     while d <= to_date {
-        let day_str = d.format("%Y-%m-%d").to_string();
         for hour in 0u8..24 {
-            let start_ts = format!("{}T{:02}:00:00.000Z", day_str, hour);
-            let end_ts = if hour == 23 {
-                let next = d.succ_opt().unwrap_or(d);
-                format!("{}T00:00:00.000Z", next.format("%Y-%m-%d"))
-            } else {
-                format!("{}T{:02}:00:00.000Z", day_str, hour + 1)
+            let (utc_start, utc_end) = match local_date_hour_to_utc_range(d, hour) {
+                Some(pair) => pair,
+                None => continue,
             };
+            let start_ts = utc_start.to_rfc3339();
+            let end_ts = utc_end.to_rfc3339();
             let count = entries
                 .iter()
                 .filter(|(entry_time, exit_time)| {
