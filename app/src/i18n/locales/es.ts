@@ -240,6 +240,7 @@ export const es: Translations = {
       typeCompletedVehicles: "Vehículos completados",
       typeShiftClosures: "Cierres de turno",
       typeTransactionsWithVehicle: "Transacciones + vehículo",
+      typeVehicleExits: "Salidas de vehículos (completadas + removidas)",
       typeDebtors: "Deudores",
       all: "Todos",
       column: {
@@ -253,6 +254,7 @@ export const es: Translations = {
         vehicle_type: "Tipo vehículo",
         entry_time: "Hora entrada",
         exit_time: "Hora salida",
+        status: "Tipo de salida",
         total_amount: "Total cobrado",
         debt: "Deuda",
         transaction_id: "ID transacción",

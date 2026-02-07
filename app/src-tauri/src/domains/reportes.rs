@@ -17,6 +17,7 @@ pub enum ReportType {
     CompletedVehicles,
     ShiftClosures,
     TransactionsWithVehicle,
+    VehicleExits,
     Debtors,
 }
 
@@ -52,6 +53,20 @@ fn completed_vehicles_columns() -> Vec<ColumnDef> {
         ColumnDef { key: "vehicle_type".into(), label: "Vehicle type".into() },
         ColumnDef { key: "entry_time".into(), label: "Entry time".into() },
         ColumnDef { key: "exit_time".into(), label: "Exit time".into() },
+        ColumnDef { key: "total_amount".into(), label: "Total amount".into() },
+        ColumnDef { key: "debt".into(), label: "Debt".into() },
+    ]
+}
+
+fn vehicle_exits_columns() -> Vec<ColumnDef> {
+    vec![
+        ColumnDef { key: "id".into(), label: "ID".into() },
+        ColumnDef { key: "ticket_code".into(), label: "Ticket".into() },
+        ColumnDef { key: "plate".into(), label: "Plate".into() },
+        ColumnDef { key: "vehicle_type".into(), label: "Vehicle type".into() },
+        ColumnDef { key: "entry_time".into(), label: "Entry time".into() },
+        ColumnDef { key: "exit_time".into(), label: "Exit time".into() },
+        ColumnDef { key: "status".into(), label: "Exit type".into() },
         ColumnDef { key: "total_amount".into(), label: "Total amount".into() },
         ColumnDef { key: "debt".into(), label: "Debt".into() },
     ]
@@ -102,6 +117,7 @@ fn all_columns_for_type(report_type: &ReportType) -> Vec<ColumnDef> {
         ReportType::CompletedVehicles => completed_vehicles_columns(),
         ReportType::ShiftClosures => shift_closures_columns(),
         ReportType::TransactionsWithVehicle => transactions_with_vehicle_columns(),
+        ReportType::VehicleExits => vehicle_exits_columns(),
         ReportType::Debtors => debtors_columns(),
     }
 }
@@ -299,6 +315,101 @@ fn run_completed_vehicles(
         }
         if keys.contains(&"debt".to_string()) {
             map.insert("debt".into(), serde_json::json!(row.get::<_, Option<f64>>(7)?));
+        }
+        Ok(map)
+    }).map_err(|e| e.to_string())?;
+    for row in rows {
+        list.push(row.map_err(|e| e.to_string())?);
+    }
+    Ok(list)
+}
+
+fn run_vehicle_exits(
+    conn: &rusqlite::Connection,
+    date_from: &str,
+    date_to: &str,
+    vehicle_type: Option<&str>,
+    columns: &[ColumnDef],
+) -> Result<Vec<HashMap<String, serde_json::Value>>, String> {
+    let from_prefix = normalize_date_prefix(date_from);
+    let to_end = date_to_end(date_to);
+    let keys: Vec<String> = columns.iter().map(|c| c.key.clone()).collect();
+
+    let mut list = Vec::new();
+    if let Some(vt) = vehicle_type {
+        let vt = vt.to_lowercase();
+        if ["car", "motorcycle", "truck", "bicycle"].contains(&vt.as_str()) {
+            let mut stmt = conn
+                .prepare("SELECT id, ticket_code, plate, vehicle_type, entry_time, exit_time, status, total_amount, debt FROM vehicles WHERE status IN ('completed', 'removed') AND exit_time IS NOT NULL AND exit_time >= ?1 AND exit_time < ?2 AND LOWER(vehicle_type) = ?3 ORDER BY exit_time ASC")
+                .map_err(|e| e.to_string())?;
+            let rows = stmt.query_map(params![from_prefix, to_end, vt], |row| {
+                let mut map = HashMap::new();
+                if keys.contains(&"id".to_string()) {
+                    map.insert("id".into(), serde_json::json!(row.get::<_, String>(0)?));
+                }
+                if keys.contains(&"ticket_code".to_string()) {
+                    map.insert("ticket_code".into(), serde_json::json!(row.get::<_, String>(1)?));
+                }
+                if keys.contains(&"plate".to_string()) {
+                    map.insert("plate".into(), serde_json::json!(row.get::<_, String>(2)?));
+                }
+                if keys.contains(&"vehicle_type".to_string()) {
+                    map.insert("vehicle_type".into(), serde_json::json!(row.get::<_, String>(3)?));
+                }
+                if keys.contains(&"entry_time".to_string()) {
+                    map.insert("entry_time".into(), serde_json::json!(row.get::<_, String>(4)?));
+                }
+                if keys.contains(&"exit_time".to_string()) {
+                    map.insert("exit_time".into(), serde_json::json!(row.get::<_, Option<String>>(5)?));
+                }
+                if keys.contains(&"status".to_string()) {
+                    map.insert("status".into(), serde_json::json!(row.get::<_, String>(6)?));
+                }
+                if keys.contains(&"total_amount".to_string()) {
+                    map.insert("total_amount".into(), serde_json::json!(row.get::<_, Option<f64>>(7)?));
+                }
+                if keys.contains(&"debt".to_string()) {
+                    map.insert("debt".into(), serde_json::json!(row.get::<_, Option<f64>>(8)?));
+                }
+                Ok(map)
+            }).map_err(|e| e.to_string())?;
+            for row in rows {
+                list.push(row.map_err(|e| e.to_string())?);
+            }
+            return Ok(list);
+        }
+    }
+    let mut stmt = conn
+        .prepare("SELECT id, ticket_code, plate, vehicle_type, entry_time, exit_time, status, total_amount, debt FROM vehicles WHERE status IN ('completed', 'removed') AND exit_time IS NOT NULL AND exit_time >= ?1 AND exit_time < ?2 ORDER BY exit_time ASC")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt.query_map(params![from_prefix, to_end], |row| {
+        let mut map = HashMap::new();
+        if keys.contains(&"id".to_string()) {
+            map.insert("id".into(), serde_json::json!(row.get::<_, String>(0)?));
+        }
+        if keys.contains(&"ticket_code".to_string()) {
+            map.insert("ticket_code".into(), serde_json::json!(row.get::<_, String>(1)?));
+        }
+        if keys.contains(&"plate".to_string()) {
+            map.insert("plate".into(), serde_json::json!(row.get::<_, String>(2)?));
+        }
+        if keys.contains(&"vehicle_type".to_string()) {
+            map.insert("vehicle_type".into(), serde_json::json!(row.get::<_, String>(3)?));
+        }
+        if keys.contains(&"entry_time".to_string()) {
+            map.insert("entry_time".into(), serde_json::json!(row.get::<_, String>(4)?));
+        }
+        if keys.contains(&"exit_time".to_string()) {
+            map.insert("exit_time".into(), serde_json::json!(row.get::<_, Option<String>>(5)?));
+        }
+        if keys.contains(&"status".to_string()) {
+            map.insert("status".into(), serde_json::json!(row.get::<_, String>(6)?));
+        }
+        if keys.contains(&"total_amount".to_string()) {
+            map.insert("total_amount".into(), serde_json::json!(row.get::<_, Option<f64>>(7)?));
+        }
+        if keys.contains(&"debt".to_string()) {
+            map.insert("debt".into(), serde_json::json!(row.get::<_, Option<f64>>(8)?));
         }
         Ok(map)
     }).map_err(|e| e.to_string())?;
@@ -554,6 +665,13 @@ pub fn reportes_fetch(
             filters.vehicle_type.as_deref(),
             &columns,
         )?,
+        ReportType::VehicleExits => run_vehicle_exits(
+            &conn,
+            &filters.date_from,
+            &filters.date_to,
+            filters.vehicle_type.as_deref(),
+            &columns,
+        )?,
         ReportType::Debtors => run_debtors(&conn, &columns)?,
     };
 
@@ -630,6 +748,13 @@ pub fn reportes_write_csv(
             &filters.date_from,
             &filters.date_to,
             filters.payment_method.as_deref(),
+            filters.vehicle_type.as_deref(),
+            &columns,
+        )?,
+        ReportType::VehicleExits => run_vehicle_exits(
+            &conn,
+            &filters.date_from,
+            &filters.date_to,
             filters.vehicle_type.as_deref(),
             &columns,
         )?,

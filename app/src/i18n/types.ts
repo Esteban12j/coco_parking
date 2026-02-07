@@ -241,6 +241,7 @@ export interface Translations {
       typeCompletedVehicles: string;
       typeShiftClosures: string;
       typeTransactionsWithVehicle: string;
+      typeVehicleExits: string;
       typeDebtors: string;
       all: string;
       column: {
@@ -254,6 +255,7 @@ export interface Translations {
         vehicle_type: string;
         entry_time: string;
         exit_time: string;
+        status: string;
         total_amount: string;
         debt: string;
         transaction_id: string;

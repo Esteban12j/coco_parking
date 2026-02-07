@@ -99,7 +99,7 @@ The following decisions are **closed**. The Scrum Master should use the **Develo
 
 ## Development tickets for Scrum Master
 
-**Scrum Master — update:** Ticket **1.1 (API: remove vehicle from parking)** is **done**. Ticket **1.2 (Permission: remove-from-parking)** is **done**. Tickets **1.3 (UI: Remove from parking action)** and **1.4 (UI: Confirmation dialog)** are **done**. Implemented: "Remove from parking" control in the active vehicles grid (1.3) calling the API from 1.1; confirmation dialog (1.4) with title "Remove from parking", irreversible/error-correction message, and Confirm/Cancel before calling the API. You can move 1.3 and 1.4 to completed and plan 1.5 as needed.
+**Scrum Master — update:** Ticket **1.1 (API: remove vehicle from parking)** is **done**. Ticket **1.2 (Permission: remove-from-parking)** is **done**. Tickets **1.3 (UI: Remove from parking action)** and **1.4 (UI: Confirmation dialog)** are **done**. Ticket **1.5 (Audit/history)** is **done**. Implemented: "Remove from parking" control in the active vehicles grid (1.3) calling the API from 1.1; confirmation dialog (1.4) with title "Remove from parking", irreversible/error-correction message, and Confirm/Cancel before calling the API. For 1.5: the "removed" status was already persisted on the vehicle record; a new report type **"Vehicle exits (completed + removed)"** was added so reports can distinguish removed vehicles from normal exits. The report lists all vehicles with an exit in the date range and includes an **Exit type** column (completed | removed). You can move 1.5 to completed and consider Epic 1 closed.
 
 **Instructions for Scrum Master:** Use these tickets to update the sprint backlog. Each ticket is a single unit of work for the development engineer. Order and split by sprint as needed; dependencies are noted.
 
@@ -113,7 +113,7 @@ The following decisions are **closed**. The Scrum Master should use the **Develo
 | 1.2 | **Permission: remove-from-parking** ✅ *Done* | Add permission (e.g. `vehicles.remove_from_parking` or reuse existing vehicle-management permission). Enforce in API and in UI (show "Remove from parking" only if allowed). **Implemented:** `vehiculos:entries:remove_from_parking`; API checks it in `vehiculos_remove_from_parking`; UI shows "Remove from parking" in active vehicles grid only when user has this permission. | — |
 | 1.3 | **UI: Remove from parking action** ✅ *Done* | In the active vehicles list/grid, add a control (button or row action) "Remove from parking" that calls the API from 1.1. | 1.1, 1.2 |
 | 1.4 | **UI: Confirmation dialog** ✅ *Done* | Before calling remove API, show a confirmation dialog: title "Remove from parking", message explaining the action is irreversible and for error correction only, Confirm / Cancel. | 1.3 |
-| 1.5 | **Audit/history (optional)** | If product requests audit trail: persist a "removed" status or event in history so reports can distinguish removed vehicles from normal exits. Refine with PM if needed. | 1.1 |
+| 1.5 | **Audit/history (optional)** ✅ *Done* | If product requests audit trail: persist a "removed" status or event in history so reports can distinguish removed vehicles from normal exits. Refine with PM if needed. **Implemented:** Vehicle record already stores `status = 'removed'`. New report type "Vehicle exits" shows all exits in date range with column "Exit type" (completed | removed) for distinction in exports. | 1.1 |
 
 ---
 

@@ -55,6 +55,7 @@ const REPORT_TYPES: { value: ReportTypeKey; labelKey: string }[] = [
   { value: "completed_vehicles", labelKey: "metrics.reports.typeCompletedVehicles" },
   { value: "shift_closures", labelKey: "metrics.reports.typeShiftClosures" },
   { value: "transactions_with_vehicle", labelKey: "metrics.reports.typeTransactionsWithVehicle" },
+  { value: "vehicle_exits", labelKey: "metrics.reports.typeVehicleExits" },
   { value: "debtors", labelKey: "metrics.reports.typeDebtors" },
 ];
 
@@ -258,7 +259,9 @@ export const ReportsExport = () => {
   const showPaymentFilter =
     reportType === "transactions" || reportType === "transactions_with_vehicle";
   const showVehicleFilter =
-    reportType === "completed_vehicles" || reportType === "transactions_with_vehicle";
+    reportType === "completed_vehicles" ||
+    reportType === "vehicle_exits" ||
+    reportType === "transactions_with_vehicle";
 
   if (!isTauri) return null;
 
