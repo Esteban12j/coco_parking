@@ -19,7 +19,7 @@ use dev::{
     dev_set_current_user,
 };
 use domains::{
-    backup::{backup_create, backup_list, backup_restore},
+    backup::{backup_config_get, backup_config_set, backup_create, backup_list, backup_restore},
     barcodes::{
         barcodes_create,
         barcodes_delete,
@@ -169,6 +169,8 @@ pub fn run() {
             backup_create,
             backup_restore,
             backup_list,
+            backup_config_get,
+            backup_config_set,
         ])
         .run(tauri::generate_context!())
         .expect("error while running COCO Parking");

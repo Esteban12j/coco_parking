@@ -34,6 +34,8 @@ pub const ROLES_PERMISSIONS_MODIFY: &str = "roles:permissions:modify";
 pub const BACKUP_LIST_READ: &str = "backup:list:read";
 pub const BACKUP_CREATE: &str = "backup:create";
 pub const BACKUP_RESTORE: &str = "backup:restore";
+pub const BACKUP_CONFIG_READ: &str = "backup:config:read";
+pub const BACKUP_CONFIG_MODIFY: &str = "backup:config:modify";
 
 pub const BARCODES_READ: &str = "barcodes:read";
 pub const BARCODES_CREATE: &str = "barcodes:create";
@@ -66,6 +68,8 @@ pub fn all_permissions() -> Vec<&'static str> {
         BACKUP_LIST_READ,
         BACKUP_CREATE,
         BACKUP_RESTORE,
+        BACKUP_CONFIG_READ,
+        BACKUP_CONFIG_MODIFY,
         BARCODES_READ,
         BARCODES_CREATE,
         BARCODES_DELETE,

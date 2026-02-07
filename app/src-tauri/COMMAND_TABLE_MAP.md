@@ -19,6 +19,7 @@ Simple map of **which Tauri command reads or writes which SQL table**. Use it to
 | `custom_tariffs`  | Rates by vehicle_type and optional plate_or_ref |
 | `barcodes`        | Barcode codes (8-digit, unique), optional label, created_at |
 | `schema_version`  | Migration version (db.rs only) |
+| `drive_config`    | Key-value app config (e.g. backup_interval_hours, backup_output_directory, backup_max_retained) |
 
 ---
 
@@ -29,6 +30,8 @@ Simple map of **which Tauri command reads or writes which SQL table**. Use it to
 | `auth_get_session` | users, roles | — | Session by user id |
 | `auth_login` | users, roles | — | Verify password, load role |
 | `auth_logout` | — | — | In-memory only |
+| `backup_config_get` | drive_config | R | Read backup_interval_hours, backup_output_directory, backup_max_retained; defaults when missing |
+| `backup_config_set` | drive_config | W | INSERT/UPDATE drive_config for backup keys; validates interval and max_retained ≥ 1 |
 | `backup_create` | (full DB) | — | SQLite backup API, no SQL |
 | `backup_list` | — | — | No DB access |
 | `backup_restore` | — | schema_version, roles, role_permissions, users, vehicles, transactions, shift_closures, barcodes | Overwrites listed tables from backup file |
