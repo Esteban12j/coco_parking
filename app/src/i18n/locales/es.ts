@@ -34,6 +34,11 @@ export const es: Translations = {
     signIn: "Entrar",
     signOut: "Cerrar sesión",
   },
+  firstRun: {
+    title: "Configuración inicial",
+    description: "Complete la configuración inicial para usar COCO Parking. Deberá cambiar la contraseña por defecto del administrador.",
+    continueToLogin: "Continuar al inicio de sesión",
+  },
   nav: {
     vehicles: "Vehículos",
     vehiclesToday: "Vehículos de hoy",

@@ -17,6 +17,7 @@ import { VehiclesTodayPage } from "@/features/vehiculos/VehiclesTodayPage";
 import { PlateConflictsModal } from "@/features/vehiculos/components/PlateConflictsModal";
 import { useParkingStore } from "@/hooks/useParkingStore";
 import { useSession } from "@/hooks/useSession";
+import { useFirstRunStatus } from "@/hooks/useFirstRunStatus";
 import { CajaPage } from "@/features/caja";
 import { MetricasPage } from "@/features/metricas";
 import { RolesPage } from "@/features/roles";
@@ -26,6 +27,7 @@ import { TariffsPage } from "@/features/tariffs";
 import { DevConsolePage } from "@/features/dev-console";
 import { BarcodesPage } from "@/features/barcodes";
 import { LoginPage } from "@/pages/Login";
+import { FirstRunPage } from "@/pages/FirstRunPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -54,12 +56,14 @@ function PlateConflictsGate() {
 function AuthGate({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { user, isLoading } = useSession();
+  const { completed: firstRunCompleted, isLoading: firstRunLoading } = useFirstRunStatus();
   const tauri = isTauri();
+  const path = location.pathname;
 
   if (!tauri) {
     return <>{children}</>;
   }
-  if (isLoading) {
+  if (isLoading || firstRunLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center" role="status" aria-label="Loading">
         <div className="flex flex-col items-center gap-4">
@@ -69,10 +73,16 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (!user && location.pathname !== "/login") {
+  if (firstRunCompleted === false && path !== "/first-run") {
+    return <Navigate to="/first-run" replace />;
+  }
+  if (firstRunCompleted === true && path === "/first-run") {
+    return <Navigate to="/vehicles" replace />;
+  }
+  if (!user && path !== "/login" && path !== "/first-run") {
     return <Navigate to="/login" replace />;
   }
-  if (user && location.pathname === "/login") {
+  if (user && path === "/login") {
     return <Navigate to="/vehicles" replace />;
   }
   return <>{children}</>;
@@ -95,6 +105,7 @@ const App = () => (
         <BrowserRouter>
           <AuthGate>
             <Routes>
+              <Route path="/first-run" element={<FirstRunPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/" element={<AppLayout />}>
                 <Route index element={<Navigate to="/vehicles" replace />} />

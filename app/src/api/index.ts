@@ -1,4 +1,5 @@
 export * from "./auth";
+export * from "./firstRun";
 export * from "./backup";
 export * from "./barcodes";
 export * from "./caja";

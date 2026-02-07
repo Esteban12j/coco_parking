@@ -34,6 +34,11 @@ export const en: Translations = {
     signIn: "Sign in",
     signOut: "Sign out",
   },
+  firstRun: {
+    title: "First-time setup",
+    description: "Complete the initial setup to start using COCO Parking. You will be asked to change the default admin password.",
+    continueToLogin: "Continue to login",
+  },
   nav: {
     vehicles: "Vehicles",
     vehiclesToday: "Today's vehicles",

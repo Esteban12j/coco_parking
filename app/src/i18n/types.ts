@@ -21,6 +21,11 @@ export interface Translations {
     signIn: string;
     signOut: string;
   };
+  firstRun: {
+    title: string;
+    description: string;
+    continueToLogin: string;
+  };
   common: {
     cancel: string;
     search: string;
