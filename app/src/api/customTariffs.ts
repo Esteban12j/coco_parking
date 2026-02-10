@@ -15,7 +15,7 @@ export function createCustomTariff(args: {
   rateDurationHours?: number | null;
   rateDurationMinutes?: number | null;
 }): Promise<CustomTariff> {
-  return invokeTauri<CustomTariff>("custom_tariffs_create", args);
+  return invokeTauri<CustomTariff>("custom_tariffs_create", { args });
 }
 
 export function updateCustomTariff(args: {
@@ -29,7 +29,7 @@ export function updateCustomTariff(args: {
   rateDurationHours?: number | null;
   rateDurationMinutes?: number | null;
 }): Promise<CustomTariff> {
-  return invokeTauri<CustomTariff>("custom_tariffs_update", args);
+  return invokeTauri<CustomTariff>("custom_tariffs_update", { args });
 }
 
 export function deleteCustomTariff(id: string): Promise<void> {

@@ -25,6 +25,12 @@ export interface ParkingSession {
   operatorId?: string;
 }
 
+export interface RevenueByVehicleType {
+  vehicleType: string;
+  revenue: number;
+  count: number;
+}
+
 export interface DailyMetrics {
   totalVehicles: number;
   activeVehicles: number;
@@ -33,6 +39,7 @@ export interface DailyMetrics {
   averageTicket: number;
   averageStayMinutes: number;
   turnoverRate: number;
+  revenueByVehicleType: RevenueByVehicleType[];
 }
 
 export interface PeakHourSlot {

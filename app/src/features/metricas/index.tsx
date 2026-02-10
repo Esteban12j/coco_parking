@@ -18,9 +18,10 @@ import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { DatePickerField } from "@/components/ui/date-picker-field";
 import {
   getArrivalsByHour,
+  getDailyMetrics,
   getOccupancyByHour,
   getPeakHours,
 } from "@/api/metricas";
@@ -113,6 +114,15 @@ export const MetricasPage = () => {
   const [dateFrom, setDateFrom] = useState(today);
   const [dateTo, setDateTo] = useState(today);
 
+  const metricsForDateQuery = useQuery({
+    queryKey: ["parking", "metrics", dateFrom],
+    queryFn: () => getDailyMetrics({ date: dateFrom }),
+    enabled: isTauri,
+  });
+
+  const metricsDisplay =
+    isTauri && metricsForDateQuery.data != null ? metricsForDateQuery.data : metrics;
+
   const arrivalsQuery = useQuery({
     queryKey: ["parking", "arrivalsByHour", dateFrom, dateTo],
     queryFn: () => getArrivalsByHour({ dateFrom, dateTo }),
@@ -146,19 +156,25 @@ export const MetricasPage = () => {
             {isTauri && (
               <>
                 <div className="space-y-2">
-                  <Label className="text-sm">{t("metrics.heatmapDayVehicle.dateFrom")}</Label>
-                  <Input
-                    type="date"
+                  <Label className="text-sm" htmlFor="metrics-date-from">
+                    {t("metrics.heatmapDayVehicle.dateFrom")}
+                  </Label>
+                  <DatePickerField
+                    id="metrics-date-from"
                     value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
+                    onChange={setDateFrom}
+                    placeholder={t("metrics.heatmapDayVehicle.dateFrom")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm">{t("metrics.heatmapDayVehicle.dateTo")}</Label>
-                  <Input
-                    type="date"
+                  <Label className="text-sm" htmlFor="metrics-date-to">
+                    {t("metrics.heatmapDayVehicle.dateTo")}
+                  </Label>
+                  <DatePickerField
+                    id="metrics-date-to"
                     value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
+                    onChange={setDateTo}
+                    placeholder={t("metrics.heatmapDayVehicle.dateTo")}
                   />
                 </div>
               </>
@@ -199,32 +215,26 @@ export const MetricasPage = () => {
       )}
 
       <div className="space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <MetricCard
             title={t("metrics.activeVehicles")}
             value={metrics.activeVehicles}
-            subtitle={t("metrics.ofSpaces")}
+            subtitle={t("metrics.inParking")}
             icon={<Car className="h-5 w-5" />}
             variant="info"
           />
           <MetricCard
-            title={t("metrics.occupancy")}
-            value={`${metrics.occupancyRate.toFixed(0)}%`}
-            icon={<PieChart className="h-5 w-5" />}
-            variant={metrics.occupancyRate > 80 ? "warning" : "default"}
-          />
-          <MetricCard
             title={t("metrics.revenueToday")}
-            value={`$${metrics.totalRevenue.toFixed(0)}`}
-            subtitle={`${metrics.totalVehicles} ${t("metrics.transactions")}`}
+            value={`$${metricsDisplay.totalRevenue.toFixed(0)}`}
+            subtitle={`${metricsDisplay.totalVehicles} ${t("metrics.transactions")}`}
             icon={<DollarSign className="h-5 w-5" />}
             variant="success"
             trend={{ value: 12, isPositive: true }}
           />
           <MetricCard
             title={t("metrics.averageTicket")}
-            value={`$${metrics.averageTicket.toFixed(0)}`}
-            subtitle={`${Math.round(metrics.averageStayMinutes)} ${t("metrics.minAvg")}`}
+            value={`$${metricsDisplay.averageTicket.toFixed(0)}`}
+            subtitle={`${Math.round(metricsDisplay.averageStayMinutes)} ${t("metrics.minAvg")}`}
             icon={<TrendingUp className="h-5 w-5" />}
           />
         </div>
@@ -272,41 +282,43 @@ export const MetricasPage = () => {
               {t("metrics.revenueBreakdown")}
             </h3>
             <div className="space-y-4">
-              {[
-                {
-                  label: t("metrics.cars"),
-                  amount: metrics.totalRevenue * 0.65,
-                  color: "bg-info",
-                },
-                {
-                  label: t("metrics.motorcycles"),
-                  amount: metrics.totalRevenue * 0.2,
-                  color: "bg-success",
-                },
-                {
-                  label: t("metrics.trucks"),
-                  amount: metrics.totalRevenue * 0.1,
-                  color: "bg-warning",
-                },
-                {
-                  label: t("metrics.bicycles"),
-                  amount: metrics.totalRevenue * 0.05,
-                  color: "bg-muted-foreground",
-                },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center gap-3"
-                >
+              {(metricsDisplay.revenueByVehicleType ?? []).map((row) => {
+                const labelKey =
+                  row.vehicleType === "car"
+                    ? "metrics.cars"
+                    : row.vehicleType === "motorcycle"
+                      ? "metrics.motorcycles"
+                      : row.vehicleType === "truck"
+                        ? "metrics.trucks"
+                        : "metrics.bicycles";
+                const color =
+                  row.vehicleType === "car"
+                    ? "bg-info"
+                    : row.vehicleType === "motorcycle"
+                      ? "bg-success"
+                      : row.vehicleType === "truck"
+                        ? "bg-warning"
+                        : "bg-muted-foreground";
+                return (
                   <div
-                    className={cn("w-3 h-3 rounded-full", item.color)}
-                  />
-                  <span className="flex-1 text-sm">{item.label}</span>
-                  <span className="font-medium">
-                    ${item.amount.toFixed(0)}
-                  </span>
-                </div>
-              ))}
+                    key={row.vehicleType}
+                    className="flex items-center gap-3"
+                  >
+                    <div
+                      className={cn("w-3 h-3 rounded-full shrink-0", color)}
+                    />
+                    <span className="flex-1 text-sm">
+                      {t(labelKey)}
+                      <span className="text-muted-foreground font-normal ml-1">
+                        ({row.count} {t("metrics.vehicles")})
+                      </span>
+                    </span>
+                    <span className="font-medium">
+                      ${row.revenue.toFixed(0)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -317,30 +329,23 @@ export const MetricasPage = () => {
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 rounded-lg bg-secondary/50">
-                <p className="text-xs text-muted-foreground">RevPAS</p>
-                <p className="text-xl font-bold">
-                  ${(metrics.totalRevenue / 50).toFixed(2)}
-                </p>
-                <p className="text-xs text-muted-foreground">{t("metrics.perSpace")}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-secondary/50">
                 <p className="text-xs text-muted-foreground">{t("metrics.turnover")}</p>
                 <p className="text-xl font-bold">
-                  {metrics.turnoverRate.toFixed(1)}x
+                  {metricsDisplay.turnoverRate.toFixed(1)}x
                 </p>
                 <p className="text-xs text-muted-foreground">{t("metrics.turnoverRate")}</p>
               </div>
               <div className="p-3 rounded-lg bg-secondary/50">
                 <p className="text-xs text-muted-foreground">{t("metrics.avgTime")}</p>
                 <p className="text-xl font-bold">
-                  {Math.round(metrics.averageStayMinutes)}m
+                  {Math.round(metricsDisplay.averageStayMinutes)}m
                 </p>
                 <p className="text-xs text-muted-foreground">{t("metrics.stay")}</p>
               </div>
               <div className="p-3 rounded-lg bg-secondary/50">
                 <p className="text-xs text-muted-foreground">{t("metrics.transactionsLabel")}</p>
                 <p className="text-xl font-bold">
-                  {metrics.totalVehicles}
+                  {metricsDisplay.totalVehicles}
                 </p>
                 <p className="text-xs text-muted-foreground">{t("metrics.today")}</p>
               </div>

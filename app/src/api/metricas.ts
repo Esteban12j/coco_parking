@@ -1,8 +1,8 @@
 import { invokeTauri } from "@/lib/tauriInvoke";
 import type { DailyMetrics, PeakHourSlot, HeatmapDayVehicleRow } from "@/types/parking";
 
-export function getDailyMetrics(): Promise<DailyMetrics> {
-  return invokeTauri<DailyMetrics>("metricas_get_daily");
+export function getDailyMetrics(args?: { date?: string }): Promise<DailyMetrics> {
+  return invokeTauri<DailyMetrics>("metricas_get_daily", args ?? {});
 }
 
 export function getArrivalsByHour(args: {

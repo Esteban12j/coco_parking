@@ -570,6 +570,13 @@ function RolePermissionsDialog({
     setSelected(new Set(currentPermissions));
   }, [role.id, currentPermissions]);
 
+  const permissionToI18nKey = (permissionId: string) => permissionId.replace(/:/g, "_");
+  const getPermissionLabel = (permissionId: string): string => {
+    const key = `permissions.${permissionToI18nKey(permissionId)}`;
+    const translated = t(key);
+    return translated !== key ? translated : permissionId;
+  };
+
   const toggle = (p: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -583,6 +590,10 @@ function RolePermissionsDialog({
     e.preventDefault();
     onSubmit(Array.from(selected));
   };
+
+  const sortedPermissions = [...allPermissions].sort((a, b) =>
+    getPermissionLabel(a).localeCompare(getPermissionLabel(b), undefined, { sensitivity: "base" })
+  );
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -598,7 +609,7 @@ function RolePermissionsDialog({
             {isAllPermissionsLoading ? (
               <p className="text-sm text-muted-foreground py-4">{t("common.loading")}</p>
             ) : (
-            [...allPermissions].sort((a, b) => a.localeCompare(b)).map((p) => (
+            sortedPermissions.map((p) => (
               <div key={p} className="flex items-center space-x-2">
                 <Checkbox
                   id={p}
@@ -609,7 +620,7 @@ function RolePermissionsDialog({
                   htmlFor={p}
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  {p}
+                  {getPermissionLabel(p)}
                 </label>
               </div>
             ))

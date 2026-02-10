@@ -4,9 +4,18 @@ export function getAppTimezone(): string {
   return APP_TIMEZONE;
 }
 
+const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
 function toDate(value: string | Date | null | undefined): Date | null {
   if (value == null) return null;
   if (value instanceof Date) return value;
+  if (typeof value === "string" && DATE_ONLY_REGEX.test(value.trim())) {
+    const [y, m, d] = value.trim().split("-").map(Number);
+    if (y != null && m != null && d != null && !Number.isNaN(y) && !Number.isNaN(m) && !Number.isNaN(d)) {
+      const date = new Date(y, m - 1, d);
+      if (date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d) return date;
+    }
+  }
   try {
     const d = new Date(value);
     return Number.isNaN(d.getTime()) ? null : d;

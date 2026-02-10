@@ -197,6 +197,7 @@ export interface Translations {
   };
   till: {
     title: string;
+    today: string;
     subtitle: string;
     expectedCash: string;
     actualCash: string;
@@ -229,8 +230,8 @@ export interface Translations {
     title: string;
     subtitle: string;
     activeVehicles: string;
-    ofSpaces: string;
-    occupancy: string;
+    inParking: string;
+    capacityNotSet: string;
     revenueToday: string;
     transactions: string;
     averageTicket: string;
@@ -252,6 +253,7 @@ export interface Translations {
     motorcycles: string;
     trucks: string;
     bicycles: string;
+    vehicles: string;
     keyMetrics: string;
     perSpace: string;
     turnover: string;
@@ -369,6 +371,7 @@ export interface Translations {
     permissionsUpdated: string;
     passwordUpdated: string;
   };
+  permissions: Record<string, string>;
   backup: {
     title: string;
     subtitle: string;

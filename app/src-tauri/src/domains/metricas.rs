@@ -94,6 +94,16 @@ fn build_24_slots(counts_by_hour: &std::collections::HashMap<u8, u32>) -> Vec<Pe
         .collect()
 }
 
+const VEHICLE_TYPES_ORDER: &[&str] = &["car", "motorcycle", "truck", "bicycle"];
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RevenueByVehicleType {
+    pub vehicle_type: String,
+    pub revenue: f64,
+    pub count: u32,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DailyMetrics {
@@ -104,25 +114,35 @@ pub struct DailyMetrics {
     pub average_ticket: f64,
     pub average_stay_minutes: f64,
     pub turnover_rate: f64,
+    pub revenue_by_vehicle_type: Vec<RevenueByVehicleType>,
 }
 
-const MAX_SPOTS: f64 = 50.0;
-
 #[tauri::command]
-pub fn metricas_get_daily(state: State<AppState>) -> Result<DailyMetrics, String> {
+pub fn metricas_get_daily(
+    state: State<AppState>,
+    date: Option<String>,
+) -> Result<DailyMetrics, String> {
     state.check_permission(permissions::METRICAS_DASHBOARD_READ)?;
     let conn = state.db.get().map_err(|e| e.to_string())?;
 
     let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let today_prefix = format!("{}%", today);
+    let day_filter = date
+        .as_deref()
+        .map(date_prefix)
+        .filter(|s| s.len() >= 10)
+        .unwrap_or_else(|| today.as_str());
+    let day_prefix = format!("{}%", day_filter);
 
-    let active_vehicles: u32 = conn
-        .query_row(
+    let active_vehicles: u32 = if date.is_none() {
+        conn.query_row(
             "SELECT COUNT(*) FROM vehicles WHERE status = 'active'",
             [],
             |row| row.get(0),
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?
+    } else {
+        0
+    };
 
     let (completed_today, total_revenue, sum_stay_minutes): (u32, f64, f64) = conn
         .query_row(
@@ -137,12 +157,16 @@ pub fn metricas_get_daily(state: State<AppState>) -> Result<DailyMetrics, String
             INNER JOIN transactions t ON t.vehicle_id = v.id
             WHERE t.created_at LIKE ?1
             "#,
-            params![&today_prefix],
+            params![&day_prefix],
             |row| Ok((row.get::<_, i64>(0)? as u32, row.get(1)?, row.get(2)?)),
         )
         .map_err(|e| e.to_string())?;
 
-    let total_vehicles = active_vehicles + completed_today;
+    let total_vehicles = if date.is_some() {
+        completed_today
+    } else {
+        active_vehicles + completed_today
+    };
 
     let average_ticket = if completed_today > 0 {
         total_revenue / (completed_today as f64)
@@ -156,17 +180,59 @@ pub fn metricas_get_daily(state: State<AppState>) -> Result<DailyMetrics, String
         0.0
     };
 
-    let occupancy_rate = if MAX_SPOTS > 0.0 {
-        ((active_vehicles as f64) / MAX_SPOTS * 100.0).min(100.0)
-    } else {
+    let occupancy_rate = 0.0;
+
+    let turnover_rate = if date.is_some() || active_vehicles == 0 {
         0.0
+    } else {
+        (completed_today as f64) / (active_vehicles as f64)
     };
 
-    let turnover_rate = if active_vehicles > 0 {
-        (completed_today as f64) / (active_vehicles as f64)
-    } else {
-        0.0
-    };
+    let mut by_type: std::collections::HashMap<String, (f64, u32)> = VEHICLE_TYPES_ORDER
+        .iter()
+        .map(|&t| (t.to_string(), (0.0, 0u32)))
+        .collect();
+
+    let mut stmt = conn
+        .prepare(
+            r#"
+            SELECT v.vehicle_type, COALESCE(SUM(t.amount), 0), COUNT(*)
+            FROM vehicles v
+            INNER JOIN transactions t ON t.vehicle_id = v.id
+            WHERE t.created_at LIKE ?1
+            GROUP BY LOWER(TRIM(v.vehicle_type))
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![&day_prefix], |row| {
+            Ok((
+                row.get::<_, String>(0)?.trim().to_lowercase(),
+                row.get::<_, f64>(1)?,
+                row.get::<_, i64>(2)? as u32,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+
+    for row in rows {
+        if let Ok((vt, revenue, count)) = row {
+            if VEHICLE_TYPES_ORDER.contains(&vt.as_str()) {
+                by_type.insert(vt, (revenue, count));
+            }
+        }
+    }
+
+    let revenue_by_vehicle_type: Vec<RevenueByVehicleType> = VEHICLE_TYPES_ORDER
+        .iter()
+        .map(|&vt| {
+            let (revenue, count) = by_type.get(vt).copied().unwrap_or((0.0, 0));
+            RevenueByVehicleType {
+                vehicle_type: vt.to_string(),
+                revenue,
+                count,
+            }
+        })
+        .collect();
 
     Ok(DailyMetrics {
         total_vehicles,
@@ -176,6 +242,7 @@ pub fn metricas_get_daily(state: State<AppState>) -> Result<DailyMetrics, String
         average_ticket,
         average_stay_minutes,
         turnover_rate,
+        revenue_by_vehicle_type,
     })
 }
 

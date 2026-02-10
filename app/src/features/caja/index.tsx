@@ -56,7 +56,14 @@ export const CajaPage = () => {
   return (
     <div className="container mx-auto px-4 py-6">
       <PageHeader
-        title={t("till.title")}
+        title={
+          <>
+            {t("till.title")}
+            <span className="inline-flex items-center rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-400 px-2 py-0.5 text-xs font-medium border border-amber-500/40 ml-2">
+              {t("till.today")}
+            </span>
+          </>
+        }
         subtitle={t("till.subtitle")}
         extraNote={isTauri ? t("till.fromBackendNote") : undefined}
         actions={

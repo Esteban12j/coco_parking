@@ -147,6 +147,7 @@ export const useParkingStore = () => {
     averageTicket: 0,
     averageStayMinutes: 0,
     turnoverRate: 0,
+    revenueByVehicleType: [],
   };
   const ZERO_TREASURY: TreasuryData = {
     expectedCash: 0,
@@ -472,7 +473,7 @@ export const useParkingStore = () => {
       : (metricsData ?? {
           totalVehicles: todaysSessions.length + activeVehicles.length,
           activeVehicles: activeVehicles.length,
-          occupancyRate: Math.min((activeVehicles.length / 50) * 100, 100),
+          occupancyRate: 0,
           totalRevenue: todaysSessions.reduce((sum, v) => sum + (v.totalAmount ?? 0), 0),
           averageTicket:
             todaysSessions.length > 0
@@ -486,6 +487,7 @@ export const useParkingStore = () => {
                 }, 0) / todaysSessions.length
               : 0,
           turnoverRate: activeVehicles.length > 0 ? todaysSessions.length / activeVehicles.length : 0,
+          revenueByVehicleType: [],
         });
 
   // En web: Caja usa sesiones completadas en memoria (no hay persistencia).
