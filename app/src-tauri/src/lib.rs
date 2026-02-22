@@ -45,6 +45,14 @@ use domains::{
         barcodes_list,
     },
     caja::{caja_close_shift, caja_get_debug, caja_get_treasury, caja_list_shift_closures},
+    contracts::{
+        contracts_create,
+        contracts_delete,
+        contracts_get_by_plate,
+        contracts_list,
+        contracts_suggest_monthly,
+        contracts_update,
+    },
     custom_tariffs::{custom_tariffs_create, custom_tariffs_list, custom_tariffs_update, custom_tariffs_delete},
     metricas::{
         metricas_get_arrivals_by_hour,
@@ -111,6 +119,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
             std::fs::create_dir_all(&data_dir).map_err(|e| e.to_string())?;
@@ -145,6 +155,12 @@ pub fn run() {
             custom_tariffs_create,
             custom_tariffs_update,
             custom_tariffs_delete,
+            contracts_list,
+            contracts_create,
+            contracts_update,
+            contracts_delete,
+            contracts_get_by_plate,
+            contracts_suggest_monthly,
             barcodes_list,
             barcodes_get_by_id,
             barcodes_get_by_code,

@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -15,7 +16,9 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { VehiculosPage } from "@/features/vehiculos";
 import { VehiclesTodayPage } from "@/features/vehiculos/VehiclesTodayPage";
 import { PlateConflictsModal } from "@/features/vehiculos/components/PlateConflictsModal";
+import { UpdateAvailableDialog } from "@/components/UpdateAvailableDialog";
 import { useParkingStore } from "@/hooks/useParkingStore";
+import { useUpdateCheck } from "@/hooks/useUpdateCheck";
 import { useSession } from "@/hooks/useSession";
 import { useFirstRunStatus } from "@/hooks/useFirstRunStatus";
 import { CajaPage } from "@/features/caja";
@@ -24,6 +27,7 @@ import { RolesPage } from "@/features/roles";
 import { BackupPage } from "@/features/backup";
 import { DebtorsPage } from "@/features/debtors";
 import { TariffsPage } from "@/features/tariffs";
+import { ContractsPage } from "@/features/contracts";
 import { DevConsolePage } from "@/features/dev-console";
 import { BarcodesPage } from "@/features/barcodes";
 import { LoginPage } from "@/pages/Login";
@@ -49,6 +53,23 @@ function PlateConflictsGate() {
     <PlateConflictsModal
       conflicts={plateConflicts}
       onResolve={(plate, keepId) => void resolvePlateConflict(plate, keepId)}
+    />
+  );
+}
+
+function UpdateGate() {
+  const { updateAvailable, dismissUpdate } = useUpdateCheck();
+  const [open, setOpen] = useState(!!updateAvailable);
+  useEffect(() => {
+    setOpen(!!updateAvailable);
+  }, [updateAvailable]);
+  if (!updateAvailable) return null;
+  return (
+    <UpdateAvailableDialog
+      open={open}
+      onOpenChange={setOpen}
+      manifest={updateAvailable}
+      onDismiss={dismissUpdate}
     />
   );
 }
@@ -105,6 +126,7 @@ const App = () => (
           <Toaster />
           <Sonner />
         <PlateConflictsGate />
+        <UpdateGate />
         <BrowserRouter>
           <AuthGate>
             <Routes>
@@ -119,6 +141,7 @@ const App = () => (
                 <Route path="metrics" element={<MetricasPage />} />
                 <Route path="barcode" element={<BarcodesPage />} />
                 <Route path="tariffs" element={<TariffsPage />} />
+                <Route path="contracts" element={<ContractsPage />} />
                 <Route path="roles" element={<RolesPage />} />
                 <Route path="backup" element={<BackupPage />} />
                 <Route path="dev-console" element={<DevConsolePage />} />

@@ -53,6 +53,12 @@ export interface Translations {
     passwordMinLength: string;
     passwordChanged: string;
   };
+  update: {
+    title: string;
+    description: string;
+    updateNow: string;
+    later: string;
+  };
   common: {
     cancel: string;
     search: string;
@@ -65,6 +71,8 @@ export interface Translations {
     time: string;
     prev: string;
     next: string;
+    remove: string;
+    optional: string;
   };
   nav: {
     vehicles: string;
@@ -74,6 +82,7 @@ export interface Translations {
     metrics: string;
     barcode: string;
     tariffs: string;
+    contracts: string;
     roles: string;
     backup: string;
     devConsole: string;
@@ -153,6 +162,10 @@ export interface Translations {
     vehicleType: string;
     observations: string;
     observationsPlaceholder: string;
+    addObservation: string;
+    filterObservations: string;
+    noObservationsMatch: string;
+    observationsAdministrative: string;
     registerVehicle: string;
     plateDebtWarning: string;
     car: string;
@@ -180,6 +193,21 @@ export interface Translations {
     vehiclesTodayCountLabel: string;
     /** Placa opcional para bicicletas/monopatines */
     vehiclePlateOptional: string;
+    serviceType: string;
+    selectTariff: string;
+    noTariffsAvailable: string;
+    employeeCar: string;
+    employeeMoto: string;
+    studentMoto: string;
+    addVehicle: string;
+    searchByPlatePlaceholder: string;
+    plateAlreadyActiveTitle: string;
+    plateAlreadyActiveDescription: string;
+    viewActiveVehicle: string;
+    completed: string;
+    ticketCodeLabel: string;
+    ticketCodePlaceholder: string;
+    ticketCodeHint: string;
     removed: string;
     removeFromParking: string;
     removeFromParkingConfirmTitle: string;
@@ -472,6 +500,20 @@ export interface Translations {
     bicycle: string;
     useDefaultRate: string;
     useCustomRate: string;
+    regularTariff: string;
+    employeeTariff: string;
+    studentTariff: string;
+    contractActive: string;
+    includedPerDay: string;
+    contractCoverage: string;
+    coveredByContract: string;
+    basePeriod: string;
+    additionalHours: string;
+    totalFormula: string;
+    contractAccount: string;
+    deferDebt: string;
+    deferDebtWarning: string;
+    registerDebt: string;
   };
   customTariff: {
     title: string;
@@ -507,6 +549,16 @@ export interface Translations {
     confirmDelete: string;
     deleted: string;
     updated: string;
+    tariffKind: string;
+    kindRegular: string;
+    kindEmployee: string;
+    kindStudent: string;
+    basePriceLabel: string;
+    baseDurationLabel: string;
+    additionalHourPriceLabel: string;
+    additionalHourPriceHint: string;
+    additionalPeriodLabel: string;
+    additionalPeriodHint: string;
   };
   notFound: {
     title: string;
@@ -528,5 +580,39 @@ export interface Translations {
     completed: string;
     conflictsRemaining: string;
     noMoreConflicts: string;
+  };
+  contracts: {
+    title: string;
+    subtitle: string;
+    allContracts: string;
+    allContractsNote: string;
+    addContract: string;
+    editContract: string;
+    searchPlaceholder: string;
+    noResults: string;
+    clientName: string;
+    clientNamePlaceholder: string;
+    clientPhone: string;
+    plate: string;
+    monthlyAmount: string;
+    includedHours: string;
+    includedHoursPerDay: string;
+    period: string;
+    status: string;
+    statusActive: string;
+    statusExpired: string;
+    statusCancelled: string;
+    statusAll: string;
+    dateFrom: string;
+    dateTo: string;
+    notes: string;
+    notesPlaceholder: string;
+    suggestedAmount: string;
+    day: string;
+    created: string;
+    updated: string;
+    deleted: string;
+    confirmDelete: string;
+    confirmDeleteDescription: string;
   };
 }
