@@ -162,6 +162,7 @@ pub struct ShiftClosure {
     pub discrepancy: f64,
     pub total_transactions: u32,
     pub notes: Option<String>,
+    pub operator_user_id: Option<String>,
 }
 
 #[tauri::command]
@@ -228,9 +229,10 @@ pub fn caja_close_shift(
 
     let id = id_gen::generate_id(id_gen::PREFIX_SHIFT_CLOSURE);
     let closed_at = now_rfc.clone();
+    let operator_user_id = state.get_current_user_id();
 
     conn.execute(
-        "INSERT INTO shift_closures (id, closed_at, expected_total, cash_total, card_total, transfer_total, arqueo_cash, discrepancy, total_transactions, notes) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        "INSERT INTO shift_closures (id, closed_at, expected_total, cash_total, card_total, transfer_total, arqueo_cash, discrepancy, total_transactions, notes, operator_user_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         params![
             &id,
             &closed_at,
@@ -242,6 +244,7 @@ pub fn caja_close_shift(
             discrepancy,
             total_transactions as i64,
             notes.as_deref(),
+            operator_user_id,
         ],
     )
     .map_err(|e| e.to_string())?;
@@ -257,6 +260,7 @@ pub fn caja_close_shift(
         discrepancy,
         total_transactions,
         notes,
+        operator_user_id,
     })
 }
 
@@ -271,7 +275,7 @@ pub fn caja_list_shift_closures(
 
     let mut stmt = conn
         .prepare(
-            "SELECT id, closed_at, expected_total, cash_total, card_total, transfer_total, arqueo_cash, discrepancy, total_transactions, notes FROM shift_closures ORDER BY closed_at DESC LIMIT ?1",
+            "SELECT id, closed_at, expected_total, cash_total, card_total, transfer_total, arqueo_cash, discrepancy, total_transactions, notes, operator_user_id FROM shift_closures ORDER BY closed_at DESC LIMIT ?1",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt
@@ -287,6 +291,7 @@ pub fn caja_list_shift_closures(
                 discrepancy: row.get(7)?,
                 total_transactions: row.get::<_, i64>(8)? as u32,
                 notes: row.get(9)?,
+                operator_user_id: row.get(10)?,
             })
         })
         .map_err(|e| e.to_string())?;

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Vehicle, VehicleType, DailyMetrics, TreasuryData, ShiftClosure, PlateConflict, PendingRegisterConflict } from '@/types/parking';
+import { Vehicle, VehicleType, TariffKind, DailyMetrics, TreasuryData, ShiftClosure, PlateConflict, PendingRegisterConflict } from '@/types/parking';
 import * as apiCaja from '@/api/caja';
 import * as apiMetricas from '@/api/metricas';
 import * as apiVehiculos from '@/api/vehiculos';
@@ -76,6 +76,7 @@ type RegisterArgs = {
   vehicleType: VehicleType;
   observations?: string;
   ticketCode?: string;
+  tariffKind?: TariffKind;
 };
 
 export const useParkingStore = () => {
@@ -192,6 +193,7 @@ export const useParkingStore = () => {
         vehicleType: args.vehicleType,
         observations: args.observations ?? null,
         ticketCode: args.ticketCode ?? null,
+        tariffKind: args.tariffKind ?? null,
       });
       lastRegisterArgsRef.current = null;
       return vehicleFromBackend(v);
@@ -209,12 +211,12 @@ export const useParkingStore = () => {
       const description = key ? t(key) : msg;
       setRegisterError(description);
       if (key === 'vehicles.errors.plateDifferentType' && lastRegisterArgsRef.current) {
-        const args = lastRegisterArgsRef.current;
+        const registerArgs = lastRegisterArgsRef.current;
         setPendingRegisterConflict({
-          plate: args.plate,
-          vehicleType: args.vehicleType,
-          observations: args.observations,
-          ticketCode: args.ticketCode,
+          plate: registerArgs.plate,
+          vehicleType: registerArgs.vehicleType,
+          observations: registerArgs.observations,
+          ticketCode: registerArgs.ticketCode,
         });
       }
       toast({
@@ -326,9 +328,9 @@ export const useParkingStore = () => {
   );
 
   const registerEntry = useCallback(
-    (plate: string, vehicleType: VehicleType, observations?: string, ticketCode?: string) => {
+    (plate: string, vehicleType: VehicleType, observations?: string, ticketCode?: string, tariffKind?: TariffKind) => {
       if (tauri) {
-        registerMutation.mutate({ plate, vehicleType, observations, ticketCode });
+        registerMutation.mutate({ plate, vehicleType, observations, ticketCode, tariffKind });
         return null;
       }
       const code = ticketCode || generateTicketCode();
@@ -344,6 +346,7 @@ export const useParkingStore = () => {
         entryTime: new Date(),
         status: 'active',
         debt: debt > 0 ? debt : undefined,
+        tariffKind: tariffKind ?? 'regular',
       };
       setLocalVehicles((prev) => [...prev, newVehicle]);
       setScanResult({ type: 'entry', vehicle: newVehicle });

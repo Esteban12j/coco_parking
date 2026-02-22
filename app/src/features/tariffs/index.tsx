@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useTranslation } from "@/i18n";
@@ -44,8 +45,7 @@ import {
   updateCustomTariff,
   deleteCustomTariff,
 } from "@/api/customTariffs";
-import { CustomTariff, TariffRateUnit } from "@/types/parking";
-import { VehicleType } from "@/types/parking";
+import type { CustomTariff, TariffRateUnit, VehicleType, TariffKind } from "@/types/parking";
 import { toast } from "@/hooks/use-toast";
 
 function isTauri(): boolean {
@@ -53,6 +53,13 @@ function isTauri(): boolean {
 }
 
 const VEHICLE_TYPE_KEYS: VehicleType[] = ["car", "motorcycle", "truck", "bicycle"];
+const TARIFF_KIND_KEYS: TariffKind[] = ["regular", "employee", "student"];
+
+const TARIFF_KIND_COLORS: Record<TariffKind, string> = {
+  regular: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  employee: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  student: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+};
 
 export const TariffsPage = () => {
   const { t } = useTranslation();
@@ -64,13 +71,17 @@ export const TariffsPage = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingTariff, setEditingTariff] = useState<CustomTariff | null>(null);
   const [formVehicleType, setFormVehicleType] = useState<VehicleType>("car");
+  const [formTariffKind, setFormTariffKind] = useState<TariffKind>("regular");
   const [formName, setFormName] = useState("");
   const [formPlateOrRef, setFormPlateOrRef] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formAmount, setFormAmount] = useState("");
+  const [formAdditionalHourPrice, setFormAdditionalHourPrice] = useState("");
   const [formRateUnit, setFormRateUnit] = useState<TariffRateUnit>("hour");
   const [formDurationHours, setFormDurationHours] = useState<string>("1");
   const [formDurationMinutes, setFormDurationMinutes] = useState<string>("0");
+  const [formAdditionalDurationHours, setFormAdditionalDurationHours] = useState<string>("1");
+  const [formAdditionalDurationMinutes, setFormAdditionalDurationMinutes] = useState<string>("0");
 
   const listQuery = useQuery({
     queryKey: ["custom_tariffs", search],
@@ -79,26 +90,8 @@ export const TariffsPage = () => {
   });
 
   const createMutation = useMutation({
-    mutationFn: (args: {
-      vehicleType: string;
-      name?: string | null;
-      plateOrRef?: string | null;
-      amount: number;
-      description?: string | null;
-      rateUnit?: TariffRateUnit | null;
-      rateDurationHours?: number | null;
-      rateDurationMinutes?: number | null;
-    }) =>
-      createCustomTariff({
-        vehicleType: args.vehicleType,
-        name: args.name?.trim() || null,
-        plateOrRef: args.plateOrRef?.trim() || null,
-        amount: args.amount,
-        description: args.description ?? null,
-        rateUnit: args.rateUnit ?? "hour",
-        rateDurationHours: args.rateDurationHours ?? 1,
-        rateDurationMinutes: args.rateDurationMinutes ?? 0,
-      }),
+    mutationFn: (args: Parameters<typeof createCustomTariff>[0]) =>
+      createCustomTariff(args),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["custom_tariffs"] });
       setCreateDialogOpen(false);
@@ -111,28 +104,8 @@ export const TariffsPage = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (args: {
-      id: string;
-      vehicleType?: string | null;
-      name?: string | null;
-      plateOrRef?: string | null;
-      amount?: number;
-      description?: string | null;
-      rateUnit?: TariffRateUnit | null;
-      rateDurationHours?: number | null;
-      rateDurationMinutes?: number | null;
-    }) =>
-      updateCustomTariff({
-        id: args.id,
-        vehicleType: args.vehicleType ?? undefined,
-        name: args.name?.trim() || null,
-        plateOrRef: args.plateOrRef?.trim() || null,
-        amount: args.amount,
-        description: args.description ?? null,
-        rateUnit: args.rateUnit ?? null,
-        rateDurationHours: args.rateDurationHours ?? null,
-        rateDurationMinutes: args.rateDurationMinutes ?? null,
-      }),
+    mutationFn: (args: Parameters<typeof updateCustomTariff>[0]) =>
+      updateCustomTariff(args),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["custom_tariffs"] });
       setEditDialogOpen(false);
@@ -165,27 +138,41 @@ export const TariffsPage = () => {
     bicycle: t("checkout.bicycle"),
   };
 
+  const tariffKindLabels: Record<TariffKind, string> = {
+    regular: t("tariffs.kindRegular"),
+    employee: t("tariffs.kindEmployee"),
+    student: t("tariffs.kindStudent"),
+  };
+
   function resetForm() {
     setFormVehicleType("car");
+    setFormTariffKind("regular");
     setFormName("");
     setFormPlateOrRef("");
     setFormDescription("");
     setFormAmount("");
+    setFormAdditionalHourPrice("");
     setFormRateUnit("hour");
     setFormDurationHours("1");
     setFormDurationMinutes("0");
+    setFormAdditionalDurationHours("1");
+    setFormAdditionalDurationMinutes("0");
   }
 
   const openEdit = (tariff: CustomTariff) => {
     setEditingTariff(tariff);
     setFormVehicleType((tariff.vehicleType as VehicleType) || "car");
+    setFormTariffKind((tariff.tariffKind as TariffKind) || "regular");
     setFormName(tariff.name ?? "");
     setFormPlateOrRef(tariff.plateOrRef ?? "");
     setFormDescription(tariff.description ?? "");
     setFormAmount(String(tariff.amount));
+    setFormAdditionalHourPrice(tariff.additionalHourPrice != null ? String(tariff.additionalHourPrice) : "");
     setFormRateUnit((tariff.rateUnit as TariffRateUnit) || "hour");
     setFormDurationHours(String(tariff.rateDurationHours ?? 1));
     setFormDurationMinutes(String(tariff.rateDurationMinutes ?? 0));
+    setFormAdditionalDurationHours(String(tariff.additionalDurationHours ?? 1));
+    setFormAdditionalDurationMinutes(String(tariff.additionalDurationMinutes ?? 0));
     setEditDialogOpen(true);
   };
 
@@ -200,17 +187,35 @@ export const TariffsPage = () => {
     return { h, m };
   };
 
+  const parseAdditionalDuration = () => {
+    const h = Math.max(0, parseInt(formAdditionalDurationHours, 10) || 0);
+    const m = Math.max(0, Math.min(59, parseInt(formAdditionalDurationMinutes, 10) || 0));
+    return { h, m };
+  };
+
   const isDurationValid = () => {
     const { h, m } = parseDuration();
     return h > 0 || m > 0;
+  };
+
+  const isAdditionalDurationValid = () => {
+    const { h, m } = parseAdditionalDuration();
+    return h > 0 || m > 0;
+  };
+
+  const parseAdditionalHourPrice = (): number | null => {
+    if (!formAdditionalHourPrice.trim()) return null;
+    const val = parseFloat(formAdditionalHourPrice.replace(",", "."));
+    return Number.isNaN(val) || val < 0 ? null : val;
   };
 
   const handleSaveEdit = () => {
     if (!editingTariff) return;
     const amount = parseFloat(String(formAmount).replace(",", "."));
     if (Number.isNaN(amount) || amount < 0) return;
-    if (!isDurationValid()) return;
+    if (!isDurationValid() || !isAdditionalDurationValid()) return;
     const { h, m } = parseDuration();
+    const addDur = parseAdditionalDuration();
     updateMutation.mutate({
       id: editingTariff.id,
       vehicleType: formVehicleType,
@@ -221,14 +226,19 @@ export const TariffsPage = () => {
       rateUnit: formRateUnit,
       rateDurationHours: h,
       rateDurationMinutes: m,
+      tariffKind: formTariffKind,
+      additionalHourPrice: parseAdditionalHourPrice(),
+      additionalDurationHours: addDur.h,
+      additionalDurationMinutes: addDur.m,
     });
   };
 
   const handleCreate = () => {
     const amount = parseFloat(String(formAmount).replace(",", "."));
     if (Number.isNaN(amount) || amount < 0) return;
-    if (!isDurationValid()) return;
+    if (!isDurationValid() || !isAdditionalDurationValid()) return;
     const { h, m } = parseDuration();
+    const addDur = parseAdditionalDuration();
     createMutation.mutate({
       vehicleType: formVehicleType,
       name: formName.trim() || null,
@@ -238,11 +248,12 @@ export const TariffsPage = () => {
       rateUnit: formRateUnit,
       rateDurationHours: h,
       rateDurationMinutes: m,
+      tariffKind: formTariffKind,
+      additionalHourPrice: parseAdditionalHourPrice(),
+      additionalDurationHours: addDur.h,
+      additionalDurationMinutes: addDur.m,
     });
   };
-
-  const rateUnitLabel = (unit: TariffRateUnit | null | undefined) =>
-    unit === "minute" ? t("customTariff.rateUnitMinute") : t("customTariff.rateUnitHour");
 
   const durationLabel = (hours: number | null | undefined, minutes: number | null | undefined) => {
     const h = hours ?? 0;
@@ -261,7 +272,150 @@ export const TariffsPage = () => {
     formAmount.trim() !== "" &&
     !Number.isNaN(parseFloat(String(formAmount).replace(",", "."))) &&
     parseFloat(String(formAmount).replace(",", ".")) >= 0 &&
-    isDurationValid();
+    isDurationValid() &&
+    isAdditionalDurationValid();
+
+  const renderTariffForm = () => (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label>{t("conflicts.vehicleType")}</Label>
+          <Select
+            value={formVehicleType}
+            onValueChange={(v) => setFormVehicleType(v as VehicleType)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {VEHICLE_TYPE_KEYS.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {vehicleLabels[type]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>{t("tariffs.tariffKind")}</Label>
+          <Select
+            value={formTariffKind}
+            onValueChange={(v) => setFormTariffKind(v as TariffKind)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TARIFF_KIND_KEYS.map((kind) => (
+                <SelectItem key={kind} value={kind}>
+                  {tariffKindLabels[kind]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Label>{t("customTariff.name")}</Label>
+      <Input
+        value={formName}
+        onChange={(e) => setFormName(e.target.value)}
+        placeholder={t("customTariff.namePlaceholder")}
+      />
+      <Label>{t("customTariff.plateOrRef")} ({t("tariffs.optional")})</Label>
+      <Input
+        value={formPlateOrRef}
+        onChange={(e) => setFormPlateOrRef(e.target.value)}
+        placeholder={t("customTariff.plateOrRef")}
+        className="font-mono"
+      />
+      <Label>{t("customTariff.description")}</Label>
+      <Input
+        value={formDescription}
+        onChange={(e) => setFormDescription(e.target.value)}
+        placeholder={t("customTariff.description")}
+      />
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label>{t("tariffs.basePriceLabel")}</Label>
+          <Input
+            type="number"
+            min={0}
+            step={0.01}
+            value={formAmount}
+            onChange={(e) => setFormAmount(e.target.value)}
+            placeholder="0.00"
+            inputMode="decimal"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>{t("tariffs.additionalHourPriceLabel")}</Label>
+          <Input
+            type="number"
+            min={0}
+            step={0.01}
+            value={formAdditionalHourPrice}
+            onChange={(e) => setFormAdditionalHourPrice(e.target.value)}
+            placeholder="0.00"
+            inputMode="decimal"
+          />
+          <p className="text-xs text-muted-foreground">{t("tariffs.additionalHourPriceHint")}</p>
+        </div>
+      </div>
+
+      <Label>{t("tariffs.baseDurationLabel")}</Label>
+      <div className="flex gap-2">
+        <div className="flex-1">
+          <Label className="text-muted-foreground text-xs">{t("customTariff.durationHours")}</Label>
+          <Input
+            type="number"
+            min={0}
+            value={formDurationHours}
+            onChange={(e) => setFormDurationHours(e.target.value)}
+            placeholder="0"
+          />
+        </div>
+        <div className="flex-1">
+          <Label className="text-muted-foreground text-xs">{t("customTariff.durationMinutes")}</Label>
+          <Input
+            type="number"
+            min={0}
+            max={59}
+            value={formDurationMinutes}
+            onChange={(e) => setFormDurationMinutes(e.target.value)}
+            placeholder="0"
+          />
+        </div>
+      </div>
+
+      <Label>{t("tariffs.additionalPeriodLabel")}</Label>
+      <div className="flex gap-2">
+        <div className="flex-1">
+          <Label className="text-muted-foreground text-xs">{t("customTariff.durationHours")}</Label>
+          <Input
+            type="number"
+            min={0}
+            value={formAdditionalDurationHours}
+            onChange={(e) => setFormAdditionalDurationHours(e.target.value)}
+            placeholder="1"
+          />
+        </div>
+        <div className="flex-1">
+          <Label className="text-muted-foreground text-xs">{t("customTariff.durationMinutes")}</Label>
+          <Input
+            type="number"
+            min={0}
+            max={59}
+            value={formAdditionalDurationMinutes}
+            onChange={(e) => setFormAdditionalDurationMinutes(e.target.value)}
+            placeholder="0"
+          />
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">{t("tariffs.additionalPeriodHint")}</p>
+    </div>
+  );
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -298,229 +452,103 @@ export const TariffsPage = () => {
                 {t("customTariff.noResults")}
               </p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("conflicts.vehicleType")}</TableHead>
-                    <TableHead>{t("customTariff.name")}</TableHead>
-                    <TableHead>{t("customTariff.plateOrRef")}</TableHead>
-                    <TableHead>{t("customTariff.description")}</TableHead>
-                    <TableHead className="text-right">{t("customTariff.amount")}</TableHead>
-                    <TableHead>{t("customTariff.durationBlock")}</TableHead>
-                    <TableHead className="w-[100px]" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {customTariffs.map((tariff) => (
-                    <TableRow key={tariff.id}>
-                      <TableCell>{vehicleLabels[tariff.vehicleType as VehicleType] ?? tariff.vehicleType}</TableCell>
-                      <TableCell className="font-medium">{nameDisplay(tariff)}</TableCell>
-                      <TableCell className="font-mono text-muted-foreground">{tariff.plateOrRef?.trim() || "—"}</TableCell>
-                      <TableCell className="text-muted-foreground max-w-[200px] truncate">
-                        {tariff.description ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        ${tariff.amount.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm font-mono">
-                        {durationLabel(tariff.rateDurationHours, tariff.rateDurationMinutes)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEdit(tariff)}
-                            aria-label={t("tariffs.edit")}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteId(tariff.id)}
-                            aria-label={t("tariffs.delete")}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("conflicts.vehicleType")}</TableHead>
+                      <TableHead>{t("tariffs.tariffKind")}</TableHead>
+                      <TableHead>{t("customTariff.name")}</TableHead>
+                    <TableHead className="text-right">{t("tariffs.basePriceLabel")}</TableHead>
+                    <TableHead>{t("tariffs.baseDurationLabel")}</TableHead>
+                    <TableHead>{t("tariffs.additionalPeriodLabel")}</TableHead>
+                    <TableHead className="text-right">{t("tariffs.additionalHourPriceLabel")}</TableHead>
+                      <TableHead className="w-[100px]" />
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {customTariffs.map((tariff) => (
+                      <TableRow key={tariff.id}>
+                        <TableCell>{vehicleLabels[tariff.vehicleType as VehicleType] ?? tariff.vehicleType}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={TARIFF_KIND_COLORS[tariff.tariffKind] ?? ""}>
+                            {tariffKindLabels[tariff.tariffKind] ?? tariff.tariffKind}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-medium">{nameDisplay(tariff)}</TableCell>
+                        <TableCell className="text-right font-mono">
+                          ${tariff.amount.toLocaleString("en", { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm font-mono">
+                          {durationLabel(tariff.rateDurationHours, tariff.rateDurationMinutes)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm font-mono">
+                          {durationLabel(tariff.additionalDurationHours, tariff.additionalDurationMinutes)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {tariff.additionalHourPrice != null
+                            ? `$${tariff.additionalHourPrice.toLocaleString("en", { minimumFractionDigits: 2 })}`
+                            : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEdit(tariff)}
+                              aria-label={t("tariffs.edit")}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteId(tariff.id)}
+                              aria-label={t("tariffs.delete")}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
       )}
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{t("tariffs.addTariff")}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <Label>{t("conflicts.vehicleType")}</Label>
-            <Select
-              value={formVehicleType}
-              onValueChange={(v) => setFormVehicleType(v as VehicleType)}
+          {renderTariffForm()}
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="coco"
+              onClick={handleCreate}
+              disabled={!isFormValid || createMutation.isPending}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {VEHICLE_TYPE_KEYS.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {vehicleLabels[type]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Label>{t("customTariff.name")}</Label>
-            <Input
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              placeholder={t("customTariff.namePlaceholder")}
-            />
-            <Label>{t("customTariff.plateOrRef")} ({t("tariffs.optional")})</Label>
-            <Input
-              value={formPlateOrRef}
-              onChange={(e) => setFormPlateOrRef(e.target.value)}
-              placeholder={t("customTariff.plateOrRef")}
-              className="font-mono"
-            />
-            <Label>{t("customTariff.description")}</Label>
-            <Input
-              value={formDescription}
-              onChange={(e) => setFormDescription(e.target.value)}
-              placeholder={t("customTariff.description")}
-            />
-            <Label>{t("customTariff.amount")}</Label>
-            <Input
-              type="number"
-              min={0}
-              step={0.01}
-              value={formAmount}
-              onChange={(e) => setFormAmount(e.target.value)}
-              placeholder="0.00"
-              inputMode="decimal"
-            />
-            <Label>{t("customTariff.durationBlock")}</Label>
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Label className="text-muted-foreground text-xs">{t("customTariff.durationHours")}</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={formDurationHours}
-                  onChange={(e) => setFormDurationHours(e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-              <div className="flex-1">
-                <Label className="text-muted-foreground text-xs">{t("customTariff.durationMinutes")}</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={59}
-                  value={formDurationMinutes}
-                  onChange={(e) => setFormDurationMinutes(e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 pt-2">
-              <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
-                {t("common.cancel")}
-              </Button>
-              <Button
-                variant="coco"
-                onClick={handleCreate}
-                disabled={!isFormValid || createMutation.isPending}
-              >
-                {createMutation.isPending ? t("common.loading") : t("tariffs.save")}
-              </Button>
-            </div>
+              {createMutation.isPending ? t("common.loading") : t("tariffs.save")}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{t("tariffs.edit")}</DialogTitle>
           </DialogHeader>
           {editingTariff && (
-            <div className="space-y-3">
-              <Label>{t("conflicts.vehicleType")}</Label>
-              <Select
-                value={formVehicleType}
-                onValueChange={(v) => setFormVehicleType(v as VehicleType)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {VEHICLE_TYPE_KEYS.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {vehicleLabels[type]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Label>{t("customTariff.name")}</Label>
-              <Input
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                placeholder={t("customTariff.namePlaceholder")}
-              />
-              <Label>{t("customTariff.plateOrRef")} ({t("tariffs.optional")})</Label>
-              <Input
-                value={formPlateOrRef}
-                onChange={(e) => setFormPlateOrRef(e.target.value)}
-                placeholder={t("customTariff.plateOrRef")}
-                className="font-mono"
-              />
-              <Label>{t("customTariff.description")}</Label>
-              <Input
-                value={formDescription}
-                onChange={(e) => setFormDescription(e.target.value)}
-                placeholder={t("customTariff.description")}
-              />
-              <Label>{t("customTariff.amount")}</Label>
-              <Input
-                type="number"
-                min={0}
-                step={0.01}
-                value={formAmount}
-                onChange={(e) => setFormAmount(e.target.value)}
-                placeholder="0.00"
-                inputMode="decimal"
-              />
-              <Label>{t("customTariff.durationBlock")}</Label>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Label className="text-muted-foreground text-xs">{t("customTariff.durationHours")}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={formDurationHours}
-                    onChange={(e) => setFormDurationHours(e.target.value)}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="flex-1">
-                  <Label className="text-muted-foreground text-xs">{t("customTariff.durationMinutes")}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={59}
-                    value={formDurationMinutes}
-                    onChange={(e) => setFormDurationMinutes(e.target.value)}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
+            <>
+              {renderTariffForm()}
               <div className="flex gap-2 pt-2">
                 <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
                   {t("common.cancel")}
@@ -533,7 +561,7 @@ export const TariffsPage = () => {
                   {updateMutation.isPending ? t("common.loading") : t("tariffs.save")}
                 </Button>
               </div>
-            </div>
+            </>
           )}
         </DialogContent>
       </Dialog>

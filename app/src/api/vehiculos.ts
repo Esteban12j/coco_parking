@@ -1,6 +1,7 @@
 import { invokeTauri } from "@/lib/tauriInvoke";
 import type {
   VehicleType,
+  TariffKind,
   DebtDetailByPlateResult,
   ListDebtorsResult,
 } from "@/types/parking";
@@ -17,6 +18,9 @@ export interface VehicleBackend {
   totalAmount?: number | null;
   debt?: number | null;
   specialRate?: number | null;
+  tariffKind: TariffKind;
+  tariffId?: string | null;
+  operatorUserId?: string | null;
 }
 
 export interface ListVehiclesResponse {
@@ -50,6 +54,7 @@ export function registerEntry(args: {
   vehicleType: VehicleType;
   observations?: string | null;
   ticketCode?: string | null;
+  tariffKind?: TariffKind | null;
 }): Promise<VehicleBackend> {
   return invokeTauri<VehicleBackend>("vehiculos_register_entry", args);
 }

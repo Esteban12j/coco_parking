@@ -1,0 +1,54 @@
+import { invokeTauri } from "@/lib/tauriInvoke";
+import type { Contract, TariffKind } from "@/types/parking";
+
+export function listContracts(args: {
+  status?: string | null;
+  search?: string | null;
+}): Promise<Contract[]> {
+  return invokeTauri<Contract[]>("contracts_list", args);
+}
+
+export function createContract(args: {
+  clientName: string;
+  clientPhone?: string | null;
+  plate: string;
+  vehicleType: string;
+  tariffKind?: TariffKind | null;
+  monthlyAmount?: number | null;
+  includedHoursPerDay?: number | null;
+  dateFrom: string;
+  dateTo: string;
+  notes?: string | null;
+}): Promise<Contract> {
+  return invokeTauri<Contract>("contracts_create", { args });
+}
+
+export function updateContract(args: {
+  id: string;
+  clientName?: string | null;
+  clientPhone?: string | null;
+  monthlyAmount?: number | null;
+  includedHoursPerDay?: number | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  status?: string | null;
+  notes?: string | null;
+}): Promise<Contract> {
+  return invokeTauri<Contract>("contracts_update", { args });
+}
+
+export function deleteContract(id: string): Promise<void> {
+  return invokeTauri("contracts_delete", { id });
+}
+
+export function getContractByPlate(plate: string): Promise<Contract | null> {
+  return invokeTauri<Contract | null>("contracts_get_by_plate", { plate });
+}
+
+export function suggestMonthlyAmount(args: {
+  vehicleType: string;
+  tariffKind?: TariffKind | null;
+  days?: number | null;
+}): Promise<number> {
+  return invokeTauri<number>("contracts_suggest_monthly", args);
+}

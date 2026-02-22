@@ -38,6 +38,9 @@ export interface SelectedTariffForCheckout {
   amount: number;
   rateDurationHours: number;
   rateDurationMinutes: number;
+  additionalHourPrice?: number;
+  additionalDurationHours?: number;
+  additionalDurationMinutes?: number;
 }
 
 interface CustomTariffSelectorProps {
@@ -106,6 +109,8 @@ export const CustomTariffSelector = ({
         rateUnit: args.rateUnit ?? "hour",
         rateDurationHours: args.rateDurationHours ?? 1,
         rateDurationMinutes: args.rateDurationMinutes ?? 0,
+        additionalDurationHours: 1,
+        additionalDurationMinutes: 0,
       }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["custom_tariffs"] });
@@ -120,10 +125,15 @@ export const CustomTariffSelector = ({
       setCreateDurationMinutes("0");
       const h = data.rateDurationHours ?? 1;
       const m = data.rateDurationMinutes ?? 0;
+      const addH = data.additionalDurationHours ?? 1;
+      const addM = data.additionalDurationMinutes ?? 0;
       onSelect({
         amount: data.amount,
         rateDurationHours: h,
         rateDurationMinutes: m,
+        additionalHourPrice: data.additionalHourPrice ?? undefined,
+        additionalDurationHours: addH,
+        additionalDurationMinutes: addM,
       });
       onClose();
     },
@@ -152,10 +162,15 @@ export const CustomTariffSelector = ({
   const handleSelect = (tariff: CustomTariff) => {
     const h = tariff.rateDurationHours ?? 1;
     const m = tariff.rateDurationMinutes ?? 0;
+    const addH = tariff.additionalDurationHours ?? 1;
+    const addM = tariff.additionalDurationMinutes ?? 0;
     onSelect({
       amount: tariff.amount,
       rateDurationHours: h,
       rateDurationMinutes: m,
+      additionalHourPrice: tariff.additionalHourPrice ?? undefined,
+      additionalDurationHours: addH,
+      additionalDurationMinutes: addM,
     });
     onClose();
   };

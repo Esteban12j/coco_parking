@@ -41,6 +41,13 @@ pub const BARCODES_READ: &str = "barcodes:read";
 pub const BARCODES_CREATE: &str = "barcodes:create";
 pub const BARCODES_DELETE: &str = "barcodes:delete";
 
+pub const CONTRACTS_READ: &str = "contracts:read";
+pub const CONTRACTS_CREATE: &str = "contracts:create";
+pub const CONTRACTS_MODIFY: &str = "contracts:modify";
+pub const CONTRACTS_DELETE: &str = "contracts:delete";
+
+pub const CAJA_DEBT_PAYMENT_CREATE: &str = "caja:debt_payment:create";
+
 pub const DEV_CONSOLE_ACCESS: &str = "dev:console:access";
 
 pub fn all_permissions() -> Vec<&'static str> {
@@ -73,6 +80,11 @@ pub fn all_permissions() -> Vec<&'static str> {
         BARCODES_READ,
         BARCODES_CREATE,
         BARCODES_DELETE,
+        CONTRACTS_READ,
+        CONTRACTS_CREATE,
+        CONTRACTS_MODIFY,
+        CONTRACTS_DELETE,
+        CAJA_DEBT_PAYMENT_CREATE,
         DEV_CONSOLE_ACCESS,
     ]
 }
@@ -96,6 +108,7 @@ pub fn operator_permissions() -> Vec<&'static str> {
         CAJA_TRANSACTIONS_MODIFY,
         CAJA_SHIFT_CLOSE,
         METRICAS_DASHBOARD_READ,
+        CONTRACTS_READ,
     ]
 }
 

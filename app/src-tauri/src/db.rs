@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>;
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 18;
+const SCHEMA_VERSION: i64 = 21;
 
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
@@ -394,8 +394,112 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     }
 
+    if current < 19 {
+        conn.execute_batch(
+            r#"
+            ALTER TABLE custom_tariffs ADD COLUMN tariff_kind TEXT DEFAULT 'regular';
+            ALTER TABLE custom_tariffs ADD COLUMN additional_hour_price REAL;
+            UPDATE custom_tariffs SET tariff_kind = 'regular' WHERE tariff_kind IS NULL;
+
+            ALTER TABLE vehicles ADD COLUMN tariff_kind TEXT DEFAULT 'regular';
+            ALTER TABLE vehicles ADD COLUMN tariff_id TEXT;
+            ALTER TABLE vehicles ADD COLUMN operator_user_id TEXT;
+
+            ALTER TABLE transactions ADD COLUMN operator_user_id TEXT;
+
+            ALTER TABLE shift_closures ADD COLUMN operator_user_id TEXT;
+
+            DROP INDEX IF EXISTS idx_custom_tariffs_vehicle_plate;
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_custom_tariffs_vehicle_plate_kind
+                ON custom_tariffs(vehicle_type, COALESCE(plate_or_ref, ''), tariff_kind);
+
+            CREATE TABLE IF NOT EXISTS contracts (
+                id TEXT PRIMARY KEY,
+                client_name TEXT NOT NULL,
+                client_phone TEXT,
+                plate TEXT NOT NULL,
+                plate_upper TEXT NOT NULL,
+                vehicle_type TEXT NOT NULL,
+                tariff_kind TEXT NOT NULL DEFAULT 'employee',
+                monthly_amount REAL NOT NULL,
+                included_hours_per_day REAL NOT NULL DEFAULT 6,
+                date_from TEXT NOT NULL,
+                date_to TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'active',
+                created_at TEXT NOT NULL,
+                notes TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_contracts_plate_upper ON contracts(plate_upper);
+            CREATE INDEX IF NOT EXISTS idx_contracts_status ON contracts(status);
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+
+        seed_special_tariffs(conn)?;
+
+        conn.execute("INSERT INTO schema_version (version) VALUES (19)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 20 {
+        conn.execute_batch(
+            r#"
+            ALTER TABLE custom_tariffs ADD COLUMN additional_duration_hours INTEGER;
+            ALTER TABLE custom_tariffs ADD COLUMN additional_duration_minutes INTEGER;
+            UPDATE custom_tariffs SET additional_duration_hours = 1, additional_duration_minutes = 0 WHERE additional_duration_hours IS NULL;
+            UPDATE custom_tariffs SET additional_duration_minutes = 0 WHERE additional_duration_minutes IS NULL;
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (20)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 21 {
+        conn.execute_batch(
+            r#"
+            DROP INDEX IF EXISTS idx_custom_tariffs_vehicle_plate_kind;
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_custom_tariffs_vehicle_plate_kind_name
+                ON custom_tariffs(vehicle_type, COALESCE(plate_or_ref, ''), tariff_kind, COALESCE(TRIM(name), ''));
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (21)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
     sync_role_permissions_from_code(conn)?;
     seed_developer_role_and_user(conn)?;
+    Ok(())
+}
+
+fn seed_special_tariffs(conn: &Connection) -> Result<(), String> {
+    let tariffs = [
+        ("tariff_employee_moto", "motorcycle", "Employee Motorcycle", "Half-day motorcycle (employees)", 3500.0, 6_i64, 0_i64, "employee", 500.0),
+        ("tariff_employee_car", "car", "Employee Car", "Half-day car (employees)", 6000.0, 6, 0, "employee", 1000.0),
+        ("tariff_student_moto", "motorcycle", "Student Motorcycle", "Half-day motorcycle (students)", 3000.0, 4, 0, "student", 500.0),
+    ];
+    let now = chrono::Utc::now().to_rfc3339();
+    for (id, vtype, name, desc, amount, dur_h, dur_m, kind, add_price) in &tariffs {
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM custom_tariffs WHERE id = ?1",
+                [*id],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if exists == 0 {
+            conn.execute(
+                r#"INSERT INTO custom_tariffs
+                    (id, vehicle_type, name, plate_or_ref, description, amount,
+                     rate_unit, rate_duration_hours, rate_duration_minutes,
+                     tariff_kind, additional_hour_price, additional_duration_hours, additional_duration_minutes, created_at)
+                   VALUES (?1, ?2, ?3, '', ?4, ?5, 'hour', ?6, ?7, ?8, ?9, 1, 0, ?10)"#,
+                rusqlite::params![id, vtype, name, desc, amount, dur_h, dur_m, kind, add_price, now],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
     Ok(())
 }
 

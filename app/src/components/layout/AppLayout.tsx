@@ -1,7 +1,7 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { NavLink } from "react-router-dom";
 import { useEffect } from "react";
-import { Car, DollarSign, BarChart3, Tag, Shield, Database, Terminal, Languages, HardDrive, Cpu, LogOut, FileWarning, Palette, CalendarDays, Barcode } from "lucide-react";
+import { Car, DollarSign, BarChart3, Tag, Shield, Database, Terminal, Languages, HardDrive, Cpu, LogOut, FileWarning, Palette, CalendarDays, Barcode, FileText } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
@@ -37,13 +37,14 @@ const navRoutes = [
   { to: "/metrics", key: "nav.metrics" as const, icon: BarChart3, permission: "metricas:dashboard:read" },
   { to: "/barcode", key: "nav.barcode" as const, icon: Barcode, permission: "barcodes:read" },
   { to: "/tariffs", key: "nav.tariffs" as const, icon: Tag, permission: "caja:transactions:read" },
+  { to: "/contracts", key: "nav.contracts" as const, icon: FileText, permission: "contracts:read" },
   { to: "/roles", key: "nav.roles" as const, icon: Shield, permission: "roles:users:read" },
   { to: "/backup", key: "nav.backup" as const, icon: Database, permission: "backup:list:read" },
 ];
 
 const devNavRoute = { to: "/dev-console", key: "nav.devConsole" as const, icon: Terminal, permission: PERMISSION_DEV_CONSOLE };
 
-const ALLOWED_FALLBACK_ORDER = ["/vehicles", "/vehicles/today", "/till", "/debtors", "/metrics", "/barcode", "/tariffs", "/roles", "/backup"];
+const ALLOWED_FALLBACK_ORDER = ["/vehicles", "/vehicles/today", "/till", "/debtors", "/metrics", "/barcode", "/tariffs", "/contracts", "/roles", "/backup"];
 
 type AppTheme = "light" | "dark" | "soft";
 

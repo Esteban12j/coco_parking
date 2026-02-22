@@ -6,17 +6,22 @@ import {
   Banknote,
   ArrowRightLeft,
   Tag,
+  FileText,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Vehicle, VehicleType } from "@/types/parking";
+import type { Vehicle, VehicleType, TariffKind, PaymentMethod } from "@/types/parking";
 import { SelectedTariffForCheckout } from "./CustomTariffSelector";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { getDefaultTariffForCheckout } from "@/lib/defaultRates";
+import { calculateTwoTierCost, getDefaultTariffForCheckout } from "@/lib/defaultRates";
 import { useDefaultRates } from "@/hooks/useDefaultRates";
 import { CustomTariffSelector } from "./CustomTariffSelector";
+import { useMyPermissions } from "@/hooks/useMyPermissions";
+import * as apiContracts from "@/api/contracts";
+import { useQuery } from "@tanstack/react-query";
 
 function isTauri(): boolean {
   return typeof window !== "undefined" && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
@@ -26,7 +31,7 @@ interface CheckoutPanelProps {
   vehicle: Vehicle;
   onCheckout: (
     partialPayment?: number,
-    paymentMethod?: "cash" | "card" | "transfer",
+    paymentMethod?: PaymentMethod,
     customParkingCost?: number
   ) => void;
   onCancel: () => void;
@@ -39,25 +44,29 @@ export const CheckoutPanel = ({
 }: CheckoutPanelProps) => {
   const { t } = useTranslation();
   const tauri = isTauri();
-  const { defaultTariffs } = useDefaultRates();
-  const defaultTariff =
-    tauri && defaultTariffs?.[vehicle.vehicleType] != null
-      ? defaultTariffs[vehicle.vehicleType]
-      : getDefaultTariffForCheckout(vehicle.vehicleType);
+  const { getTariffForKind } = useDefaultRates();
+  const { hasPermission } = useMyPermissions();
+  const canDebtPayment = hasPermission("caja:debt_payment:create");
+
+  const vehicleTariffKind = (vehicle.tariffKind || "regular") as TariffKind;
+  const defaultTariff = getTariffForKind(vehicle.vehicleType, vehicleTariffKind);
+
+  const contractQuery = useQuery({
+    queryKey: ["contract_by_plate", vehicle.plate],
+    queryFn: () => apiContracts.getContractByPlate(vehicle.plate),
+    enabled: tauri && !!vehicle.plate,
+  });
+  const activeContract = contractQuery.data;
+
   const vehicleLabels: Record<VehicleType, string> = {
     car: t("checkout.car"),
     motorcycle: t("checkout.motorcycle"),
     truck: t("checkout.truck"),
     bicycle: t("checkout.bicycle"),
   };
-  const [elapsed, setElapsed] = useState({
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-  });
-  const [paymentMethod, setPaymentMethod] = useState<
-    "cash" | "card" | "transfer"
-  >("cash");
+
+  const [elapsed, setElapsed] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [partialAmount, setPartialAmount] = useState<string>("");
   const [showPartial, setShowPartial] = useState(false);
   const [selectedCustomTariff, setSelectedCustomTariff] = useState<SelectedTariffForCheckout | null>(null);
@@ -68,75 +77,88 @@ export const CheckoutPanel = ({
       const now = new Date();
       const entry = new Date(vehicle.entryTime);
       const diff = now.getTime() - entry.getTime();
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor(
-        (diff % (1000 * 60 * 60)) / (1000 * 60)
-      );
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-      setElapsed({ hours, minutes, seconds });
+      setElapsed({
+        hours: Math.floor(diff / (1000 * 60 * 60)),
+        minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+        seconds: Math.floor((diff % (1000 * 60)) / 1000),
+      });
     };
     calculateElapsed();
     const interval = setInterval(calculateElapsed, 1000);
     return () => clearInterval(interval);
   }, [vehicle.entryTime]);
 
-  const totalMinutes = elapsed.hours * 60 + elapsed.minutes;
-  const defaultBlockMinutes = Math.max(
-    1,
-    (defaultTariff.rateDurationHours ?? 1) * 60 + (defaultTariff.rateDurationMinutes ?? 0)
-  );
-  const defaultParkingCost =
-    Math.ceil(totalMinutes / defaultBlockMinutes) * defaultTariff.amount;
-  const blockMinutes =
-    selectedCustomTariff != null
-      ? Math.max(
-          1,
-          (selectedCustomTariff.rateDurationHours ?? 0) * 60 +
-            (selectedCustomTariff.rateDurationMinutes ?? 0)
-        )
-      : 0;
-  const parkingCost =
-    selectedCustomTariff != null && blockMinutes > 0
-      ? Math.ceil(totalMinutes / blockMinutes) * selectedCustomTariff.amount
-      : defaultParkingCost;
+  const totalMinutes = elapsed.hours * 60 + elapsed.minutes + elapsed.seconds / 60;
+
+  const baseDurationHours = defaultTariff.rateDurationHours + (defaultTariff.rateDurationMinutes / 60);
+
+  const defaultCostResult = activeContract
+    ? (() => {
+        const includedMinutes = activeContract.includedHoursPerDay * 60;
+        if (totalMinutes <= includedMinutes) {
+          return { parkingCost: 0, baseCost: 0, additionalCost: 0, additionalHours: 0 };
+        }
+        const overstayHours = (totalMinutes - includedMinutes) / 60;
+        const periodH = ((defaultTariff.additionalDurationHours ?? 1) + ((defaultTariff.additionalDurationMinutes ?? 0) / 60)) || 1;
+        const additionalBlocks = Math.ceil(overstayHours / periodH);
+        const rate = defaultTariff.additionalHourPrice ?? (defaultTariff.amount / baseDurationHours);
+        return {
+          parkingCost: additionalBlocks * rate,
+          baseCost: 0,
+          additionalCost: additionalBlocks * rate,
+          additionalHours: additionalBlocks,
+        };
+      })()
+    : calculateTwoTierCost(
+        totalMinutes,
+        defaultTariff.amount,
+        baseDurationHours,
+        defaultTariff.additionalHourPrice,
+        (defaultTariff.additionalDurationHours ?? 1) + ((defaultTariff.additionalDurationMinutes ?? 0) / 60),
+      );
+
+  const customCostResult = selectedCustomTariff != null
+    ? (() => {
+        const customBaseH = (selectedCustomTariff.rateDurationHours ?? 1) + ((selectedCustomTariff.rateDurationMinutes ?? 0) / 60);
+        const customPeriodH = (selectedCustomTariff.additionalDurationHours ?? 1) + ((selectedCustomTariff.additionalDurationMinutes ?? 0) / 60);
+        return calculateTwoTierCost(
+          totalMinutes,
+          selectedCustomTariff.amount,
+          customBaseH,
+          selectedCustomTariff.additionalHourPrice,
+          customPeriodH,
+        );
+      })()
+    : null;
+
+  const parkingCost = customCostResult?.parkingCost ?? defaultCostResult.parkingCost;
   const totalWithDebt = parkingCost + (vehicle.debt || 0);
 
   const timeParkedLabel = `${elapsed.hours}h ${elapsed.minutes}min`;
-  const defaultBlockLabel = (() => {
-    const h = defaultTariff.rateDurationHours ?? 0;
-    const m = defaultTariff.rateDurationMinutes ?? 0;
-    const parts: string[] = [];
-    if (h > 0) parts.push(`${h}h`);
-    if (m > 0) parts.push(`${m}min`);
-    return parts.length > 0 ? parts.join(" ") : "1h";
-  })();
-  const defaultBlocksCharged = Math.ceil(totalMinutes / defaultBlockMinutes);
-  const blocksCharged =
-    selectedCustomTariff != null && blockMinutes > 0
-      ? Math.ceil(totalMinutes / blockMinutes)
-      : 0;
-  const customBlockLabel =
-    selectedCustomTariff != null
-      ? (() => {
-          const h = selectedCustomTariff.rateDurationHours ?? 0;
-          const m = selectedCustomTariff.rateDurationMinutes ?? 0;
-          const parts: string[] = [];
-          if (h > 0) parts.push(`${h}h`);
-          if (m > 0) parts.push(`${m}min`);
-          return parts.length > 0 ? parts.join(" ") : "1h";
-        })()
-      : "";
 
   const handleCheckout = () => {
-    const costToSend =
-      selectedCustomTariff != null || defaultBlockMinutes !== 60
-        ? parkingCost
-        : undefined;
-    if (showPartial && partialAmount) {
+    const costToSend = parkingCost;
+    if (paymentMethod === "debt") {
+      onCheckout(0, "debt", costToSend);
+    } else if (showPartial && partialAmount) {
       onCheckout(parseFloat(partialAmount), paymentMethod, costToSend);
     } else {
       onCheckout(undefined, paymentMethod, costToSend);
     }
+  };
+
+  const paymentMethods: { method: PaymentMethod; label: string; icon: React.ReactNode; show: boolean }[] = [
+    { method: "cash", label: t("till.cash"), icon: <Banknote className="h-4 w-4" />, show: true },
+    { method: "card", label: t("till.card"), icon: <CreditCard className="h-4 w-4" />, show: true },
+    { method: "transfer", label: t("till.transfer"), icon: <ArrowRightLeft className="h-4 w-4" />, show: true },
+    { method: "contract", label: t("checkout.contractAccount"), icon: <FileText className="h-4 w-4" />, show: !!activeContract },
+    { method: "debt", label: t("checkout.deferDebt"), icon: <AlertTriangle className="h-4 w-4" />, show: canDebtPayment },
+  ];
+
+  const tariffKindLabels: Record<TariffKind, string> = {
+    regular: t("checkout.regularTariff"),
+    employee: t("checkout.employeeTariff"),
+    student: t("checkout.studentTariff"),
   };
 
   return (
@@ -147,8 +169,7 @@ export const CheckoutPanel = ({
         </div>
         <h2 className="text-xl font-semibold">{t("checkout.title")}</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          {t("common.ticket")}:{" "}
-          <span className="font-mono font-medium">{vehicle.ticketCode}</span>
+          {t("common.ticket")}: <span className="font-mono font-medium">{vehicle.ticketCode}</span>
         </p>
       </div>
 
@@ -160,6 +181,11 @@ export const CheckoutPanel = ({
               <p className="font-mono font-semibold text-lg">{vehicle.plate}</p>
               <p className="text-sm text-muted-foreground">
                 {vehicleLabels[vehicle.vehicleType]}
+                {vehicleTariffKind !== "regular" && (
+                  <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                    {tariffKindLabels[vehicleTariffKind]}
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -172,13 +198,18 @@ export const CheckoutPanel = ({
             </p>
           </div>
         </div>
+        {activeContract && (
+          <div className="mt-3 pt-3 border-t border-border/50">
+            <p className="text-xs text-muted-foreground">
+              {t("checkout.contractActive")} — {activeContract.clientName}
+              <span className="ml-1 font-mono">({activeContract.includedHoursPerDay}h {t("checkout.includedPerDay")})</span>
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="space-y-2 mb-4">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm text-muted-foreground">
-            {t("checkout.useDefaultRate")}
-          </span>
           <Button
             type="button"
             variant={selectedCustomTariff === null ? "default" : "outline"}
@@ -196,21 +227,9 @@ export const CheckoutPanel = ({
             <Tag className="h-3.5 w-3.5 mr-1" />
             {t("checkout.useCustomRate")}
           </Button>
-          {selectedCustomTariff != null && (() => {
-            const h = selectedCustomTariff.rateDurationHours ?? 0;
-            const m = selectedCustomTariff.rateDurationMinutes ?? 0;
-            const parts: string[] = [];
-            if (h > 0) parts.push(`${h}h`);
-            if (m > 0) parts.push(`${m}min`);
-            const blockLabel = parts.length > 0 ? parts.join(" ") : "1h";
-            return (
-              <span className="text-sm font-medium">
-                ${selectedCustomTariff.amount.toFixed(2)} / {blockLabel} → ${parkingCost.toFixed(2)}
-              </span>
-            );
-          })()}
         </div>
       </div>
+
       <CustomTariffSelector
         open={customTariffSelectorOpen}
         onClose={() => setCustomTariffSelectorOpen(false)}
@@ -221,82 +240,83 @@ export const CheckoutPanel = ({
         fixedVehicleType={vehicle.vehicleType}
         fixedPlateOrRef={vehicle.plate}
       />
+
       <div className="space-y-3 mb-6 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-3 items-baseline text-sm max-w-md">
         <span className="text-muted-foreground">{t("checkout.timeParked")}</span>
         <span className="font-mono font-medium text-right">{timeParkedLabel}</span>
+
         {selectedCustomTariff === null ? (
           <>
             <span className="text-muted-foreground">{t("checkout.tariff")}</span>
             <span className="font-medium text-right">
-              ${defaultTariff.amount.toFixed(2)} / {defaultBlockLabel}
+              {tariffKindLabels[vehicleTariffKind]}
             </span>
-            <span className="text-muted-foreground">
-              {defaultBlockMinutes === 60 ? t("checkout.hoursCharged") : t("checkout.blocksOfTime")}
-            </span>
-            <span className="font-medium font-mono text-right">
-              {defaultBlockMinutes === 60
-                ? `${defaultBlocksCharged} h`
-                : `${timeParkedLabel} ÷ ${defaultBlockLabel} = ${defaultBlocksCharged}`}
-            </span>
-            <span className="text-muted-foreground col-span-2 bg-muted/50 rounded px-2 py-1.5 font-mono flex justify-between items-baseline gap-2">
-              <span>{t("checkout.tariffFormulaDefault")}</span>
-              <span className="font-semibold">
-                {defaultBlocksCharged} × ${defaultTariff.amount.toFixed(2)} = ${defaultParkingCost.toFixed(2)}
+
+            {activeContract ? (
+              <span className="text-muted-foreground col-span-2 bg-muted/50 rounded px-2 py-1.5 font-mono flex justify-between items-baseline gap-2">
+                <span>{t("checkout.contractCoverage")}</span>
+                <span className="font-semibold">
+                  {totalMinutes <= activeContract.includedHoursPerDay * 60
+                    ? t("checkout.coveredByContract")
+                    : `${defaultCostResult.additionalHours}h × $${(defaultTariff.additionalHourPrice ?? 0).toFixed(2)} = $${parkingCost.toFixed(2)}`
+                  }
+                </span>
               </span>
-            </span>
+            ) : (
+              <>
+                <span className="text-muted-foreground">{t("checkout.basePeriod")}</span>
+                <span className="font-medium text-right">
+                  {baseDurationHours}h = ${defaultTariff.amount.toFixed(2)}
+                </span>
+                {defaultCostResult.additionalHours > 0 && (
+                  <>
+                    <span className="text-muted-foreground">{t("checkout.additionalHours")}</span>
+                    <span className="font-medium text-right">
+                      {defaultCostResult.additionalHours}h × ${(defaultTariff.additionalHourPrice ?? 0).toFixed(2)} = ${defaultCostResult.additionalCost.toFixed(2)}
+                    </span>
+                  </>
+                )}
+                <span className="text-muted-foreground col-span-2 bg-muted/50 rounded px-2 py-1.5 font-mono flex justify-between items-baseline gap-2">
+                  <span>{t("checkout.totalFormula")}</span>
+                  <span className="font-semibold">
+                    ${defaultCostResult.baseCost.toFixed(2)} + ${defaultCostResult.additionalCost.toFixed(2)} = ${parkingCost.toFixed(2)}
+                  </span>
+                </span>
+              </>
+            )}
           </>
         ) : (
           <>
             <span className="text-muted-foreground">{t("checkout.tariff")}</span>
             <span className="font-medium text-right">
-              ${selectedCustomTariff.amount.toFixed(2)} / {customBlockLabel}
-            </span>
-            <span className="text-muted-foreground">{t("checkout.blocksOfTime")}</span>
-            <span className="font-medium font-mono text-right">
-              {timeParkedLabel} ÷ {customBlockLabel} = {blocksCharged}
+              ${selectedCustomTariff.amount.toFixed(2)} / {selectedCustomTariff.rateDurationHours ?? 1}h
             </span>
             <span className="text-muted-foreground col-span-2 bg-muted/50 rounded px-2 py-1.5 font-mono flex justify-between items-baseline gap-2">
               <span>{t("checkout.tariffFormulaCustom")}</span>
-              <span className="font-semibold">
-                {blocksCharged} × ${selectedCustomTariff.amount.toFixed(2)} = ${parkingCost.toFixed(2)}
-              </span>
+              <span className="font-semibold">${parkingCost.toFixed(2)}</span>
             </span>
           </>
         )}
         <span className="text-muted-foreground">{t("checkout.parkingCost")}</span>
         <span className="font-medium text-right">${parkingCost.toFixed(2)}</span>
       </div>
-      {(vehicle.debt ?? 0) > 0 ? (
+
+      {(vehicle.debt ?? 0) > 0 && (
         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 items-baseline text-sm text-warning mb-3 max-w-md">
           <span>{t("checkout.pendingDebt")}</span>
           <span className="font-medium text-right">+ ${(vehicle.debt ?? 0).toFixed(2)}</span>
         </div>
-      ) : null}
+      )}
+
       <div className="border-t border-border pt-3 flex justify-between items-center max-w-md">
         <span className="font-semibold">{t("checkout.totalToPay")}</span>
         <span className="price-display text-foreground">${totalWithDebt.toFixed(2)}</span>
       </div>
 
-      <div className="space-y-3 mb-6">
+      <div className="space-y-3 mb-6 mt-6">
         <Label>{t("checkout.paymentMethod")}</Label>
         <div className="grid grid-cols-3 gap-2">
-          {[
-            {
-              method: "cash" as const,
-              label: t("till.cash"),
-              icon: <Banknote className="h-4 w-4" />,
-            },
-            {
-              method: "card" as const,
-              label: t("till.card"),
-              icon: <CreditCard className="h-4 w-4" />,
-            },
-            {
-              method: "transfer" as const,
-              label: t("till.transfer"),
-              icon: <ArrowRightLeft className="h-4 w-4" />,
-            },
-          ].map(({ method, label, icon }) => (
+          {paymentMethods.filter((m) => m.show).map(({ method, label, icon }) => (
             <button
               key={method}
               type="button"
@@ -305,7 +325,8 @@ export const CheckoutPanel = ({
                 "flex items-center justify-center gap-2 p-3 rounded-lg border transition-all",
                 paymentMethod === method
                   ? "border-primary bg-primary/10"
-                  : "border-border bg-card hover:bg-accent"
+                  : "border-border bg-card hover:bg-accent",
+                method === "debt" && "border-warning/50"
               )}
             >
               {icon}
@@ -315,55 +336,49 @@ export const CheckoutPanel = ({
         </div>
       </div>
 
-      <div className="mb-6">
-        <button
-          type="button"
-          onClick={() => setShowPartial(!showPartial)}
-          className="text-sm text-info hover:underline"
-        >
-          {showPartial ? t("checkout.hidePartialPayment") : t("checkout.payPartially")}
-        </button>
-        {showPartial && (
-          <div className="mt-3 space-y-2">
-            <Label htmlFor="partial">{t("checkout.amountToPay")}</Label>
-            <Input
-              id="partial"
-              type="number"
-              value={partialAmount}
-              onChange={(e) => setPartialAmount(e.target.value)}
-              placeholder={`Max: $${totalWithDebt.toFixed(2)}`}
-              min={0}
-              max={totalWithDebt}
-            />
-            {partialAmount &&
-              parseFloat(partialAmount) < totalWithDebt && (
+      {paymentMethod !== "debt" && paymentMethod !== "contract" && (
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={() => setShowPartial(!showPartial)}
+            className="text-sm text-info hover:underline"
+          >
+            {showPartial ? t("checkout.hidePartialPayment") : t("checkout.payPartially")}
+          </button>
+          {showPartial && (
+            <div className="mt-3 space-y-2">
+              <Label htmlFor="partial">{t("checkout.amountToPay")}</Label>
+              <Input
+                id="partial"
+                type="number"
+                value={partialAmount}
+                onChange={(e) => setPartialAmount(e.target.value)}
+                placeholder={`Max: $${totalWithDebt.toFixed(2)}`}
+                min={0}
+                max={totalWithDebt}
+              />
+              {partialAmount && parseFloat(partialAmount) < totalWithDebt && (
                 <p className="text-xs text-warning">
-                  {t("checkout.remainingDebt")} $
-                  {(
-                    totalWithDebt - parseFloat(partialAmount)
-                  ).toFixed(2)}
+                  {t("checkout.remainingDebt")} ${(totalWithDebt - parseFloat(partialAmount)).toFixed(2)}
                 </p>
               )}
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {paymentMethod === "debt" && (
+        <div className="mb-6 p-3 rounded-lg bg-warning/10 border border-warning/30">
+          <p className="text-sm text-warning">{t("checkout.deferDebtWarning")}</p>
+        </div>
+      )}
 
       <div className="flex gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          className="flex-1"
-        >
+        <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
           {t("common.cancel")}
         </Button>
-        <Button
-          type="button"
-          variant="coco"
-          onClick={handleCheckout}
-          className="flex-1"
-        >
-          {t("checkout.charge")}
+        <Button type="button" variant="coco" onClick={handleCheckout} className="flex-1">
+          {paymentMethod === "debt" ? t("checkout.registerDebt") : t("checkout.charge")}
         </Button>
       </div>
     </div>

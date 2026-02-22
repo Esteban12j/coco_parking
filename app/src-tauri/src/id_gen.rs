@@ -10,6 +10,7 @@ pub const PREFIX_SHIFT_CLOSURE: &str = "SC";
 pub const PREFIX_CUSTOM_TARIFF: &str = "CT";
 pub const PREFIX_USER: &str = "US";
 pub const PREFIX_BARCODE: &str = "BC";
+pub const PREFIX_CONTRACT: &str = "CO";
 #[allow(dead_code)]
 pub const PREFIX_ROLE: &str = "RL";
 #[allow(dead_code)]

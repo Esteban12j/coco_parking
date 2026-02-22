@@ -1,4 +1,5 @@
 export type VehicleType = 'car' | 'motorcycle' | 'truck' | 'bicycle';
+export type TariffKind = 'regular' | 'employee' | 'student';
 
 export interface Vehicle {
   id: string;
@@ -12,6 +13,9 @@ export interface Vehicle {
   totalAmount?: number;
   debt?: number;
   specialRate?: number;
+  tariffKind: TariffKind;
+  tariffId?: string;
+  operatorUserId?: string;
 }
 
 export interface ParkingSession {
@@ -86,6 +90,7 @@ export interface ShiftClosure {
   discrepancy: number;
   totalTransactions: number;
   notes: string | null;
+  operatorUserId?: string | null;
 }
 
 export type UserRole = 'operator' | 'admin' | 'developer';
@@ -128,7 +133,7 @@ export interface PlateConflict {
 
 export type TariffRateUnit = 'hour' | 'minute';
 
-/** Tariff (default or custom): vehicle type + optional name/plate/ref + amount + time duration. One per (vehicleType, plateOrRef). */
+/** Tariff (default or custom): vehicle type + optional name/plate/ref + amount + time duration. */
 export interface CustomTariff {
   id: string;
   vehicleType: string;
@@ -137,11 +142,39 @@ export interface CustomTariff {
   description?: string | null;
   amount: number;
   rateUnit?: TariffRateUnit | null;
-  /** Duration block: hours (0 or more). */
   rateDurationHours?: number | null;
-  /** Duration block: minutes (0–59). Total block must be >= 1 minute. */
   rateDurationMinutes?: number | null;
+  tariffKind: TariffKind;
+  additionalHourPrice?: number | null;
+  additionalDurationHours?: number | null;
+  additionalDurationMinutes?: number | null;
   createdAt: string;
+}
+
+export interface Contract {
+  id: string;
+  clientName: string;
+  clientPhone?: string | null;
+  plate: string;
+  plateUpper: string;
+  vehicleType: string;
+  tariffKind: TariffKind;
+  monthlyAmount: number;
+  includedHoursPerDay: number;
+  dateFrom: string;
+  dateTo: string;
+  status: string;
+  createdAt: string;
+  notes?: string | null;
+}
+
+export type PaymentMethod = 'cash' | 'card' | 'transfer' | 'contract' | 'debt';
+
+export interface ServiceOption {
+  label: string;
+  vehicleType: VehicleType;
+  tariffKind: TariffKind;
+  icon: string;
 }
 
 /** Barcode: 8-digit code (10000000–99999999), optional label. */

@@ -1,5 +1,5 @@
 import { invokeTauri } from "@/lib/tauriInvoke";
-import type { CustomTariff } from "@/types/parking";
+import type { CustomTariff, TariffKind } from "@/types/parking";
 
 export function listCustomTariffs(search: string | null): Promise<CustomTariff[]> {
   return invokeTauri<CustomTariff[]>("custom_tariffs_list", { search });
@@ -14,6 +14,10 @@ export function createCustomTariff(args: {
   rateUnit?: string | null;
   rateDurationHours?: number | null;
   rateDurationMinutes?: number | null;
+  tariffKind?: TariffKind | null;
+  additionalHourPrice?: number | null;
+  additionalDurationHours?: number | null;
+  additionalDurationMinutes?: number | null;
 }): Promise<CustomTariff> {
   return invokeTauri<CustomTariff>("custom_tariffs_create", { args });
 }
@@ -28,6 +32,10 @@ export function updateCustomTariff(args: {
   rateUnit?: string | null;
   rateDurationHours?: number | null;
   rateDurationMinutes?: number | null;
+  tariffKind?: TariffKind | null;
+  additionalHourPrice?: number | null;
+  additionalDurationHours?: number | null;
+  additionalDurationMinutes?: number | null;
 }): Promise<CustomTariff> {
   return invokeTauri<CustomTariff>("custom_tariffs_update", { args });
 }

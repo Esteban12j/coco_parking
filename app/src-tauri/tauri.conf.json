@@ -44,7 +44,7 @@
     "shortDescription": "Smart Parking Dashboard",
     "category": "Business",
     "publisher": "COCO Parking",
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": false
   },
   "plugins": {
     "updater": {

@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Search, CalendarDays } from "lucide-react";
+import { Search, CalendarDays, Plus, AlertCircle } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { ScannerInput } from "./components/ScannerInput";
 import { VehicleEntryForm } from "./components/VehicleEntryForm";
 import { ActiveVehiclesGrid } from "./components/ActiveVehiclesGrid";
 import { PlateHistorySection } from "./components/PlateHistorySection";
@@ -10,6 +9,7 @@ import { CheckoutPanel } from "@/features/caja/components/CheckoutPanel";
 import { RegisterConflictDialog } from "./components/RegisterConflictDialog";
 import { useParkingStore } from "@/hooks/useParkingStore";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
+import { useDefaultRates } from "@/hooks/useDefaultRates";
 import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "@/i18n";
 import {
@@ -25,10 +25,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Vehicle } from "@/types/parking";
+import type { Vehicle, TariffKind } from "@/types/parking";
 import { listen } from "@tauri-apps/api/event";
 
-type ViewMode = "scanner" | "entry" | "checkout" | "manual-search";
+type ViewMode = "search" | "entry" | "checkout" | "active-detail";
 
 export const VehiculosPage = () => {
   const { t } = useTranslation();
@@ -36,6 +36,7 @@ export const VehiculosPage = () => {
   const canCreateEntry = hasPermission("vehiculos:entries:create");
   const canCheckout = hasPermission("caja:transactions:create");
   const canRemoveFromParking = hasPermission("vehiculos:entries:remove_from_parking");
+  useDefaultRates();
   const {
     activeVehicles,
     totalActiveCount,
@@ -60,12 +61,14 @@ export const VehiculosPage = () => {
     isTauri,
   } = useParkingStore();
 
-  const [viewMode, setViewMode] = useState<ViewMode>("scanner");
+  const [viewMode, setViewMode] = useState<ViewMode>("search");
   const [currentTicket, setCurrentTicket] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
-  const [manualPlate, setManualPlate] = useState("");
+  const [plateSearch, setPlateSearch] = useState("");
   const [vehicleToRemove, setVehicleToRemove] = useState<Vehicle | null>(null);
-  const debouncedManualPlate = useDebouncedValue(manualPlate.trim().toUpperCase(), 350);
+  const [activeAlertVehicle, setActiveAlertVehicle] = useState<Vehicle | null>(null);
+  const [prefillPlate, setPrefillPlate] = useState("");
+  const debouncedPlate = useDebouncedValue(plateSearch.trim().toUpperCase(), 300);
   const [searchingByPlate, setSearchingByPlate] = useState(false);
   const [plateSuggestions, setPlateSuggestions] = useState<Vehicle[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -82,38 +85,31 @@ export const VehiculosPage = () => {
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     listen<string>("barcode-scanned", (event) => {
-      if (viewModeRef.current !== "scanner") return;
+      if (viewModeRef.current !== "search") return;
       const code = typeof event.payload === "string" ? event.payload : String(event.payload ?? "").trim();
       if (code) handleScanInputRef.current(code);
     })
-      .then((fn) => {
-        unlisten = fn;
-      })
+      .then((fn) => { unlisten = fn; })
       .catch(() => {});
-    return () => {
-      unlisten?.();
-    };
+    return () => { unlisten?.(); };
   }, []);
 
   useEffect(() => {
-    if (viewMode !== "manual-search" || debouncedManualPlate.length < 2) {
+    if (viewMode !== "search" || debouncedPlate.length < 2) {
       setPlateSuggestions([]);
       return;
     }
     const id = ++suggestionRequestIdRef.current;
     setLoadingSuggestions(true);
-    searchVehiclesByPlatePrefix(debouncedManualPlate)
+    searchVehiclesByPlatePrefix(debouncedPlate)
       .then((list) => {
         if (suggestionRequestIdRef.current !== id) return;
-        const activeOnly = list.filter((v) => v.status === "active");
-        setPlateSuggestions(activeOnly);
+        setPlateSuggestions(list);
       })
       .finally(() => {
-        if (suggestionRequestIdRef.current === id) {
-          setLoadingSuggestions(false);
-        }
+        if (suggestionRequestIdRef.current === id) setLoadingSuggestions(false);
       });
-  }, [viewMode, debouncedManualPlate, searchVehiclesByPlatePrefix]);
+  }, [viewMode, debouncedPlate, searchVehiclesByPlatePrefix]);
 
   const handleScanInput = async (code: string) => {
     const normalized = code.trim();
@@ -122,26 +118,57 @@ export const VehiculosPage = () => {
     const existing = await handleScan(normalized);
     if (existing) {
       setSelectedVehicle(existing);
-      setViewMode(canCheckout ? "checkout" : "scanner");
+      setViewMode(canCheckout ? "checkout" : "search");
     } else {
-      setViewMode(canCreateEntry ? "entry" : "scanner");
+      setViewMode(canCreateEntry ? "entry" : "search");
     }
+  };
+
+  const handlePlateSearch = async () => {
+    const plate = plateSearch.trim().toUpperCase();
+    if (!plate) return;
+    setSearchingByPlate(true);
+    try {
+      const activeVehicle = await findByPlate(plate);
+      if (activeVehicle) {
+        setActiveAlertVehicle(activeVehicle);
+      } else {
+        setPrefillPlate(plate);
+        setViewMode("entry");
+      }
+    } catch {
+      setPrefillPlate(plate);
+      setViewMode("entry");
+    } finally {
+      setSearchingByPlate(false);
+    }
+  };
+
+  const handleNewVehicle = () => {
+    setPrefillPlate("");
+    setCurrentTicket("");
+    setViewMode("entry");
   };
 
   const handleEntrySubmit = (data: {
     plate: string;
     vehicleType: Parameters<typeof registerEntry>[1];
     observations: string;
+    tariffKind: TariffKind;
+    ticketCode: string;
   }) => {
-    registerEntry(data.plate, data.vehicleType, data.observations, currentTicket);
-    setViewMode("scanner");
+    const ticket = data.ticketCode || currentTicket || undefined;
+    registerEntry(data.plate, data.vehicleType, data.observations, ticket, data.tariffKind);
+    setViewMode("search");
     setCurrentTicket("");
+    setPrefillPlate("");
+    setPlateSearch("");
     clearScanResult();
   };
 
   const handleCheckout = (
     partialPayment?: number,
-    paymentMethod?: "cash" | "card" | "transfer",
+    paymentMethod?: "cash" | "card" | "transfer" | "contract" | "debt",
     customParkingCost?: number
   ) => {
     if (selectedVehicle) {
@@ -152,35 +179,9 @@ export const VehiculosPage = () => {
         customParkingCost
       );
       setSelectedVehicle(null);
-      setViewMode("scanner");
+      setViewMode("search");
+      setPlateSearch("");
       clearScanResult();
-    }
-  };
-
-  const handleManualSearch = async () => {
-    if (!manualPlate.trim()) return;
-    setSearchingByPlate(true);
-    try {
-      const vehicle = await findByPlate(manualPlate.trim());
-      if (vehicle) {
-        setSelectedVehicle(vehicle);
-        setViewMode("checkout");
-      } else {
-        toast({
-          title: t("vehicles.vehicleNotFound"),
-          description: t("vehicles.noRecordWithPlate"),
-          variant: "destructive",
-        });
-      }
-    } catch {
-      toast({
-        title: t("vehicles.vehicleNotFound"),
-        description: t("vehicles.noRecordWithPlate"),
-        variant: "destructive",
-      });
-    } finally {
-      setSearchingByPlate(false);
-      setManualPlate("");
     }
   };
 
@@ -191,10 +192,24 @@ export const VehiculosPage = () => {
 
   const handleCancel = () => {
     clearRegisterError();
-    setViewMode("scanner");
+    setViewMode("search");
     setCurrentTicket("");
     setSelectedVehicle(null);
+    setPrefillPlate("");
+    setPlateSearch("");
     clearScanResult();
+  };
+
+  const handleSuggestionClick = (vehicle: Vehicle) => {
+    if (vehicle.status === "active") {
+      setSelectedVehicle(vehicle);
+      setViewMode("checkout");
+    } else {
+      setPrefillPlate(vehicle.plate);
+      setViewMode("entry");
+    }
+    setPlateSearch("");
+    setPlateSuggestions([]);
   };
 
   return (
@@ -203,105 +218,82 @@ export const VehiculosPage = () => {
         title={t("vehicles.title")}
         subtitle={t("vehicles.subtitle")}
         actions={
-          isTauri ? (
-            <Link to="/vehicles/today">
-              <Button variant="outline" size="sm">
-                <CalendarDays className="h-4 w-4 mr-2" />
-                {t("vehicles.vehiclesTodayLink")}
+          <div className="flex gap-2">
+            {canCreateEntry && (
+              <Button variant="coco" size="sm" onClick={handleNewVehicle}>
+                <Plus className="h-4 w-4 mr-2" />
+                {t("vehicles.addVehicle")}
               </Button>
-            </Link>
-          ) : undefined
+            )}
+            {isTauri && (
+              <Link to="/vehicles/today">
+                <Button variant="outline" size="sm">
+                  <CalendarDays className="h-4 w-4 mr-2" />
+                  {t("vehicles.vehiclesTodayLink")}
+                </Button>
+              </Link>
+            )}
+          </div>
         }
       />
 
       <section className="py-6">
-        {viewMode === "scanner" && (
-          <div className="space-y-6">
-            <ScannerInput onScan={handleScanInput} disabled={!canCreateEntry && !canCheckout} />
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-sm text-muted-foreground">
-                {t("vehicles.lostTicket")}
-              </span>
-              <Button
-                variant="link"
-                size="sm"
-                onClick={() => setViewMode("manual-search")}
-              >
-                {t("vehicles.searchByPlate")}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {viewMode === "manual-search" && (
-          <div className="max-w-md mx-auto space-y-4 animate-fade-in">
-            <h3 className="text-lg font-semibold text-center">
-              {t("vehicles.manualCheckout")}
-            </h3>
+        {viewMode === "search" && (
+          <div className="max-w-md mx-auto space-y-4">
             <div className="flex gap-2">
               <Input
-                value={manualPlate}
-                onChange={(e) =>
-                  setManualPlate(e.target.value.toUpperCase())
-                }
-                placeholder={t("vehicles.enterPlate")}
-                className="font-mono uppercase"
+                value={plateSearch}
+                onChange={(e) => setPlateSearch(e.target.value.toUpperCase())}
+                placeholder={t("vehicles.searchByPlatePlaceholder")}
+                className="font-mono uppercase text-lg"
+                onKeyDown={(e) => { if (e.key === "Enter") void handlePlateSearch(); }}
+                autoFocus
               />
               <Button
                 variant="coco"
-                onClick={() => void handleManualSearch()}
-                disabled={searchingByPlate}
+                onClick={() => void handlePlateSearch()}
+                disabled={searchingByPlate || !plateSearch.trim()}
               >
                 <Search className="h-4 w-4 mr-2" />
                 {searchingByPlate ? t("common.loading") : t("common.search")}
               </Button>
             </div>
-            {manualPlate.trim().length > 0 && manualPlate.trim().length < 2 && (
-              <p className="text-sm text-muted-foreground">
-                {t("vehicles.plateHistoryTypeMore")}
-              </p>
+
+            {plateSearch.trim().length > 0 && plateSearch.trim().length < 2 && (
+              <p className="text-sm text-muted-foreground">{t("vehicles.plateHistoryTypeMore")}</p>
             )}
             {loadingSuggestions && (
-              <p className="text-sm text-muted-foreground">
-                {t("common.loading")}
-              </p>
+              <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
             )}
             {!loadingSuggestions && plateSuggestions.length > 0 && (
-              <ul className="border border-border rounded-lg divide-y divide-border max-h-48 overflow-y-auto">
+              <ul className="border border-border rounded-lg divide-y divide-border max-h-60 overflow-y-auto">
                 {plateSuggestions.map((v) => (
                   <li key={v.id}>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start font-mono h-auto py-2"
-                      onClick={() => {
-                        setSelectedVehicle(v);
-                        setViewMode("checkout");
-                        setManualPlate("");
-                        setPlateSuggestions([]);
-                      }}
+                    <button
+                      className="w-full text-left px-4 py-2.5 hover:bg-accent transition-colors flex items-center justify-between"
+                      onClick={() => handleSuggestionClick(v)}
                     >
-                      {v.plate} — {v.ticketCode}
-                    </Button>
+                      <div>
+                        <span className="font-mono font-semibold">{v.plate}</span>
+                        <span className="text-xs text-muted-foreground ml-2">{v.vehicleType}</span>
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${v.status === "active" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
+                        {v.status === "active" ? t("vehicles.active") : t("vehicles.completed")}
+                      </span>
+                    </button>
                   </li>
                 ))}
               </ul>
             )}
-            <Button
-              variant="ghost"
-              onClick={handleCancel}
-              className="w-full"
-            >
-              {t("vehicles.backToScanner")}
-            </Button>
           </div>
         )}
 
         {viewMode === "entry" && canCreateEntry && (
           <VehicleEntryForm
-            ticketCode={currentTicket}
             existingDebt={0}
             getPlateDebt={getPlateDebt}
             registerError={registerError}
+            initialPlate={prefillPlate}
             onSubmit={handleEntrySubmit}
             onCancel={handleCancel}
           />
@@ -356,9 +348,7 @@ export const VehiculosPage = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setVehiclesPage((p) => p + 1)}
-                disabled={
-                  vehiclesPage >= Math.ceil(totalActiveCount / vehiclesPageSize)
-                }
+                disabled={vehiclesPage >= Math.ceil(totalActiveCount / vehiclesPageSize)}
               >
                 {t("common.next")}
               </Button>
@@ -378,6 +368,40 @@ export const VehiculosPage = () => {
         onDeleteAndRegister={(id) => void deleteExistingAndRetryRegister(id)}
         onCancel={clearPendingRegisterConflict}
       />
+
+      <AlertDialog open={!!activeAlertVehicle} onOpenChange={(o) => !o && setActiveAlertVehicle(null)}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-warning" />
+              {t("vehicles.plateAlreadyActiveTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("vehicles.plateAlreadyActiveDescription")}
+              {activeAlertVehicle && (
+                <span className="block mt-2 font-mono font-semibold text-foreground">
+                  {activeAlertVehicle.plate} — {activeAlertVehicle.vehicleType}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (activeAlertVehicle && canCheckout) {
+                  setSelectedVehicle(activeAlertVehicle);
+                  setViewMode("checkout");
+                  setPlateSearch("");
+                }
+                setActiveAlertVehicle(null);
+              }}
+            >
+              {t("vehicles.viewActiveVehicle")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!vehicleToRemove} onOpenChange={(o) => !o && setVehicleToRemove(null)}>
         <AlertDialogContent className="max-w-md">

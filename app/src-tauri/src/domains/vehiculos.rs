@@ -58,6 +58,9 @@ fn row_to_vehicle(row: &rusqlite::Row) -> Result<Vehicle, rusqlite::Error> {
         total_amount: row.get("total_amount")?,
         debt: row.get("debt")?,
         special_rate: row.get("special_rate")?,
+        tariff_kind: row.get::<_, Option<String>>("tariff_kind")?.unwrap_or_else(|| "regular".to_string()),
+        tariff_id: row.get("tariff_id").ok().flatten(),
+        operator_user_id: row.get("operator_user_id").ok().flatten(),
     })
 }
 
@@ -75,6 +78,9 @@ pub struct Vehicle {
     pub total_amount: Option<f64>,
     pub debt: Option<f64>,
     pub special_rate: Option<f64>,
+    pub tariff_kind: String,
+    pub tariff_id: Option<String>,
+    pub operator_user_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -123,13 +129,13 @@ pub fn vehiculos_list_vehicles(
                 status.as_deref().unwrap_or("active")
             ),
             format!(
-                "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE status = '{}' ORDER BY entry_time DESC LIMIT ?1 OFFSET ?2",
+                "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate, tariff_kind, tariff_id, operator_user_id FROM vehicles WHERE status = '{}' ORDER BY entry_time DESC LIMIT ?1 OFFSET ?2",
                 status.as_deref().unwrap_or("active")
             ),
         ),
         _ => (
             "SELECT COUNT(*) FROM vehicles".to_string(),
-            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles ORDER BY entry_time DESC LIMIT ?1 OFFSET ?2".to_string(),
+            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate, tariff_kind, tariff_id, operator_user_id FROM vehicles ORDER BY entry_time DESC LIMIT ?1 OFFSET ?2".to_string(),
         ),
     };
 
@@ -169,7 +175,7 @@ pub fn vehiculos_list_vehicles_by_date(
         .query_row(count_sql, params![date_prefix, date_prefix], |row| row.get(0))
         .map_err(|e| e.to_string())?;
 
-    let list_sql = "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE (substr(entry_time, 1, 10) = ?1) OR (exit_time IS NOT NULL AND substr(exit_time, 1, 10) = ?2) ORDER BY entry_time DESC LIMIT ?3 OFFSET ?4";
+    let list_sql = "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate, tariff_kind, tariff_id, operator_user_id FROM vehicles WHERE (substr(entry_time, 1, 10) = ?1) OR (exit_time IS NOT NULL AND substr(exit_time, 1, 10) = ?2) ORDER BY entry_time DESC LIMIT ?3 OFFSET ?4";
     let mut stmt = conn.prepare(list_sql).map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map(params![date_prefix, date_prefix, limit, offset], |row| row_to_vehicle(row))
@@ -383,6 +389,7 @@ pub fn vehiculos_register_entry(
     vehicle_type: VehicleType,
     observations: Option<String>,
     ticket_code: Option<String>,
+    tariff_kind: Option<String>,
 ) -> Result<Vehicle, String> {
     state.check_permission(permissions::VEHICULOS_ENTRIES_CREATE)?;
     let code = ticket_code.unwrap_or_else(|| {
@@ -398,6 +405,13 @@ pub fn vehiculos_register_entry(
     if code.is_empty() {
         return Err("Código de ticket vacío".to_string());
     }
+    let tariff_kind_val = tariff_kind
+        .as_deref()
+        .map(str::trim)
+        .map(str::to_lowercase)
+        .filter(|s| ["regular", "employee", "student"].contains(&s.as_str()))
+        .unwrap_or_else(|| "regular".to_string());
+    let operator_user_id = state.get_current_user_id();
 
     let plate_trimmed = plate.trim();
     if vehicle_type_has_plate(&vehicle_type) && plate_trimmed.is_empty() {
@@ -479,8 +493,15 @@ pub fn vehiculos_register_entry(
         0.0
     };
 
+    let tariff_id = resolve_tariff_id_for_entry(
+        &conn,
+        vehicle_type_to_str(&vehicle_type),
+        &tariff_kind_val,
+        &plate_upper,
+    );
+
     conn.execute(
-        "INSERT INTO vehicles (id, ticket_code, plate, plate_upper, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL, 'active', NULL, ?8, NULL)",
+        "INSERT INTO vehicles (id, ticket_code, plate, plate_upper, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate, tariff_kind, tariff_id, operator_user_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL, 'active', NULL, ?8, NULL, ?9, ?10, ?11)",
         params![
             id,
             code,
@@ -490,6 +511,9 @@ pub fn vehiculos_register_entry(
             observations,
             entry_time,
             if debt > 0.0 { debt } else { 0.0_f64 },
+            tariff_kind_val,
+            tariff_id,
+            operator_user_id,
         ],
     )
     .map_err(|e| e.to_string())?;
@@ -508,8 +532,37 @@ pub fn vehiculos_register_entry(
         total_amount: None,
         debt: if debt > 0.0 { Some(debt) } else { None },
         special_rate: None,
+        tariff_kind: tariff_kind_val,
+        tariff_id,
+        operator_user_id,
     };
     Ok(vehicle)
+}
+
+fn resolve_tariff_id_for_entry(
+    conn: &rusqlite::Connection,
+    vehicle_type: &str,
+    tariff_kind: &str,
+    plate_upper: &str,
+) -> Option<String> {
+    if !plate_upper.is_empty() {
+        let plate_tariff: Option<String> = conn
+            .query_row(
+                "SELECT id FROM custom_tariffs WHERE vehicle_type = ?1 AND plate_or_ref = ?2 AND tariff_kind = ?3 LIMIT 1",
+                params![vehicle_type, plate_upper, tariff_kind],
+                |row| row.get(0),
+            )
+            .ok();
+        if plate_tariff.is_some() {
+            return plate_tariff;
+        }
+    }
+    conn.query_row(
+        "SELECT id FROM custom_tariffs WHERE vehicle_type = ?1 AND (plate_or_ref IS NULL OR plate_or_ref = '') AND (tariff_kind = ?2 OR (tariff_kind IS NULL AND ?2 = 'regular')) LIMIT 1",
+        params![vehicle_type, tariff_kind],
+        |row| row.get(0),
+    )
+    .ok()
 }
 
 #[tauri::command]
@@ -521,11 +574,24 @@ pub fn vehiculos_process_exit(
     custom_parking_cost: Option<f64>,
 ) -> Result<Vehicle, String> {
     state.check_permission(permissions::CAJA_TRANSACTIONS_CREATE)?;
+
+    let method = payment_method.as_deref().unwrap_or("cash").to_lowercase();
+    let method = if ["cash", "card", "transfer", "contract", "debt"].contains(&method.as_str()) {
+        method
+    } else {
+        "cash".to_string()
+    };
+
+    if method == "debt" {
+        state.check_permission(permissions::CAJA_DEBT_PAYMENT_CREATE)?;
+    }
+
     let conn = state.db.get().map_err(|e| e.to_string())?;
+    let operator_user_id = state.get_current_user_id();
 
     let vehicle: Vehicle = conn
         .query_row(
-            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE ticket_code = ?1 AND status = 'active'",
+            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate, tariff_kind, tariff_id, operator_user_id FROM vehicles WHERE ticket_code = ?1 AND status = 'active'",
             params![ticket_code.trim()],
             |row| row_to_vehicle(row),
         )
@@ -541,28 +607,53 @@ pub fn vehiculos_process_exit(
             let exit_ts = chrono::DateTime::parse_from_rfc3339(&exit_time)
                 .map_err(|e| e.to_string())?
                 .with_timezone(&chrono::Utc);
-            let duration_minutes = (exit_ts - entry_ts).num_minutes().max(0) as f64;
-            let hours = (duration_minutes / 60.0).ceil().max(1.0);
-            let rate = crate::domains::custom_tariffs::get_default_rate_from_db(
-                &conn,
-                vehicle_type_to_str(&vehicle.vehicle_type),
-            )?;
-            hours * rate
+            let duration_minutes = (exit_ts - entry_ts).num_seconds().max(0) as f64 / 60.0;
+
+            let has_active_contract = if !vehicle.plate.is_empty() {
+                let plate_key = normalize_plate_for_index(&vehicle.plate);
+                crate::domains::contracts::find_active_contract_for_plate(&conn, &plate_key).is_some()
+            } else {
+                false
+            };
+
+            if has_active_contract {
+                let plate_key = normalize_plate_for_index(&vehicle.plate);
+                let contract = crate::domains::contracts::find_active_contract_for_plate(&conn, &plate_key).unwrap();
+                let included_minutes = contract.included_hours_per_day * 60.0;
+                if duration_minutes <= included_minutes {
+                    0.0
+                } else {
+                    let tariff = crate::domains::custom_tariffs::get_tariff_for_calculation(
+                        &conn,
+                        vehicle_type_to_str(&vehicle.vehicle_type),
+                        &vehicle.tariff_kind,
+                    )?;
+                    let overstay_hours = (duration_minutes - included_minutes) / 60.0;
+                    let period_h = tariff.additional_period_hours.max(1.0 / 60.0);
+                    let additional_blocks = (overstay_hours / period_h).ceil().max(0.0);
+                    let additional_rate = tariff.additional_hour_price.unwrap_or(tariff.base_price);
+                    additional_blocks * additional_rate
+                }
+            } else {
+                let tariff = crate::domains::custom_tariffs::get_tariff_for_calculation(
+                    &conn,
+                    vehicle_type_to_str(&vehicle.vehicle_type),
+                    &vehicle.tariff_kind,
+                )?;
+                crate::domains::custom_tariffs::calculate_parking_cost(&tariff, duration_minutes)
+            }
         }
     };
     let debt = vehicle.debt.unwrap_or(0.0);
     let total_with_debt = parking_cost + debt;
 
-    let (final_amount, new_debt) = match partial_payment {
-        Some(p) if p < total_with_debt => (p, total_with_debt - p),
-        _ => (total_with_debt, 0.0),
-    };
-
-    let method = payment_method.as_deref().unwrap_or("cash").to_lowercase();
-    let method = if ["cash", "card", "transfer"].contains(&method.as_str()) {
-        method
+    let (final_amount, new_debt) = if method == "debt" {
+        (0.0, total_with_debt)
     } else {
-        "cash".to_string()
+        match partial_payment {
+            Some(p) if p < total_with_debt => (p, total_with_debt - p),
+            _ => (total_with_debt, 0.0),
+        }
     };
 
     conn.execute(
@@ -580,12 +671,14 @@ pub fn vehiculos_process_exit(
         .map_err(|e| e.to_string())?;
     }
 
-    let tx_id = id_gen::generate_id(id_gen::PREFIX_TRANSACTION);
-    conn.execute(
-        "INSERT INTO transactions (id, vehicle_id, amount, method, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![tx_id, vehicle.id, final_amount, method, exit_time],
-    )
-    .map_err(|e| e.to_string())?;
+    if final_amount > 0.0 {
+        let tx_id = id_gen::generate_id(id_gen::PREFIX_TRANSACTION);
+        conn.execute(
+            "INSERT INTO transactions (id, vehicle_id, amount, method, created_at, operator_user_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![tx_id, vehicle.id, final_amount, method, exit_time, operator_user_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
 
     let updated = Vehicle {
         exit_time: Some(exit_time),
@@ -614,7 +707,7 @@ pub fn vehiculos_remove_from_parking(
     let conn = state.db.get().map_err(|e| e.to_string())?;
     let vehicle: Vehicle = if let Some(id) = by_id {
         conn.query_row(
-            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE id = ?1 AND status = 'active'",
+            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate, tariff_kind, tariff_id, operator_user_id FROM vehicles WHERE id = ?1 AND status = 'active'",
             params![id],
             |row| row_to_vehicle(row),
         )
@@ -622,7 +715,7 @@ pub fn vehiculos_remove_from_parking(
     } else {
         let ticket = by_ticket.unwrap();
         conn.query_row(
-            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE ticket_code = ?1 AND status = 'active'",
+            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate, tariff_kind, tariff_id, operator_user_id FROM vehicles WHERE ticket_code = ?1 AND status = 'active'",
             params![ticket],
             |row| row_to_vehicle(row),
         )
@@ -652,7 +745,7 @@ pub fn vehiculos_find_by_ticket(
     state.check_permission(permissions::VEHICULOS_ENTRIES_READ)?;
     let conn = state.db.get().map_err(|e| e.to_string())?;
     let result = conn.query_row(
-        "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE ticket_code = ?1 AND status = 'active' LIMIT 1",
+        "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate, tariff_kind, tariff_id, operator_user_id FROM vehicles WHERE ticket_code = ?1 AND status = 'active' LIMIT 1",
         params![ticket_code.trim()],
         |row| row_to_vehicle(row),
     );
@@ -672,7 +765,7 @@ pub fn vehiculos_find_by_plate(
     let conn = state.db.get().map_err(|e| e.to_string())?;
     let key = normalize_plate_for_index(&plate);
     let result = conn.query_row(
-        "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE plate_upper = ?1 AND status = 'active' LIMIT 1",
+        "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate, tariff_kind, tariff_id, operator_user_id FROM vehicles WHERE plate_upper = ?1 AND status = 'active' LIMIT 1",
         params![key],
         |row| row_to_vehicle(row),
     );
@@ -694,7 +787,7 @@ pub fn vehiculos_get_vehicles_by_plate(
     let key = normalize_plate_for_index(&plate);
     let mut stmt = conn
         .prepare(
-            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE plate_upper = ?1 ORDER BY entry_time DESC",
+            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate, tariff_kind, tariff_id, operator_user_id FROM vehicles WHERE plate_upper = ?1 ORDER BY entry_time DESC",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt
@@ -739,7 +832,7 @@ pub fn vehiculos_search_vehicles_by_plate_prefix(
     let pattern = like_escape_prefix(&key);
     let mut stmt = conn
         .prepare(
-            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE plate_upper LIKE ?1 ESCAPE '\\' ORDER BY entry_time DESC",
+            "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate, tariff_kind, tariff_id, operator_user_id FROM vehicles WHERE plate_upper LIKE ?1 ESCAPE '\\' ORDER BY entry_time DESC",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt
@@ -797,7 +890,7 @@ pub fn vehiculos_get_plate_conflicts(state: State<AppState>) -> Result<Vec<Plate
     for plate in plates {
         let mut stmt = conn
             .prepare(
-                "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate FROM vehicles WHERE plate_upper = ?1 ORDER BY entry_time DESC",
+                "SELECT id, ticket_code, plate, vehicle_type, observations, entry_time, exit_time, status, total_amount, debt, special_rate, tariff_kind, tariff_id, operator_user_id FROM vehicles WHERE plate_upper = ?1 ORDER BY entry_time DESC",
             )
             .map_err(|e| e.to_string())?;
         let rows = stmt
