@@ -9,6 +9,33 @@ pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>
 #[allow(dead_code)]
 const SCHEMA_VERSION: i64 = 21;
 
+fn table_has_column(conn: &Connection, table_name: &str, column_name: &str) -> Result<bool, String> {
+    let pragma_sql = format!("PRAGMA table_info({table_name})");
+    let mut statement = conn.prepare(&pragma_sql).map_err(|e| e.to_string())?;
+    let mut rows = statement.query([]).map_err(|e| e.to_string())?;
+    while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+        let current_name: String = row.get(1).map_err(|e| e.to_string())?;
+        if current_name == column_name {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn add_column_if_missing(
+    conn: &Connection,
+    table_name: &str,
+    column_name: &str,
+    column_definition: &str,
+) -> Result<(), String> {
+    if table_has_column(conn, table_name, column_name)? {
+        return Ok(());
+    }
+    let alter_sql = format!("ALTER TABLE {table_name} ADD COLUMN {column_definition}");
+    conn.execute(&alter_sql, []).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
         r#"
@@ -202,9 +229,9 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     }
 
     if current < 8 {
+        add_column_if_missing(conn, "vehicles", "plate_upper", "plate_upper TEXT")?;
         conn.execute_batch(
             r#"
-            ALTER TABLE vehicles ADD COLUMN plate_upper TEXT;
             UPDATE vehicles SET plate_upper = UPPER(TRIM(COALESCE(plate, ''))) WHERE plate_upper IS NULL;
             CREATE INDEX IF NOT EXISTS idx_vehicles_plate_upper ON vehicles(plate_upper);
             CREATE INDEX IF NOT EXISTS idx_vehicles_status_exit_time ON vehicles(status, exit_time);
@@ -254,9 +281,9 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     }
 
     if current < 12 {
+        add_column_if_missing(conn, "custom_tariffs", "vehicle_type", "vehicle_type TEXT")?;
         conn.execute_batch(
             r#"
-            ALTER TABLE custom_tariffs ADD COLUMN vehicle_type TEXT;
             UPDATE custom_tariffs SET vehicle_type = 'car' WHERE vehicle_type IS NULL;
             "#,
         )
@@ -309,18 +336,15 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     }
 
     if current < 13 {
-        conn.execute_batch(
-            "ALTER TABLE custom_tariffs ADD COLUMN name TEXT;",
-        )
-        .map_err(|e| e.to_string())?;
+        add_column_if_missing(conn, "custom_tariffs", "name", "name TEXT")?;
         conn.execute("INSERT INTO schema_version (version) VALUES (13)", [])
             .map_err(|e| e.to_string())?;
     }
 
     if current < 14 {
+        add_column_if_missing(conn, "custom_tariffs", "rate_unit", "rate_unit TEXT")?;
         conn.execute_batch(
             r#"
-            ALTER TABLE custom_tariffs ADD COLUMN rate_unit TEXT;
             UPDATE custom_tariffs SET rate_unit = 'hour' WHERE rate_unit IS NULL;
             "#,
         )
@@ -330,10 +354,20 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     }
 
     if current < 15 {
+        add_column_if_missing(
+            conn,
+            "custom_tariffs",
+            "rate_duration_hours",
+            "rate_duration_hours INTEGER",
+        )?;
+        add_column_if_missing(
+            conn,
+            "custom_tariffs",
+            "rate_duration_minutes",
+            "rate_duration_minutes INTEGER",
+        )?;
         conn.execute_batch(
             r#"
-            ALTER TABLE custom_tariffs ADD COLUMN rate_duration_hours INTEGER;
-            ALTER TABLE custom_tariffs ADD COLUMN rate_duration_minutes INTEGER;
             UPDATE custom_tariffs SET rate_duration_hours = 1, rate_duration_minutes = 0 WHERE rate_unit IS NULL OR rate_unit = 'hour';
             UPDATE custom_tariffs SET rate_duration_hours = 0, rate_duration_minutes = 1 WHERE rate_unit = 'minute';
             UPDATE custom_tariffs SET rate_duration_hours = 1, rate_duration_minutes = 0 WHERE rate_duration_hours IS NULL;
@@ -383,31 +417,48 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     }
 
     if current < 18 {
-        conn.execute_batch(
-            r#"
-            ALTER TABLE users ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;
-            "#,
-        )
-        .map_err(|e| e.to_string())?;
+        add_column_if_missing(conn, "users", "hidden", "hidden INTEGER NOT NULL DEFAULT 0")?;
         seed_developer_role_and_user(conn)?;
         conn.execute("INSERT INTO schema_version (version) VALUES (18)", [])
             .map_err(|e| e.to_string())?;
     }
 
     if current < 19 {
+        add_column_if_missing(
+            conn,
+            "custom_tariffs",
+            "tariff_kind",
+            "tariff_kind TEXT DEFAULT 'regular'",
+        )?;
+        add_column_if_missing(
+            conn,
+            "custom_tariffs",
+            "additional_hour_price",
+            "additional_hour_price REAL",
+        )?;
+        add_column_if_missing(
+            conn,
+            "vehicles",
+            "tariff_kind",
+            "tariff_kind TEXT DEFAULT 'regular'",
+        )?;
+        add_column_if_missing(conn, "vehicles", "tariff_id", "tariff_id TEXT")?;
+        add_column_if_missing(conn, "vehicles", "operator_user_id", "operator_user_id TEXT")?;
+        add_column_if_missing(
+            conn,
+            "transactions",
+            "operator_user_id",
+            "operator_user_id TEXT",
+        )?;
+        add_column_if_missing(
+            conn,
+            "shift_closures",
+            "operator_user_id",
+            "operator_user_id TEXT",
+        )?;
         conn.execute_batch(
             r#"
-            ALTER TABLE custom_tariffs ADD COLUMN tariff_kind TEXT DEFAULT 'regular';
-            ALTER TABLE custom_tariffs ADD COLUMN additional_hour_price REAL;
             UPDATE custom_tariffs SET tariff_kind = 'regular' WHERE tariff_kind IS NULL;
-
-            ALTER TABLE vehicles ADD COLUMN tariff_kind TEXT DEFAULT 'regular';
-            ALTER TABLE vehicles ADD COLUMN tariff_id TEXT;
-            ALTER TABLE vehicles ADD COLUMN operator_user_id TEXT;
-
-            ALTER TABLE transactions ADD COLUMN operator_user_id TEXT;
-
-            ALTER TABLE shift_closures ADD COLUMN operator_user_id TEXT;
 
             DROP INDEX IF EXISTS idx_custom_tariffs_vehicle_plate;
             CREATE UNIQUE INDEX IF NOT EXISTS idx_custom_tariffs_vehicle_plate_kind
@@ -442,10 +493,20 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
     }
 
     if current < 20 {
+        add_column_if_missing(
+            conn,
+            "custom_tariffs",
+            "additional_duration_hours",
+            "additional_duration_hours INTEGER",
+        )?;
+        add_column_if_missing(
+            conn,
+            "custom_tariffs",
+            "additional_duration_minutes",
+            "additional_duration_minutes INTEGER",
+        )?;
         conn.execute_batch(
             r#"
-            ALTER TABLE custom_tariffs ADD COLUMN additional_duration_hours INTEGER;
-            ALTER TABLE custom_tariffs ADD COLUMN additional_duration_minutes INTEGER;
             UPDATE custom_tariffs SET additional_duration_hours = 1, additional_duration_minutes = 0 WHERE additional_duration_hours IS NULL;
             UPDATE custom_tariffs SET additional_duration_minutes = 0 WHERE additional_duration_minutes IS NULL;
             "#,
@@ -480,6 +541,13 @@ fn seed_special_tariffs(conn: &Connection) -> Result<(), String> {
         ("tariff_student_moto", "motorcycle", "Student Motorcycle", "Half-day motorcycle (students)", 3000.0, 4, 0, "student", 500.0),
     ];
     let now = chrono::Utc::now().to_rfc3339();
+    let has_additional_duration_hours =
+        table_has_column(conn, "custom_tariffs", "additional_duration_hours")?;
+    let has_additional_duration_minutes =
+        table_has_column(conn, "custom_tariffs", "additional_duration_minutes")?;
+    let supports_additional_duration_columns =
+        has_additional_duration_hours && has_additional_duration_minutes;
+
     for (id, vtype, name, desc, amount, dur_h, dur_m, kind, add_price) in &tariffs {
         let exists: i64 = conn
             .query_row(
@@ -489,15 +557,27 @@ fn seed_special_tariffs(conn: &Connection) -> Result<(), String> {
             )
             .map_err(|e| e.to_string())?;
         if exists == 0 {
-            conn.execute(
-                r#"INSERT INTO custom_tariffs
-                    (id, vehicle_type, name, plate_or_ref, description, amount,
-                     rate_unit, rate_duration_hours, rate_duration_minutes,
-                     tariff_kind, additional_hour_price, additional_duration_hours, additional_duration_minutes, created_at)
-                   VALUES (?1, ?2, ?3, '', ?4, ?5, 'hour', ?6, ?7, ?8, ?9, 1, 0, ?10)"#,
-                rusqlite::params![id, vtype, name, desc, amount, dur_h, dur_m, kind, add_price, now],
-            )
-            .map_err(|e| e.to_string())?;
+            if supports_additional_duration_columns {
+                conn.execute(
+                    r#"INSERT INTO custom_tariffs
+                        (id, vehicle_type, name, plate_or_ref, description, amount,
+                         rate_unit, rate_duration_hours, rate_duration_minutes,
+                         tariff_kind, additional_hour_price, additional_duration_hours, additional_duration_minutes, created_at)
+                       VALUES (?1, ?2, ?3, '', ?4, ?5, 'hour', ?6, ?7, ?8, ?9, 1, 0, ?10)"#,
+                    rusqlite::params![id, vtype, name, desc, amount, dur_h, dur_m, kind, add_price, now],
+                )
+                .map_err(|e| e.to_string())?;
+            } else {
+                conn.execute(
+                    r#"INSERT INTO custom_tariffs
+                        (id, vehicle_type, name, plate_or_ref, description, amount,
+                         rate_unit, rate_duration_hours, rate_duration_minutes,
+                         tariff_kind, additional_hour_price, created_at)
+                       VALUES (?1, ?2, ?3, '', ?4, ?5, 'hour', ?6, ?7, ?8, ?9, ?10)"#,
+                    rusqlite::params![id, vtype, name, desc, amount, dur_h, dur_m, kind, add_price, now],
+                )
+                .map_err(|e| e.to_string())?;
+            }
         }
     }
     Ok(())
