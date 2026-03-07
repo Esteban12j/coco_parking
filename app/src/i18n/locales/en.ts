@@ -588,6 +588,13 @@ export const en: Translations = {
     additionalHourPriceHint: "Price per additional block after the base period. Empty = same base price per hour.",
     additionalPeriodLabel: "Additional block duration",
     additionalPeriodHint: "How many hours and minutes each additional block lasts (e.g. 1h 0min = per hour; 0h 30min = per half hour).",
+    defaultCar: "Car",
+    defaultMotorcycle: "Motorcycle",
+    defaultTruck: "Truck",
+    defaultBicycle: "Bicycle",
+    employeeCar: "Car (employees)",
+    employeeMoto: "Motorcycle (employees)",
+    studentMoto: "Motorcycle (students)",
   },
   notFound: {
     title: "Oops! Page not found",

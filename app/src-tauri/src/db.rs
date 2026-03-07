@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>;
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 21;
+const SCHEMA_VERSION: i64 = 22;
 
 fn table_has_column(conn: &Connection, table_name: &str, column_name: &str) -> Result<bool, String> {
     let pragma_sql = format!("PRAGMA table_info({table_name})");
@@ -272,7 +272,7 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
                 vehicle_type TEXT PRIMARY KEY,
                 amount REAL NOT NULL
             );
-            INSERT OR IGNORE INTO default_rates (vehicle_type, amount) VALUES ('car', 50), ('motorcycle', 30), ('truck', 80), ('bicycle', 15);
+            INSERT OR IGNORE INTO default_rates (vehicle_type, amount) VALUES ('car', 4000.0), ('motorcycle', 2500.0), ('truck', 5000.0), ('bicycle', 1000.0);
             "#,
         )
         .map_err(|e| e.to_string())?;
@@ -526,6 +526,20 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
         )
         .map_err(|e| e.to_string())?;
         conn.execute("INSERT INTO schema_version (version) VALUES (21)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 22 {
+        conn.execute_batch(
+            r#"
+            UPDATE custom_tariffs SET amount = 4000.0, additional_hour_price = 1000.0 WHERE id = 'default_car';
+            UPDATE custom_tariffs SET amount = 2500.0, additional_hour_price = 500.0 WHERE id = 'default_motorcycle';
+            UPDATE custom_tariffs SET amount = 5000.0, additional_hour_price = 1500.0 WHERE id = 'default_truck';
+            UPDATE custom_tariffs SET amount = 1000.0, additional_hour_price = 500.0 WHERE id = 'default_bicycle';
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (22)", [])
             .map_err(|e| e.to_string())?;
     }
 
@@ -789,6 +803,12 @@ mod tests {
                 hidden INTEGER NOT NULL DEFAULT 0
             );
             INSERT OR IGNORE INTO roles (id, name) VALUES ('role_developer', 'developer');
+
+            CREATE TABLE IF NOT EXISTS custom_tariffs (
+                id TEXT PRIMARY KEY,
+                amount REAL,
+                additional_hour_price REAL
+            );
             "#,
         );
         assert!(bootstrap_result.is_ok(), "bootstrap schema should be prepared");

@@ -27,6 +27,7 @@ import { CustomTariff, TariffRateUnit } from "@/types/parking";
 import type { VehicleType } from "@/types/parking";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { getTariffDisplayName } from "@/lib/tariffDisplay";
 
 function isTauri(): boolean {
   return typeof window !== "undefined" && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
@@ -232,7 +233,7 @@ export const CustomTariffSelector = ({
     parseFloat(createAmount.replace(",", ".")) >= 0;
 
   const nameDisplay = (tariff: CustomTariff) =>
-    tariff.name?.trim() || tariff.plateOrRef?.trim() || t("tariffs.defaultLabel");
+    getTariffDisplayName(tariff, t);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>

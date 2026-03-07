@@ -588,6 +588,13 @@ export const es: Translations = {
     additionalHourPriceHint: "Precio por cada bloque adicional después del período base. Vacío = mismo precio base por hora.",
     additionalPeriodLabel: "Duración del bloque adicional",
     additionalPeriodHint: "Cada cuántas horas y minutos se cobra el precio adicional (ej: 1h 0min = por hora; 0h 30min = por media hora).",
+    defaultCar: "Carro",
+    defaultMotorcycle: "Moto",
+    defaultTruck: "Camión",
+    defaultBicycle: "Bicicleta",
+    employeeCar: "Carro (empleados)",
+    employeeMoto: "Moto (empleados)",
+    studentMoto: "Moto (estudiantes)",
   },
   notFound: {
     title: "¡Ups! Página no encontrada",

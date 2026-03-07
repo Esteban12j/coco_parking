@@ -559,6 +559,13 @@ export interface Translations {
     additionalHourPriceHint: string;
     additionalPeriodLabel: string;
     additionalPeriodHint: string;
+    defaultCar: string;
+    defaultMotorcycle: string;
+    defaultTruck: string;
+    defaultBicycle: string;
+    employeeCar: string;
+    employeeMoto: string;
+    studentMoto: string;
   };
   notFound: {
     title: string;

@@ -47,6 +47,7 @@ import {
 } from "@/api/customTariffs";
 import type { CustomTariff, TariffRateUnit, VehicleType, TariffKind } from "@/types/parking";
 import { toast } from "@/hooks/use-toast";
+import { getTariffDisplayName } from "@/lib/tariffDisplay";
 
 function isTauri(): boolean {
   return typeof window !== "undefined" && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
@@ -266,7 +267,7 @@ export const TariffsPage = () => {
   };
 
   const nameDisplay = (tariff: CustomTariff) =>
-    tariff.name?.trim() || tariff.plateOrRef?.trim() || t("tariffs.defaultLabel");
+    getTariffDisplayName(tariff, t);
 
   const isFormValid =
     formAmount.trim() !== "" &&
@@ -521,7 +522,7 @@ export const TariffsPage = () => {
       )}
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("tariffs.addTariff")}</DialogTitle>
           </DialogHeader>
@@ -542,7 +543,7 @@ export const TariffsPage = () => {
       </Dialog>
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("tariffs.edit")}</DialogTitle>
           </DialogHeader>

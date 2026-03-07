@@ -12,6 +12,7 @@ import type { VehicleType, TariffKind, CustomTariff } from "@/types/parking";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { listen } from "@tauri-apps/api/event";
+import { getTariffDisplayName } from "@/lib/tariffDisplay";
 
 const VEHICLE_TYPE_OPTIONS: {
   type: VehicleType;
@@ -45,10 +46,18 @@ function formatTariffSummary(tariff: CustomTariff): string {
   return summary;
 }
 
-function buildTariffLabel(tariff: CustomTariff): string {
+function buildTariffLabel(
+  tariff: CustomTariff,
+  t: (key: string) => string
+): string {
   const kind = tariff.tariffKind || "regular";
-  const kindLabel = kind.charAt(0).toUpperCase() + kind.slice(1);
-  const name = tariff.name?.trim();
+  const kindLabel =
+    kind === "employee"
+      ? t("tariffs.kindEmployee")
+      : kind === "student"
+        ? t("tariffs.kindStudent")
+        : t("tariffs.kindRegular");
+  const name = getTariffDisplayName(tariff, t);
   const prefix = name ? `${name} (${kindLabel})` : kindLabel;
   return `${prefix} — ${formatTariffSummary(tariff)}`;
 }
@@ -260,7 +269,7 @@ export const VehicleEntryForm = ({
                       : "border-border bg-card hover:bg-accent"
                   )}
                 >
-                  <span className="text-sm font-medium">{buildTariffLabel(tariff)}</span>
+                  <span className="text-sm font-medium">{buildTariffLabel(tariff, t)}</span>
                 </button>
               ))}
             </div>
