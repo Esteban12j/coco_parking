@@ -23,6 +23,7 @@ tauri-plugin-fs = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+tauri-plugin-log = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
@@ -37,6 +38,8 @@ base64 = "0.22"
 dotenvy = "0.15"
 barcoders = { version = "2", features = ["image"] }
 flate2 = "1.0"
+native-dialog = "0.7"
+log = "0.4"
 
 [features]
 default = ["custom-protocol"]

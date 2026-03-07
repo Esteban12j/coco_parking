@@ -670,6 +670,60 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_open_pool_con_ruta_valida() {
+        let dir = std::env::temp_dir().join("coco_parking_smoke_test");
+        let create_dir_result = std::fs::create_dir_all(&dir);
+        assert!(create_dir_result.is_ok(), "temp dir should be created");
+
+        let db_path = dir.join("smoke_test.db");
+        let _ = std::fs::remove_file(&db_path);
+
+        let bootstrap_conn = rusqlite::Connection::open(&db_path);
+        assert!(bootstrap_conn.is_ok(), "bootstrap sqlite file should be created");
+        let conn = match bootstrap_conn {
+            Ok(conn) => conn,
+            Err(error) => panic!("bootstrap sqlite file should be created: {error}"),
+        };
+        let bootstrap_result = conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY);
+            DELETE FROM schema_version;
+            INSERT INTO schema_version (version) VALUES (21);
+
+            CREATE TABLE IF NOT EXISTS roles (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE
+            );
+            CREATE TABLE IF NOT EXISTS role_permissions (
+                role_id TEXT NOT NULL,
+                permission TEXT NOT NULL,
+                PRIMARY KEY (role_id, permission)
+            );
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                role_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                hidden INTEGER NOT NULL DEFAULT 0
+            );
+            INSERT OR IGNORE INTO roles (id, name) VALUES ('role_developer', 'developer');
+            "#,
+        );
+        assert!(bootstrap_result.is_ok(), "bootstrap schema should be prepared");
+
+        let open_result = open_pool(&db_path);
+        assert!(
+            open_result.is_ok(),
+            "open_pool should not fail for a valid temp path: {:?}",
+            open_result.err()
+        );
+
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
     fn migrations_create_tables_and_persist_vehicle() {
         let dir = std::env::temp_dir().join("coco_parking_db_test");
         std::fs::create_dir_all(&dir).unwrap();

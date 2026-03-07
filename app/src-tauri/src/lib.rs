@@ -8,7 +8,9 @@ mod permissions;
 mod scanner;
 mod state;
 
+use std::path::PathBuf;
 use tauri::Manager;
+use tauri_plugin_log::{Target, TargetKind};
 use dev::{
     dev_clear_database,
     dev_get_current_user_id,
@@ -112,24 +114,87 @@ fn load_dotenv() {
     }
 }
 
+fn resolve_startup_log_dir() -> PathBuf {
+    let app_identifier = "com.cocoparking.app";
+    let data_dir = if cfg!(target_os = "windows") {
+        std::env::var("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| std::env::temp_dir())
+    } else if cfg!(target_os = "macos") {
+        std::env::var("HOME")
+            .map(|home| PathBuf::from(home).join("Library").join("Application Support"))
+            .unwrap_or_else(|_| std::env::temp_dir())
+    } else {
+        std::env::var("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|_| std::env::var("HOME").map(|home| PathBuf::from(home).join(".local").join("share")))
+            .unwrap_or_else(|_| std::env::temp_dir())
+    };
+    let app_data_dir = data_dir.join(app_identifier);
+    let _ = std::fs::create_dir_all(&app_data_dir);
+    app_data_dir
+}
+
+fn show_startup_error_dialog(message: &str) {
+    let _ = native_dialog::MessageDialog::new()
+        .set_type(native_dialog::MessageType::Error)
+        .set_title("COCO Parking startup error")
+        .set_text(message)
+        .show_alert();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     load_dotenv();
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .target(Target::new(TargetKind::Folder {
+                    path: resolve_startup_log_dir(),
+                    file_name: Some("coco_parking".to_string()),
+                }))
+                .build(),
+        )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
-            let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-            std::fs::create_dir_all(&data_dir).map_err(|e| e.to_string())?;
+            log::info!("Starting COCO Parking setup");
+            let data_dir = match app.path().app_data_dir() {
+                Ok(path) => path,
+                Err(error) => {
+                    let message = format!("Unable to resolve app data directory: {error}");
+                    log::error!("{message}");
+                    show_startup_error_dialog(&message);
+                    return Ok(());
+                }
+            };
+            log::info!("Resolved app data directory: {}", data_dir.to_string_lossy());
+            if let Err(error) = std::fs::create_dir_all(&data_dir) {
+                let message = format!("Unable to create app data directory: {error}");
+                log::error!("{message}");
+                show_startup_error_dialog(&message);
+                return Ok(());
+            }
             let db_path = data_dir.join("coco_parking.db");
-            let pool = db::open_pool(&db_path).map_err(|e| e.to_string())?;
+            log::info!("Opening SQLite pool at: {}", db_path.to_string_lossy());
+            let pool = match db::open_pool(&db_path) {
+                Ok(pool) => pool,
+                Err(error) => {
+                    let message = format!("Unable to open SQLite pool: {error}");
+                    log::error!("{message}");
+                    show_startup_error_dialog(&message);
+                    return Ok(());
+                }
+            };
             let canonical = db_path.canonicalize().unwrap_or_else(|_| db_path.clone());
             app.manage(state::AppState::new(std::sync::Arc::new(pool), canonical));
+            log::info!("Database pool initialized and app state managed");
             scanner::spawn_barcode_listener(app.handle().clone());
             spawn_backup_scheduler(app.handle().clone());
+            log::info!("Setup completed successfully");
             Ok(())
         })
         .on_window_event(|window, event| {
