@@ -25,7 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/layout/PageHeader";
-import type { Vehicle, TariffKind } from "@/types/parking";
+import type { Vehicle, TariffKind, VehicleType } from "@/types/parking";
 import { listen } from "@tauri-apps/api/event";
 
 type ViewMode = "search" | "entry" | "checkout" | "active-detail";

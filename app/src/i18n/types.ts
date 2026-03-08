@@ -197,6 +197,10 @@ export interface Translations {
     serviceType: string;
     selectTariff: string;
     noTariffsAvailable: string;
+    chargeMode: string;
+    contractMode: string;
+    contractApplied: string;
+    contractInfo: string;
     employeeCar: string;
     employeeMoto: string;
     studentMoto: string;
