@@ -275,7 +275,7 @@ pub fn caja_list_shift_closures(
 
     let mut stmt = conn
         .prepare(
-            "SELECT id, closed_at, expected_total, cash_total, card_total, transfer_total, arqueo_cash, discrepancy, total_transactions, notes, operator_user_id FROM shift_closures ORDER BY closed_at DESC LIMIT ?1",
+            "SELECT s.id, s.closed_at, s.expected_total, s.cash_total, s.card_total, s.transfer_total, s.arqueo_cash, s.discrepancy, s.total_transactions, s.notes, COALESCE(u.display_name, s.operator_user_id) FROM shift_closures s LEFT JOIN users u ON s.operator_user_id = u.id ORDER BY s.closed_at DESC LIMIT ?1",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt

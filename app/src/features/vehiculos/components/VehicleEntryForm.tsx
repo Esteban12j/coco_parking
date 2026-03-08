@@ -65,9 +65,12 @@ function buildTariffLabel(
 interface VehicleEntryFormProps {
   existingDebt?: number;
   getPlateDebt?: (plate: string) => Promise<number>;
+  getEntrySuggestionsByPlate?: (plate: string) => Promise<{ vehicleType?: VehicleType; tariffKind?: TariffKind; hasContract: boolean }>;
   registerError?: string | null;
   initialPlate?: string;
   initialVehicleType?: VehicleType;
+  initialTariffKind?: TariffKind;
+  vehicleTypeLocked?: boolean;
   onSubmit: (data: {
     plate: string;
     vehicleType: VehicleType;
@@ -81,9 +84,12 @@ interface VehicleEntryFormProps {
 export const VehicleEntryForm = ({
   existingDebt: initialDebt = 0,
   getPlateDebt,
+  getEntrySuggestionsByPlate,
   registerError,
   initialPlate = "",
   initialVehicleType,
+  initialTariffKind,
+  vehicleTypeLocked = false,
   onSubmit,
   onCancel,
 }: VehicleEntryFormProps) => {
@@ -102,7 +108,11 @@ export const VehicleEntryForm = ({
   const [observationTags, setObservationTags] = useState<string[]>([]);
   const [extraObservations, setExtraObservations] = useState("");
   const [existingDebt, setExistingDebt] = useState(initialDebt);
+  const [hasContract, setHasContract] = useState(false);
+  const [contractTariffKind, setContractTariffKind] = useState<TariffKind | undefined>();
+  const [chargeMode, setChargeMode] = useState<"tariff" | "contract">("tariff");
   const ticketInputRef = useRef<HTMLInputElement>(null);
+  const lastSearchedPlateRef = useRef<string>("");
 
   const tariffsForVehicleType = useMemo(
     () => allTariffs.filter(
@@ -112,9 +122,16 @@ export const VehicleEntryForm = ({
   );
 
   useEffect(() => {
+    if (initialTariffKind && tariffsForVehicleType.length > 0) {
+      const matchingTariff = tariffsForVehicleType.find((tariff) => (tariff.tariffKind || "regular") === initialTariffKind);
+      if (matchingTariff) {
+        setSelectedTariffId(matchingTariff.id);
+        return;
+      }
+    }
     const defaultRegular = tariffsForVehicleType.find((tariff) => (tariff.tariffKind || "regular") === "regular");
     setSelectedTariffId(defaultRegular?.id ?? tariffsForVehicleType[0]?.id ?? "");
-  }, [tariffsForVehicleType]);
+  }, [tariffsForVehicleType, initialTariffKind]);
 
   const requiresPlate = vehicleType !== "bicycle";
 
@@ -143,6 +160,43 @@ export const VehicleEntryForm = ({
     return () => { cancelled = true; };
   }, [plate, initialDebt, getPlateDebt]);
 
+  useEffect(() => {
+    if (initialPlate && getEntrySuggestionsByPlate && !vehicleTypeLocked) {
+      handlePlateBlur();
+    }
+  }, [initialPlate, getEntrySuggestionsByPlate, vehicleTypeLocked]);
+
+  const handlePlateBlur = async () => {
+    const trimmedPlate = plate.trim().toUpperCase();
+    if (!getEntrySuggestionsByPlate || trimmedPlate.length < 2 || lastSearchedPlateRef.current === trimmedPlate) {
+      return;
+    }
+    lastSearchedPlateRef.current = trimmedPlate;
+    try {
+      const suggestions = await getEntrySuggestionsByPlate(trimmedPlate);
+      if (suggestions.vehicleType && !vehicleTypeLocked) {
+        setVehicleType(suggestions.vehicleType);
+      }
+      // Detectar si el vehículo tiene contrato
+      setHasContract(suggestions.hasContract);
+      if (suggestions.hasContract) {
+        setChargeMode("contract");
+        setContractTariffKind(suggestions.tariffKind);
+      } else {
+        setChargeMode("tariff");
+        setContractTariffKind(undefined);
+      }
+      if (suggestions.tariffKind && tariffsForVehicleType.length > 0) {
+        const matchingTariff = tariffsForVehicleType.find((tariff) => (tariff.tariffKind || "regular") === suggestions.tariffKind);
+        if (matchingTariff) {
+          setSelectedTariffId(matchingTariff.id);
+        }
+      }
+    } catch (error) {
+      // Ignore errors, just don't update
+    }
+  };
+
   const handleToggleTag = (tag: string) => {
     setObservationTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
@@ -156,8 +210,8 @@ export const VehicleEntryForm = ({
 
   const plateValid = requiresPlate ? plate.trim().length > 0 : true;
   const barcodeValid = ticketCode.trim().length > 0;
-  const tariffValid = selectedTariffId.length > 0 && selectedTariff != null;
-  const isFormValid = plateValid && barcodeValid && tariffValid;
+  const chargeValid = chargeMode === "contract" || (selectedTariffId.length > 0 && selectedTariff != null);
+  const isFormValid = plateValid && barcodeValid && chargeValid;
 
   const buildObservationsText = (): string => {
     const parts: string[] = [];
@@ -169,11 +223,14 @@ export const VehicleEntryForm = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
+    const tariffKind = chargeMode === "contract" 
+      ? (contractTariffKind || "regular") as TariffKind
+      : (selectedTariff?.tariffKind || "regular") as TariffKind;
     onSubmit({
       plate: plate.trim().toUpperCase(),
       vehicleType,
       observations: buildObservationsText(),
-      tariffKind: (selectedTariff?.tariffKind || "regular") as TariffKind,
+      tariffKind,
       ticketCode: ticketCode.trim(),
     });
   };
@@ -218,6 +275,12 @@ export const VehicleEntryForm = ({
             type="text"
             value={plate}
             onChange={(e) => setPlate(e.target.value.toUpperCase())}
+            onBlur={handlePlateBlur}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handlePlateBlur();
+              }
+            }}
             placeholder="ABC-123"
             className="text-lg font-mono uppercase"
             required={requiresPlate}
@@ -232,11 +295,14 @@ export const VehicleEntryForm = ({
               <button
                 key={opt.type}
                 type="button"
-                onClick={() => setVehicleType(opt.type)}
+                onClick={() => !vehicleTypeLocked && setVehicleType(opt.type)}
+                disabled={vehicleTypeLocked}
                 className={cn(
                   "flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all text-center",
                   vehicleType === opt.type
                     ? `${opt.color} bg-primary/10 text-foreground ring-1 ring-primary`
+                    : vehicleTypeLocked
+                    ? "border-border bg-muted text-muted-foreground cursor-not-allowed"
                     : "border-border bg-card hover:bg-accent"
                 )}
               >
@@ -250,29 +316,73 @@ export const VehicleEntryForm = ({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="tariffSelect">{t("vehicles.selectTariff")} *</Label>
-          {tariffsLoading ? (
-            <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
-          ) : tariffsForVehicleType.length === 0 ? (
-            <p className="text-sm text-destructive">{t("vehicles.noTariffsAvailable")}</p>
-          ) : (
-            <div className="space-y-1">
-              {tariffsForVehicleType.map((tariff) => (
+          {hasContract && (
+            <>
+              <Label>{t("vehicles.chargeMode")} *</Label>
+              <div className="grid grid-cols-2 gap-2 mb-4">
                 <button
-                  key={tariff.id}
                   type="button"
-                  onClick={() => setSelectedTariffId(tariff.id)}
+                  onClick={() => setChargeMode("contract")}
                   className={cn(
-                    "w-full text-left px-3 py-2.5 rounded-lg border-2 transition-all",
-                    selectedTariffId === tariff.id
-                      ? "border-primary bg-primary/10 ring-1 ring-primary"
-                      : "border-border bg-card hover:bg-accent"
+                    "px-4 py-2.5 rounded-lg border-2 transition-all font-medium",
+                    chargeMode === "contract"
+                      ? "border-primary bg-primary/10 ring-1 ring-primary text-foreground"
+                      : "border-border bg-card hover:bg-accent text-muted-foreground"
                   )}
                 >
-                  <span className="text-sm font-medium">{buildTariffLabel(tariff, t)}</span>
+                  {t("vehicles.contractMode")}
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setChargeMode("tariff")}
+                  className={cn(
+                    "px-4 py-2.5 rounded-lg border-2 transition-all font-medium",
+                    chargeMode === "tariff"
+                      ? "border-primary bg-primary/10 ring-1 ring-primary text-foreground"
+                      : "border-border bg-card hover:bg-accent text-muted-foreground"
+                  )}
+                >
+                  {t("vehicles.selectTariff")}
+                </button>
+              </div>
+            </>
+          )}
+          {chargeMode === "contract" ? (
+            <div className="p-4 rounded-lg border border-border bg-success/5">
+              <p className="text-sm font-medium text-foreground">
+                {t("vehicles.contractApplied")}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t("vehicles.contractInfo")}
+              </p>
             </div>
+          ) : (
+            <>
+              <Label htmlFor="tariffSelect">{t("vehicles.selectTariff")} *</Label>
+              {tariffsLoading ? (
+                <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+              ) : tariffsForVehicleType.length === 0 ? (
+                <p className="text-sm text-destructive">{t("vehicles.noTariffsAvailable")}</p>
+              ) : (
+                <div className="space-y-1">
+                  {tariffsForVehicleType.map((tariff) => (
+                    <button
+                      key={tariff.id}
+                      type="button"
+                      onClick={() => setSelectedTariffId(tariff.id)}
+                      className={cn(
+                        "w-full text-left px-3 py-2.5 rounded-lg border-2 transition-all",
+                        selectedTariffId === tariff.id
+                          ? "border-primary bg-primary/10 ring-1 ring-primary"
+                          : "border-border bg-card hover:bg-accent"
+                      )}
+                    >
+                      <span className="text-sm font-medium">{buildTariffLabel(tariff, t)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
 

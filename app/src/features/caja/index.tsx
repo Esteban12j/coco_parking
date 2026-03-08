@@ -211,6 +211,7 @@ export const CajaPage = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t("till.closedAt")}</TableHead>
+                    <TableHead>{t("common.user")}</TableHead>
                     <TableHead className="text-right">{t("till.expectedCash")}</TableHead>
                     <TableHead className="text-right">{t("till.expectedCashOnly")}</TableHead>
                     <TableHead className="text-right">{t("till.arqueoCash")}</TableHead>
@@ -222,6 +223,7 @@ export const CajaPage = () => {
                   {shiftClosures.map((c) => (
                     <TableRow key={c.id}>
                       <TableCell>{formatClosedAt(c.closedAt)}</TableCell>
+                      <TableCell>{c.operatorUserId || "—"}</TableCell>
                       <TableCell className="text-right">
                         ${c.expectedTotal.toFixed(2)}
                       </TableCell>

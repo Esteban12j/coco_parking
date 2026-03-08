@@ -727,6 +727,14 @@ pub fn vehiculos_remove_from_parking(
         params![exit_time, vehicle.id],
     )
     .map_err(|e| e.to_string())?;
+    // Registrar la acción de remoción en transactions para trazabilidad
+    let tx_id = id_gen::generate_id(id_gen::PREFIX_TRANSACTION);
+    let operator_user_id = state.get_current_user_id();
+    conn.execute(
+        "INSERT INTO transactions (id, vehicle_id, amount, method, created_at, operator_user_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![tx_id, vehicle.id, 0.0, "removed", exit_time, operator_user_id],
+    )
+    .map_err(|e| e.to_string())?;
     let updated = Vehicle {
         exit_time: Some(exit_time),
         status: VehicleStatus::Removed,

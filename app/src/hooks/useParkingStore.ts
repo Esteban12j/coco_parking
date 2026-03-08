@@ -4,6 +4,7 @@ import { Vehicle, VehicleType, TariffKind, DailyMetrics, TreasuryData, ShiftClos
 import * as apiCaja from '@/api/caja';
 import * as apiMetricas from '@/api/metricas';
 import * as apiVehiculos from '@/api/vehiculos';
+import * as apiContracts from '@/api/contracts';
 import { toast } from '@/hooks/use-toast';
 import { useTranslation } from '@/i18n';
 import { generatePrefixedId } from '@/lib/utils';
@@ -535,6 +536,43 @@ export const useParkingStore = () => {
     [tauri]
   );
 
+  const getEntrySuggestionsByPlate = useCallback(
+    async (plate: string): Promise<{ vehicleType?: VehicleType; tariffKind?: TariffKind; hasContract: boolean }> => {
+      if (!tauri) return { hasContract: false };
+      try {
+        const contract = await apiContracts.getContractByPlate(plate.trim());
+        const vehicles = await apiVehiculos.getVehiclesByPlate(plate.trim());
+        const mappedVehicles = (vehicles ?? []).map(vehicleFromBackend);
+
+        // Prioridad: contrato > vehículo activo > último histórico
+        let vehicleType: VehicleType | undefined;
+        let tariffKind: TariffKind | undefined;
+
+        if (contract) {
+          vehicleType = contract.vehicleType as VehicleType;
+          tariffKind = contract.tariffKind as TariffKind || 'regular';
+        } else {
+          // Buscar el tipo más reciente
+          const sortedVehicles = mappedVehicles.sort((a, b) => b.entryTime.getTime() - a.entryTime.getTime());
+          const latest = sortedVehicles[0];
+          if (latest) {
+            vehicleType = latest.vehicleType;
+            tariffKind = latest.tariffKind as TariffKind || 'regular';
+          }
+        }
+
+        return {
+          vehicleType,
+          tariffKind,
+          hasContract: !!contract,
+        };
+      } catch {
+        return { hasContract: false };
+      }
+    },
+    [tauri]
+  );
+
   const searchVehiclesByPlatePrefix = useCallback(
     async (platePrefix: string): Promise<Vehicle[]> => {
       if (!tauri) return [];
@@ -638,6 +676,7 @@ export const useParkingStore = () => {
     registerError,
     clearRegisterError,
     getVehiclesByPlate,
+    getEntrySuggestionsByPlate,
     searchVehiclesByPlatePrefix,
     deleteVehicle,
     removeVehicleFromParking: (vehicleId: string) => removeFromParkingMutation.mutate({ vehicleId }),

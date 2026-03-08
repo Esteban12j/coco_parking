@@ -42,6 +42,7 @@ fn transactions_columns() -> Vec<ColumnDef> {
         ColumnDef { key: "amount".into(), label: "Amount".into() },
         ColumnDef { key: "method".into(), label: "Payment method".into() },
         ColumnDef { key: "created_at".into(), label: "Created at".into() },
+        ColumnDef { key: "operator_user_id".into(), label: "Operator".into() },
     ]
 }
 
@@ -55,6 +56,7 @@ fn completed_vehicles_columns() -> Vec<ColumnDef> {
         ColumnDef { key: "exit_time".into(), label: "Exit time".into() },
         ColumnDef { key: "total_amount".into(), label: "Total amount".into() },
         ColumnDef { key: "debt".into(), label: "Debt".into() },
+        ColumnDef { key: "operator_user_id".into(), label: "Operator".into() },
     ]
 }
 
@@ -69,6 +71,7 @@ fn vehicle_exits_columns() -> Vec<ColumnDef> {
         ColumnDef { key: "status".into(), label: "Exit type".into() },
         ColumnDef { key: "total_amount".into(), label: "Total amount".into() },
         ColumnDef { key: "debt".into(), label: "Debt".into() },
+        ColumnDef { key: "operator_user_id".into(), label: "Operator".into() },
     ]
 }
 
@@ -84,6 +87,7 @@ fn shift_closures_columns() -> Vec<ColumnDef> {
         ColumnDef { key: "discrepancy".into(), label: "Discrepancy".into() },
         ColumnDef { key: "total_transactions".into(), label: "Total transactions".into() },
         ColumnDef { key: "notes".into(), label: "Notes".into() },
+        ColumnDef { key: "operator_user_id".into(), label: "Operator".into() },
     ]
 }
 
@@ -93,6 +97,7 @@ fn transactions_with_vehicle_columns() -> Vec<ColumnDef> {
         ColumnDef { key: "created_at".into(), label: "Created at".into() },
         ColumnDef { key: "amount".into(), label: "Amount".into() },
         ColumnDef { key: "method".into(), label: "Payment method".into() },
+        ColumnDef { key: "operator_user_id".into(), label: "Operator".into() },
         ColumnDef { key: "vehicle_id".into(), label: "Vehicle ID".into() },
         ColumnDef { key: "ticket_code".into(), label: "Ticket".into() },
         ColumnDef { key: "plate".into(), label: "Plate".into() },
@@ -180,7 +185,7 @@ fn run_transactions(
         let m = m.to_lowercase();
         if ["cash", "card", "transfer"].contains(&m.as_str()) {
             let mut stmt = conn
-                .prepare("SELECT id, vehicle_id, amount, method, created_at FROM transactions WHERE created_at >= ?1 AND created_at < ?2 AND LOWER(method) = ?3 ORDER BY created_at ASC")
+                .prepare("SELECT t.id, t.vehicle_id, t.amount, t.method, t.created_at, COALESCE(u.display_name, t.operator_user_id) FROM transactions t LEFT JOIN users u ON t.operator_user_id = u.id WHERE t.created_at >= ?1 AND t.created_at < ?2 AND LOWER(t.method) = ?3 ORDER BY t.created_at ASC")
                 .map_err(|e| e.to_string())?;
             let rows = stmt.query_map(params![from_prefix, to_end, m], |row| {
                 let mut map = HashMap::new();
@@ -199,6 +204,9 @@ fn run_transactions(
                 if keys.contains(&"created_at".to_string()) {
                     map.insert("created_at".into(), serde_json::json!(row.get::<_, String>(4)?));
                 }
+                if keys.contains(&"operator_user_id".to_string()) {
+                    map.insert("operator_user_id".into(), serde_json::json!(row.get::<_, Option<String>>(5)?));
+                }
                 Ok(map)
             }).map_err(|e| e.to_string())?;
             for row in rows {
@@ -208,7 +216,7 @@ fn run_transactions(
         }
     }
     let mut stmt = conn
-        .prepare("SELECT id, vehicle_id, amount, method, created_at FROM transactions WHERE created_at >= ?1 AND created_at < ?2 ORDER BY created_at ASC")
+        .prepare("SELECT t.id, t.vehicle_id, t.amount, t.method, t.created_at, COALESCE(u.display_name, t.operator_user_id) FROM transactions t LEFT JOIN users u ON t.operator_user_id = u.id WHERE t.created_at >= ?1 AND t.created_at < ?2 ORDER BY t.created_at ASC")
         .map_err(|e| e.to_string())?;
     let rows = stmt.query_map(params![from_prefix, to_end], |row| {
         let mut map = HashMap::new();
@@ -226,6 +234,9 @@ fn run_transactions(
         }
         if keys.contains(&"created_at".to_string()) {
             map.insert("created_at".into(), serde_json::json!(row.get::<_, String>(4)?));
+        }
+        if keys.contains(&"operator_user_id".to_string()) {
+            map.insert("operator_user_id".into(), serde_json::json!(row.get::<_, Option<String>>(5)?));
         }
         Ok(map)
     }).map_err(|e| e.to_string())?;
@@ -251,7 +262,7 @@ fn run_completed_vehicles(
         let vt = vt.to_lowercase();
         if ["car", "motorcycle", "truck", "bicycle"].contains(&vt.as_str()) {
             let mut stmt = conn
-                .prepare("SELECT id, ticket_code, plate, vehicle_type, entry_time, exit_time, total_amount, debt FROM vehicles WHERE status = 'completed' AND exit_time IS NOT NULL AND exit_time >= ?1 AND exit_time < ?2 AND LOWER(vehicle_type) = ?3 ORDER BY exit_time ASC")
+                .prepare("SELECT v.id, v.ticket_code, v.plate, v.vehicle_type, v.entry_time, v.exit_time, v.total_amount, v.debt, COALESCE(u.display_name, v.operator_user_id) FROM vehicles v LEFT JOIN users u ON v.operator_user_id = u.id WHERE v.status = 'completed' AND v.exit_time IS NOT NULL AND v.exit_time >= ?1 AND v.exit_time < ?2 AND LOWER(v.vehicle_type) = ?3 ORDER BY v.exit_time ASC")
                 .map_err(|e| e.to_string())?;
             let rows = stmt.query_map(params![from_prefix, to_end, vt], |row| {
                 let mut map = HashMap::new();
@@ -279,6 +290,9 @@ fn run_completed_vehicles(
                 if keys.contains(&"debt".to_string()) {
                     map.insert("debt".into(), serde_json::json!(row.get::<_, Option<f64>>(7)?));
                 }
+                if keys.contains(&"operator_user_id".to_string()) {
+                    map.insert("operator_user_id".into(), serde_json::json!(row.get::<_, Option<String>>(8)?));
+                }
                 Ok(map)
             }).map_err(|e| e.to_string())?;
             for row in rows {
@@ -288,7 +302,7 @@ fn run_completed_vehicles(
         }
     }
     let mut stmt = conn
-        .prepare("SELECT id, ticket_code, plate, vehicle_type, entry_time, exit_time, total_amount, debt FROM vehicles WHERE status = 'completed' AND exit_time IS NOT NULL AND exit_time >= ?1 AND exit_time < ?2 ORDER BY exit_time ASC")
+        .prepare("SELECT v.id, v.ticket_code, v.plate, v.vehicle_type, v.entry_time, v.exit_time, v.total_amount, v.debt, COALESCE(u.display_name, v.operator_user_id) FROM vehicles v LEFT JOIN users u ON v.operator_user_id = u.id WHERE v.status = 'completed' AND v.exit_time IS NOT NULL AND v.exit_time >= ?1 AND v.exit_time < ?2 ORDER BY v.exit_time ASC")
         .map_err(|e| e.to_string())?;
     let rows = stmt.query_map(params![from_prefix, to_end], |row| {
         let mut map = HashMap::new();
@@ -316,6 +330,9 @@ fn run_completed_vehicles(
         if keys.contains(&"debt".to_string()) {
             map.insert("debt".into(), serde_json::json!(row.get::<_, Option<f64>>(7)?));
         }
+        if keys.contains(&"operator_user_id".to_string()) {
+            map.insert("operator_user_id".into(), serde_json::json!(row.get::<_, Option<String>>(8)?));
+        }
         Ok(map)
     }).map_err(|e| e.to_string())?;
     for row in rows {
@@ -340,7 +357,7 @@ fn run_vehicle_exits(
         let vt = vt.to_lowercase();
         if ["car", "motorcycle", "truck", "bicycle"].contains(&vt.as_str()) {
             let mut stmt = conn
-                .prepare("SELECT id, ticket_code, plate, vehicle_type, entry_time, exit_time, status, total_amount, debt FROM vehicles WHERE status IN ('completed', 'removed') AND exit_time IS NOT NULL AND exit_time >= ?1 AND exit_time < ?2 AND LOWER(vehicle_type) = ?3 ORDER BY exit_time ASC")
+                .prepare("SELECT v.id, v.ticket_code, v.plate, v.vehicle_type, v.entry_time, v.exit_time, v.status, v.total_amount, v.debt, COALESCE(u.display_name, v.operator_user_id) FROM vehicles v LEFT JOIN users u ON v.operator_user_id = u.id WHERE v.status IN ('completed', 'removed') AND v.exit_time IS NOT NULL AND v.exit_time >= ?1 AND v.exit_time < ?2 AND LOWER(v.vehicle_type) = ?3 ORDER BY v.exit_time ASC")
                 .map_err(|e| e.to_string())?;
             let rows = stmt.query_map(params![from_prefix, to_end, vt], |row| {
                 let mut map = HashMap::new();
@@ -371,6 +388,9 @@ fn run_vehicle_exits(
                 if keys.contains(&"debt".to_string()) {
                     map.insert("debt".into(), serde_json::json!(row.get::<_, Option<f64>>(8)?));
                 }
+                if keys.contains(&"operator_user_id".to_string()) {
+                    map.insert("operator_user_id".into(), serde_json::json!(row.get::<_, Option<String>>(9)?));
+                }
                 Ok(map)
             }).map_err(|e| e.to_string())?;
             for row in rows {
@@ -380,7 +400,7 @@ fn run_vehicle_exits(
         }
     }
     let mut stmt = conn
-        .prepare("SELECT id, ticket_code, plate, vehicle_type, entry_time, exit_time, status, total_amount, debt FROM vehicles WHERE status IN ('completed', 'removed') AND exit_time IS NOT NULL AND exit_time >= ?1 AND exit_time < ?2 ORDER BY exit_time ASC")
+        .prepare("SELECT v.id, v.ticket_code, v.plate, v.vehicle_type, v.entry_time, v.exit_time, v.status, v.total_amount, v.debt, COALESCE(u.display_name, v.operator_user_id) FROM vehicles v LEFT JOIN users u ON v.operator_user_id = u.id WHERE v.status IN ('completed', 'removed') AND v.exit_time IS NOT NULL AND v.exit_time >= ?1 AND v.exit_time < ?2 ORDER BY v.exit_time ASC")
         .map_err(|e| e.to_string())?;
     let rows = stmt.query_map(params![from_prefix, to_end], |row| {
         let mut map = HashMap::new();
@@ -411,6 +431,9 @@ fn run_vehicle_exits(
         if keys.contains(&"debt".to_string()) {
             map.insert("debt".into(), serde_json::json!(row.get::<_, Option<f64>>(8)?));
         }
+        if keys.contains(&"operator_user_id".to_string()) {
+            map.insert("operator_user_id".into(), serde_json::json!(row.get::<_, Option<String>>(9)?));
+        }
         Ok(map)
     }).map_err(|e| e.to_string())?;
     for row in rows {
@@ -428,7 +451,7 @@ fn run_shift_closures(
     let from_prefix = normalize_date_prefix(date_from);
     let to_end = date_to_end(date_to);
 
-    let sql = "SELECT id, closed_at, expected_total, cash_total, card_total, transfer_total, arqueo_cash, discrepancy, total_transactions, notes FROM shift_closures WHERE closed_at >= ?1 AND closed_at < ?2 ORDER BY closed_at ASC";
+    let sql = "SELECT s.id, s.closed_at, s.expected_total, s.cash_total, s.card_total, s.transfer_total, s.arqueo_cash, s.discrepancy, s.total_transactions, s.notes, COALESCE(u.display_name, s.operator_user_id) FROM shift_closures s LEFT JOIN users u ON s.operator_user_id = u.id WHERE s.closed_at >= ?1 AND s.closed_at < ?2 ORDER BY s.closed_at ASC";
     let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
     let keys: Vec<String> = columns.iter().map(|c| c.key.clone()).collect();
     let rows = stmt
@@ -464,6 +487,9 @@ fn run_shift_closures(
             if keys.contains(&"notes".to_string()) {
                 map.insert("notes".into(), serde_json::json!(row.get::<_, Option<String>>(9)?));
             }
+            if keys.contains(&"operator_user_id".to_string()) {
+                map.insert("operator_user_id".into(), serde_json::json!(row.get::<_, Option<String>>(10)?));
+            }
             Ok(map)
         })
         .map_err(|e| e.to_string())?;
@@ -487,7 +513,7 @@ fn run_transactions_with_vehicle(
     let to_end = date_to_end(date_to);
     let keys: Vec<String> = columns.iter().map(|c| c.key.clone()).collect();
 
-    let base_sql = "SELECT t.id AS transaction_id, t.created_at, t.amount, t.method, v.id AS vehicle_id, v.ticket_code, v.plate, v.vehicle_type, v.entry_time, v.exit_time FROM transactions t INNER JOIN vehicles v ON v.id = t.vehicle_id WHERE t.created_at >= ?1 AND t.created_at < ?2";
+    let base_sql = "SELECT t.id AS transaction_id, t.created_at, t.amount, t.method, COALESCE(u.display_name, t.operator_user_id), v.id AS vehicle_id, v.ticket_code, v.plate, v.vehicle_type, v.entry_time, v.exit_time FROM transactions t INNER JOIN vehicles v ON v.id = t.vehicle_id LEFT JOIN users u ON t.operator_user_id = u.id WHERE t.created_at >= ?1 AND t.created_at < ?2";
     let map_row = |row: &rusqlite::Row| -> Result<HashMap<String, serde_json::Value>, rusqlite::Error> {
         let mut map = HashMap::new();
         if keys.contains(&"transaction_id".to_string()) {
@@ -502,23 +528,26 @@ fn run_transactions_with_vehicle(
         if keys.contains(&"method".to_string()) {
             map.insert("method".into(), serde_json::json!(row.get::<_, String>(3)?));
         }
+        if keys.contains(&"operator_user_id".to_string()) {
+            map.insert("operator_user_id".into(), serde_json::json!(row.get::<_, Option<String>>(4)?));
+        }
         if keys.contains(&"vehicle_id".to_string()) {
-            map.insert("vehicle_id".into(), serde_json::json!(row.get::<_, String>(4)?));
+            map.insert("vehicle_id".into(), serde_json::json!(row.get::<_, String>(5)?));
         }
         if keys.contains(&"ticket_code".to_string()) {
-            map.insert("ticket_code".into(), serde_json::json!(row.get::<_, String>(5)?));
+            map.insert("ticket_code".into(), serde_json::json!(row.get::<_, String>(6)?));
         }
         if keys.contains(&"plate".to_string()) {
-            map.insert("plate".into(), serde_json::json!(row.get::<_, String>(6)?));
+            map.insert("plate".into(), serde_json::json!(row.get::<_, String>(7)?));
         }
         if keys.contains(&"vehicle_type".to_string()) {
-            map.insert("vehicle_type".into(), serde_json::json!(row.get::<_, String>(7)?));
+            map.insert("vehicle_type".into(), serde_json::json!(row.get::<_, String>(8)?));
         }
         if keys.contains(&"entry_time".to_string()) {
-            map.insert("entry_time".into(), serde_json::json!(row.get::<_, String>(8)?));
+            map.insert("entry_time".into(), serde_json::json!(row.get::<_, String>(9)?));
         }
         if keys.contains(&"exit_time".to_string()) {
-            map.insert("exit_time".into(), serde_json::json!(row.get::<_, Option<String>>(9)?));
+            map.insert("exit_time".into(), serde_json::json!(row.get::<_, Option<String>>(10)?));
         }
         Ok(map)
     };

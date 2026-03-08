@@ -56,6 +56,7 @@ export const VehiculosPage = () => {
     registerError,
     clearRegisterError,
     getVehiclesByPlate,
+    getEntrySuggestionsByPlate,
     searchVehiclesByPlatePrefix,
     deleteExistingAndRetryRegister,
     isTauri,
@@ -68,6 +69,8 @@ export const VehiculosPage = () => {
   const [vehicleToRemove, setVehicleToRemove] = useState<Vehicle | null>(null);
   const [activeAlertVehicle, setActiveAlertVehicle] = useState<Vehicle | null>(null);
   const [prefillPlate, setPrefillPlate] = useState("");
+  const [prefillVehicleType, setPrefillVehicleType] = useState<VehicleType | undefined>();
+  const [prefillTariffKind, setPrefillTariffKind] = useState<TariffKind | undefined>();
   const debouncedPlate = useDebouncedValue(plateSearch.trim().toUpperCase(), 300);
   const [searchingByPlate, setSearchingByPlate] = useState(false);
   const [plateSuggestions, setPlateSuggestions] = useState<Vehicle[]>([]);
@@ -133,11 +136,16 @@ export const VehiculosPage = () => {
       if (activeVehicle) {
         setActiveAlertVehicle(activeVehicle);
       } else {
+        const suggestions = await getEntrySuggestionsByPlate(plate);
         setPrefillPlate(plate);
+        setPrefillVehicleType(suggestions.vehicleType);
+        setPrefillTariffKind(suggestions.tariffKind);
         setViewMode("entry");
       }
     } catch {
       setPrefillPlate(plate);
+      setPrefillVehicleType(undefined);
+      setPrefillTariffKind(undefined);
       setViewMode("entry");
     } finally {
       setSearchingByPlate(false);
@@ -146,6 +154,8 @@ export const VehiculosPage = () => {
 
   const handleNewVehicle = () => {
     setPrefillPlate("");
+    setPrefillVehicleType(undefined);
+    setPrefillTariffKind(undefined);
     setCurrentTicket("");
     setViewMode("entry");
   };
@@ -162,6 +172,8 @@ export const VehiculosPage = () => {
     setViewMode("search");
     setCurrentTicket("");
     setPrefillPlate("");
+    setPrefillVehicleType(undefined);
+    setPrefillTariffKind(undefined);
     setPlateSearch("");
     clearScanResult();
   };
@@ -196,6 +208,8 @@ export const VehiculosPage = () => {
     setCurrentTicket("");
     setSelectedVehicle(null);
     setPrefillPlate("");
+    setPrefillVehicleType(undefined);
+    setPrefillTariffKind(undefined);
     setPlateSearch("");
     clearScanResult();
   };
@@ -206,6 +220,8 @@ export const VehiculosPage = () => {
       setViewMode("checkout");
     } else {
       setPrefillPlate(vehicle.plate);
+      setPrefillVehicleType(vehicle.vehicleType);
+      setPrefillTariffKind(vehicle.tariffKind as TariffKind);
       setViewMode("entry");
     }
     setPlateSearch("");
@@ -292,8 +308,12 @@ export const VehiculosPage = () => {
           <VehicleEntryForm
             existingDebt={0}
             getPlateDebt={getPlateDebt}
+            getEntrySuggestionsByPlate={getEntrySuggestionsByPlate}
             registerError={registerError}
             initialPlate={prefillPlate}
+            initialVehicleType={prefillVehicleType}
+            initialTariffKind={prefillTariffKind}
+            vehicleTypeLocked={!!prefillVehicleType}
             onSubmit={handleEntrySubmit}
             onCancel={handleCancel}
           />

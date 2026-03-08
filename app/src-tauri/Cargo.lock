@@ -577,7 +577,7 @@ dependencies = [
 
 [[package]]
 name = "coco-parking"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "argon2",
  "barcoders",

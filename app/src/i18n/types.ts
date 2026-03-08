@@ -69,6 +69,7 @@ export interface Translations {
     error: string;
     ticket: string;
     time: string;
+    user: string;
     prev: string;
     next: string;
     remove: string;
