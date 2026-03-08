@@ -39,14 +39,45 @@ jobs:
       - name: Sign artifacts
         working-directory: app
         shell: powershell
+        continue-on-error: true
+        timeout-minutes: 8
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_PRIVATE_KEY_PASSWORD }}
         run: |
-          $privateKey = "${{ secrets.TAURI_PRIVATE_KEY }}"
-          Get-ChildItem -Path "src-tauri/target/release/bundle/nsis/" -Filter "*.exe" | ForEach-Object {
-            npx tauri signer sign --private-key $privateKey $_.FullName
+          $ErrorActionPreference = "Stop"
+          if (-not $env:TAURI_PRIVATE_KEY) {
+            Write-Host "TAURI_PRIVATE_KEY is empty. Skipping artifact signing."
+            exit 0
           }
-          Get-ChildItem -Path "src-tauri/target/release/bundle/msi/" -Filter "*.msi" | ForEach-Object {
-            npx tauri signer sign --private-key $privateKey $_.FullName
+
+          function Sign-IfFound($globPath, $label) {
+            $files = Get-ChildItem -Path $globPath -ErrorAction SilentlyContinue
+            if (-not $files -or $files.Count -eq 0) {
+              Write-Host "No $label artifacts found at: $globPath"
+              return
+            }
+
+            foreach ($file in $files) {
+              Write-Host "Signing $label artifact: $($file.FullName)"
+              $args = @(
+                "tauri", "signer", "sign",
+                "--private-key", $env:TAURI_PRIVATE_KEY
+              )
+              if ($env:TAURI_PRIVATE_KEY_PASSWORD) {
+                $args += @("--password", $env:TAURI_PRIVATE_KEY_PASSWORD)
+              }
+              $args += $file.FullName
+
+              & npx --yes @args
+              if ($LASTEXITCODE -ne 0) {
+                throw "Failed signing artifact: $($file.FullName)"
+              }
+            }
           }
+
+          Sign-IfFound "src-tauri/target/release/bundle/nsis/*.exe" "NSIS"
+          Sign-IfFound "src-tauri/target/release/bundle/msi/*.msi" "MSI"
 
       - name: Create GitHub Release and upload installers
         uses: softprops/action-gh-release@v2
