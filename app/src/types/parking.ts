@@ -166,6 +166,26 @@ export interface Contract {
   status: string;
   createdAt: string;
   notes?: string | null;
+  extraChargeFirst?: number | null;
+  extraChargeRepeat?: number | null;
+  extraInterval?: number | null;
+  isInArrears?: boolean;
+}
+
+export interface ContractPayment {
+  id: string;
+  contractId: string;
+  amount: number;
+  method: string;
+  periodFrom: string;
+  periodTo: string;
+  createdAt: string;
+  operatorUserId?: string | null;
+}
+
+export interface RegisterEntryResult {
+  vehicle: Vehicle;
+  contractArrearsWarning?: string | null;
 }
 
 export type PaymentMethod = 'cash' | 'card' | 'transfer' | 'contract' | 'debt';

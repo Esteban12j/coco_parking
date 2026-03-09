@@ -45,6 +45,7 @@ pub const CONTRACTS_READ: &str = "contracts:read";
 pub const CONTRACTS_CREATE: &str = "contracts:create";
 pub const CONTRACTS_MODIFY: &str = "contracts:modify";
 pub const CONTRACTS_DELETE: &str = "contracts:delete";
+pub const CONTRACTS_PAYMENT_CREATE: &str = "contracts:payment:create";
 
 pub const CAJA_DEBT_PAYMENT_CREATE: &str = "caja:debt_payment:create";
 
@@ -84,6 +85,7 @@ pub fn all_permissions() -> Vec<&'static str> {
         CONTRACTS_CREATE,
         CONTRACTS_MODIFY,
         CONTRACTS_DELETE,
+        CONTRACTS_PAYMENT_CREATE,
         CAJA_DEBT_PAYMENT_CREATE,
         DEV_CONSOLE_ACCESS,
     ]

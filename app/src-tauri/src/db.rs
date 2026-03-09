@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>;
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 22;
+const SCHEMA_VERSION: i64 = 23;
 
 fn table_has_column(conn: &Connection, table_name: &str, column_name: &str) -> Result<bool, String> {
     let pragma_sql = format!("PRAGMA table_info({table_name})");
@@ -540,6 +540,47 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
         )
         .map_err(|e| e.to_string())?;
         conn.execute("INSERT INTO schema_version (version) VALUES (22)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 23 {
+        add_column_if_missing(
+            conn,
+            "contracts",
+            "extra_charge_first",
+            "extra_charge_first REAL CHECK (extra_charge_first IS NULL OR extra_charge_first >= 0)",
+        )?;
+        add_column_if_missing(
+            conn,
+            "contracts",
+            "extra_charge_repeat",
+            "extra_charge_repeat REAL CHECK (extra_charge_repeat IS NULL OR extra_charge_repeat >= 0)",
+        )?;
+        add_column_if_missing(
+            conn,
+            "contracts",
+            "extra_interval",
+            "extra_interval INTEGER CHECK (extra_interval IS NULL OR extra_interval > 0)",
+        )?;
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS contract_payments (
+                id TEXT PRIMARY KEY,
+                contract_id TEXT NOT NULL,
+                amount REAL NOT NULL CHECK (amount >= 0),
+                method TEXT NOT NULL,
+                period_from TEXT NOT NULL,
+                period_to TEXT NOT NULL,
+                operator_user_id TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (contract_id) REFERENCES contracts(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_contract_payments_contract ON contract_payments(contract_id);
+            CREATE INDEX IF NOT EXISTS idx_contract_payments_created ON contract_payments(created_at);
+            "#,
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (23)", [])
             .map_err(|e| e.to_string())?;
     }
 

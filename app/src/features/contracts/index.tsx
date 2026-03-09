@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Pencil, Trash2, FileText, Phone, Calendar, Clock, DollarSign } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, FileText, Phone, Calendar, Clock, DollarSign, AlertTriangle, CreditCard } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,9 +46,11 @@ import {
   updateContract,
   deleteContract,
   suggestMonthlyAmount,
+  recordContractPayment,
 } from "@/api/contracts";
 import type { Contract, VehicleType, TariffKind } from "@/types/parking";
 import { toast } from "@/hooks/use-toast";
+import { getContractStatus, isContractInArrears } from "@/lib/contractCharge";
 
 function isTauri(): boolean {
   return typeof window !== "undefined" && !!(window as unknown as { __TAURI__?: unknown }).__TAURI__;
@@ -61,6 +63,7 @@ const STATUS_COLORS: Record<string, string> = {
   active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   expired: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
   cancelled: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  arrears: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
 };
 
 type DialogMode = "create" | "edit";
@@ -76,6 +79,8 @@ export const ContractsPage = () => {
   const [dialogMode, setDialogMode] = useState<DialogMode>("create");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
+  const [paymentContract, setPaymentContract] = useState<Contract | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
 
   const [formClientName, setFormClientName] = useState("");
   const [formClientPhone, setFormClientPhone] = useState("");
@@ -87,6 +92,9 @@ export const ContractsPage = () => {
   const [formDateFrom, setFormDateFrom] = useState("");
   const [formDateTo, setFormDateTo] = useState("");
   const [formNotes, setFormNotes] = useState("");
+  const [formExtraChargeFirst, setFormExtraChargeFirst] = useState("");
+  const [formExtraChargeRepeat, setFormExtraChargeRepeat] = useState("");
+  const [formExtraInterval, setFormExtraInterval] = useState("");
 
   const listQuery = useQuery({
     queryKey: ["contracts", statusFilter, search],
@@ -149,7 +157,28 @@ export const ContractsPage = () => {
     },
   });
 
+  const paymentMutation = useMutation({
+    mutationFn: recordContractPayment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contracts"] });
+      setPaymentContract(null);
+      toast({ title: t("contracts.chargeSuccess") });
+    },
+    onError: (err) => {
+      toast({ title: t("common.error"), description: String(err), variant: "destructive" });
+    },
+  });
+
   const contracts = (listQuery.data ?? []) as Contract[];
+  const today = new Date();
+
+  const contractsDue = contracts.filter((c) => isContractInArrears(c, today));
+  const contractsUpcoming = contracts.filter((c) => {
+    if (isContractInArrears(c, today) || c.status === "cancelled") return false;
+    const dateTo = new Date(c.dateTo + "T00:00:00");
+    const diffDays = (dateTo.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+    return diffDays <= 7;
+  });
 
   const vehicleLabels: Record<VehicleType, string> = {
     car: t("checkout.car"),
@@ -175,6 +204,9 @@ export const ContractsPage = () => {
     setFormDateFrom(todayStr());
     setFormDateTo(nextMonthStr());
     setFormNotes("");
+    setFormExtraChargeFirst("");
+    setFormExtraChargeRepeat("");
+    setFormExtraInterval("");
   }
 
   function todayStr() {
@@ -211,6 +243,9 @@ export const ContractsPage = () => {
     setFormDateFrom(contract.dateFrom);
     setFormDateTo(contract.dateTo);
     setFormNotes(contract.notes ?? "");
+    setFormExtraChargeFirst(contract.extraChargeFirst != null ? String(contract.extraChargeFirst) : "");
+    setFormExtraChargeRepeat(contract.extraChargeRepeat != null ? String(contract.extraChargeRepeat) : "");
+    setFormExtraInterval(contract.extraInterval != null ? String(contract.extraInterval) : "");
     setDialogOpen(true);
   };
 
@@ -220,6 +255,10 @@ export const ContractsPage = () => {
     const hours = parseFloat(formIncludedHours.replace(",", "."));
     if (Number.isNaN(hours) || hours <= 0) return;
     if (!formClientName.trim() || !formPlate.trim() || !formDateFrom || !formDateTo) return;
+
+    const extraFirst = formExtraChargeFirst ? parseFloat(formExtraChargeFirst) : null;
+    const extraRepeat = formExtraChargeRepeat ? parseFloat(formExtraChargeRepeat) : null;
+    const extraInterval = formExtraInterval ? parseInt(formExtraInterval) : null;
 
     createMutation.mutate({
       clientName: formClientName.trim(),
@@ -232,6 +271,9 @@ export const ContractsPage = () => {
       dateFrom: formDateFrom,
       dateTo: formDateTo,
       notes: formNotes.trim() || null,
+      extraChargeFirst: extraFirst,
+      extraChargeRepeat: extraRepeat,
+      extraInterval: extraInterval,
     });
   };
 
@@ -242,6 +284,10 @@ export const ContractsPage = () => {
     const hours = parseFloat(formIncludedHours.replace(",", "."));
     if (Number.isNaN(hours) || hours <= 0) return;
 
+    const extraFirst = formExtraChargeFirst ? parseFloat(formExtraChargeFirst) : null;
+    const extraRepeat = formExtraChargeRepeat ? parseFloat(formExtraChargeRepeat) : null;
+    const extraInterval = formExtraInterval ? parseInt(formExtraInterval) : null;
+
     updateMutation.mutate({
       id: editingContract.id,
       clientName: formClientName.trim() || null,
@@ -251,12 +297,33 @@ export const ContractsPage = () => {
       dateFrom: formDateFrom || null,
       dateTo: formDateTo || null,
       notes: formNotes.trim() || null,
+      extraChargeFirst: extraFirst,
+      extraChargeRepeat: extraRepeat,
+      extraInterval: extraInterval,
+    });
+  };
+
+  const handleRecordPayment = () => {
+    if (!paymentContract) return;
+    paymentMutation.mutate({
+      contractId: paymentContract.id,
+      method: paymentMethod,
+      amount: paymentContract.monthlyAmount,
     });
   };
 
   const isFormValid = () => {
     const amount = parseFloat(formMonthlyAmount.replace(",", "."));
     const hours = parseFloat(formIncludedHours.replace(",", "."));
+    const hasExtra = formExtraChargeFirst || formExtraChargeRepeat || formExtraInterval;
+    if (hasExtra) {
+      const first = parseFloat(formExtraChargeFirst || "0");
+      const repeat = parseFloat(formExtraChargeRepeat || "0");
+      const interval = parseInt(formExtraInterval || "0");
+      if (Number.isNaN(first) || first < 0) return false;
+      if (Number.isNaN(repeat) || repeat < 0) return false;
+      if (Number.isNaN(interval) || interval <= 0) return false;
+    }
     return (
       formClientName.trim().length > 0 &&
       formPlate.trim().length > 0 &&
@@ -274,9 +341,102 @@ export const ContractsPage = () => {
     }
   };
 
+  const formatAmount = (n: number) =>
+    "$" + n.toLocaleString("en", { minimumFractionDigits: 2 });
+
   return (
     <div className="container mx-auto px-4 py-6">
       <PageHeader title={t("contracts.title")} subtitle={t("contracts.subtitle")} />
+
+      {(contractsDue.length > 0 || contractsUpcoming.length > 0) && (
+        <Card className="my-6 border-orange-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              {t("contracts.chargeSectionTitle")}
+            </CardTitle>
+            <CardDescription>{t("contracts.chargeSectionDesc")}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {contractsDue.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-destructive mb-2 flex items-center gap-1">
+                  <AlertTriangle className="h-4 w-4" />
+                  {t("contracts.overdueContracts")} ({contractsDue.length})
+                </p>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("contracts.clientName")}</TableHead>
+                      <TableHead>{t("contracts.plate")}</TableHead>
+                      <TableHead>{t("contracts.nextPayment")}</TableHead>
+                      <TableHead className="text-right">{t("contracts.monthlyAmount")}</TableHead>
+                      <TableHead>{t("contracts.chargeAction")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {contractsDue.map((contract) => (
+                      <TableRow key={contract.id}>
+                        <TableCell>{contract.clientName}</TableCell>
+                        <TableCell className="font-mono">{contract.plate}</TableCell>
+                        <TableCell>{formatDate(contract.dateTo)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatAmount(contract.monthlyAmount)}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => { setPaymentContract(contract); setPaymentMethod("cash"); }}
+                          >
+                            {t("contracts.chargeNow")}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            {contractsUpcoming.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-amber-600 mb-2">
+                  {t("contracts.upcomingPayments")} ({contractsUpcoming.length})
+                </p>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("contracts.clientName")}</TableHead>
+                      <TableHead>{t("contracts.plate")}</TableHead>
+                      <TableHead>{t("contracts.nextPayment")}</TableHead>
+                      <TableHead className="text-right">{t("contracts.monthlyAmount")}</TableHead>
+                      <TableHead>{t("contracts.chargeAction")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {contractsUpcoming.map((contract) => (
+                      <TableRow key={contract.id}>
+                        <TableCell>{contract.clientName}</TableCell>
+                        <TableCell className="font-mono">{contract.plate}</TableCell>
+                        <TableCell>{formatDate(contract.dateTo)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatAmount(contract.monthlyAmount)}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="coco"
+                            size="sm"
+                            onClick={() => { setPaymentContract(contract); setPaymentMethod("cash"); }}
+                          >
+                            {t("contracts.chargeNow")}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {tauri && (
         <Card>
@@ -304,6 +464,7 @@ export const ContractsPage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">{t("contracts.statusActive")}</SelectItem>
+                  <SelectItem value="arrears">{t("contracts.statusArrears")}</SelectItem>
                   <SelectItem value="expired">{t("contracts.statusExpired")}</SelectItem>
                   <SelectItem value="cancelled">{t("contracts.statusCancelled")}</SelectItem>
                   <SelectItem value="all">{t("contracts.statusAll")}</SelectItem>
@@ -334,6 +495,7 @@ export const ContractsPage = () => {
                       <TableHead>{t("tariffs.tariffKind")}</TableHead>
                       <TableHead className="text-right">{t("contracts.monthlyAmount")}</TableHead>
                       <TableHead>{t("contracts.includedHours")}</TableHead>
+                      <TableHead>{t("contracts.extraCharge")}</TableHead>
                       <TableHead>{t("contracts.period")}</TableHead>
                       <TableHead>{t("contracts.status")}</TableHead>
                       <TableHead className="w-[100px]" />
@@ -365,11 +527,16 @@ export const ContractsPage = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          ${contract.monthlyAmount.toLocaleString("en", { minimumFractionDigits: 2 })}
+                          {formatAmount(contract.monthlyAmount)}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5" />
                           {contract.includedHoursPerDay}h/{t("contracts.day")}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {contract.extraChargeFirst != null
+                            ? `+${formatAmount(contract.extraChargeFirst)} / ${contract.extraInterval}min`
+                            : "—"}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
@@ -379,9 +546,7 @@ export const ContractsPage = () => {
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className={STATUS_COLORS[contract.status] ?? ""}>
-                            {contract.status === "active" ? t("contracts.statusActive") :
-                             contract.status === "expired" ? t("contracts.statusExpired") :
-                             t("contracts.statusCancelled")}
+                            {getContractStatus(contract, today)}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -455,14 +620,10 @@ export const ContractsPage = () => {
                   }}
                   disabled={dialogMode === "edit"}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {VEHICLE_TYPE_KEYS.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {vehicleLabels[type]}
-                      </SelectItem>
+                      <SelectItem key={type} value={type}>{vehicleLabels[type]}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -477,14 +638,10 @@ export const ContractsPage = () => {
                   }}
                   disabled={dialogMode === "edit"}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {TARIFF_KIND_KEYS.map((kind) => (
-                      <SelectItem key={kind} value={kind}>
-                        {tariffKindLabels[kind]}
-                      </SelectItem>
+                      <SelectItem key={kind} value={kind}>{tariffKindLabels[kind]}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -508,7 +665,7 @@ export const ContractsPage = () => {
                 />
                 {dialogMode === "create" && suggestQuery.data != null && (
                   <p className="text-xs text-muted-foreground">
-                    {t("contracts.suggestedAmount")}: ${suggestQuery.data.toLocaleString("en", { minimumFractionDigits: 2 })}
+                    {t("contracts.suggestedAmount")}: {formatAmount(suggestQuery.data)}
                   </p>
                 )}
               </div>
@@ -526,6 +683,45 @@ export const ContractsPage = () => {
                   onChange={(e) => setFormIncludedHours(e.target.value)}
                   placeholder="6"
                   inputMode="decimal"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label>{t("contracts.initialExtraCharge")}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={formExtraChargeFirst}
+                  onChange={(e) => setFormExtraChargeFirst(e.target.value)}
+                  placeholder="0.00"
+                  inputMode="decimal"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("contracts.extraCharge")}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={formExtraChargeRepeat}
+                  onChange={(e) => setFormExtraChargeRepeat(e.target.value)}
+                  placeholder="0.00"
+                  inputMode="decimal"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("contracts.extraIntervalMinutes")}</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={formExtraInterval}
+                  onChange={(e) => setFormExtraInterval(e.target.value)}
+                  placeholder="30"
+                  inputMode="numeric"
                 />
               </div>
             </div>
@@ -573,11 +769,7 @@ export const ContractsPage = () => {
             <Button
               variant="coco"
               onClick={dialogMode === "create" ? handleCreate : handleUpdate}
-              disabled={
-                !isFormValid() ||
-                createMutation.isPending ||
-                updateMutation.isPending
-              }
+              disabled={!isFormValid() || createMutation.isPending || updateMutation.isPending}
             >
               {(createMutation.isPending || updateMutation.isPending)
                 ? t("common.loading")
@@ -601,6 +793,39 @@ export const ContractsPage = () => {
               disabled={deleteMutation.isPending}
             >
               {deleteMutation.isPending ? t("common.loading") : t("tariffs.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!paymentContract} onOpenChange={(o) => !o && setPaymentContract(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("contracts.chargeNow")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {paymentContract?.clientName} — {paymentContract?.plate} — {paymentContract && formatAmount(paymentContract.monthlyAmount)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="px-6 pb-2">
+            <Label>{t("checkout.paymentMethod")}</Label>
+            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <SelectTrigger className="mt-1.5">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">{t("checkout.cash")}</SelectItem>
+                <SelectItem value="card">{t("checkout.card")}</SelectItem>
+                <SelectItem value="transfer">{t("checkout.transfer")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRecordPayment}
+              disabled={paymentMutation.isPending}
+            >
+              {paymentMutation.isPending ? t("common.loading") : t("contracts.confirmCharge")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

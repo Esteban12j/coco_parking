@@ -1,5 +1,5 @@
 import { invokeTauri } from "@/lib/tauriInvoke";
-import type { Contract, TariffKind } from "@/types/parking";
+import type { Contract, ContractPayment, TariffKind } from "@/types/parking";
 
 export function listContracts(args: {
   status?: string | null;
@@ -19,6 +19,9 @@ export function createContract(args: {
   dateFrom: string;
   dateTo: string;
   notes?: string | null;
+  extraChargeFirst?: number | null;
+  extraChargeRepeat?: number | null;
+  extraInterval?: number | null;
 }): Promise<Contract> {
   return invokeTauri<Contract>("contracts_create", { args });
 }
@@ -31,8 +34,10 @@ export function updateContract(args: {
   includedHoursPerDay?: number | null;
   dateFrom?: string | null;
   dateTo?: string | null;
-  status?: string | null;
   notes?: string | null;
+  extraChargeFirst?: number | null;
+  extraChargeRepeat?: number | null;
+  extraInterval?: number | null;
 }): Promise<Contract> {
   return invokeTauri<Contract>("contracts_update", { args });
 }
@@ -51,4 +56,16 @@ export function suggestMonthlyAmount(args: {
   days?: number | null;
 }): Promise<number> {
   return invokeTauri<number>("contracts_suggest_monthly", args);
+}
+
+export function recordContractPayment(args: {
+  contractId: string;
+  method: string;
+  amount?: number | null;
+}): Promise<Contract> {
+  return invokeTauri<Contract>("contracts_record_payment", { args });
+}
+
+export function listContractPayments(contractId: string): Promise<ContractPayment[]> {
+  return invokeTauri<ContractPayment[]>("contracts_list_payments", { contractId });
 }

@@ -626,5 +626,20 @@ export interface Translations {
     deleted: string;
     confirmDelete: string;
     confirmDeleteDescription: string;
+    statusArrears: string;
+    chargeSectionTitle: string;
+    chargeSectionDesc: string;
+    overdueContracts: string;
+    upcomingPayments: string;
+    nextPayment: string;
+    chargeAction: string;
+    chargeNow: string;
+    noCharge: string;
+    chargeSuccess: string;
+    confirmCharge: string;
+    vehicleArrearsAlert: string;
+    initialExtraCharge: string;
+    extraCharge: string;
+    extraIntervalMinutes: string;
   };
 }
