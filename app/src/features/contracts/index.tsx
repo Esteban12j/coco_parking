@@ -86,7 +86,7 @@ export const ContractsPage = () => {
   const [formClientPhone, setFormClientPhone] = useState("");
   const [formPlate, setFormPlate] = useState("");
   const [formVehicleType, setFormVehicleType] = useState<VehicleType>("motorcycle");
-  const [formTariffKind, setFormTariffKind] = useState<TariffKind>("employee");
+  const [formTariffKind, setFormTariffKind] = useState<string>("employee");
   const [formMonthlyAmount, setFormMonthlyAmount] = useState("");
   const [formIncludedHours, setFormIncludedHours] = useState("6");
   const [formDateFrom, setFormDateFrom] = useState("");
@@ -109,10 +109,10 @@ export const ContractsPage = () => {
     queryKey: ["contracts_suggest_monthly", formVehicleType, formTariffKind],
     queryFn: () => suggestMonthlyAmount({
       vehicleType: formVehicleType,
-      tariffKind: formTariffKind,
+      tariffKind: formTariffKind as TariffKind || null,
       days: 31,
     }),
-    enabled: tauri && dialogOpen && dialogMode === "create",
+    enabled: tauri && dialogOpen && dialogMode === "create" && !!formTariffKind,
   });
 
   useEffect(() => {
@@ -198,7 +198,7 @@ export const ContractsPage = () => {
     setFormClientPhone("");
     setFormPlate("");
     setFormVehicleType("motorcycle");
-    setFormTariffKind("employee");
+    setFormTariffKind("");
     setFormMonthlyAmount("");
     setFormIncludedHours("6");
     setFormDateFrom(todayStr());
@@ -237,7 +237,7 @@ export const ContractsPage = () => {
     setFormClientPhone(contract.clientPhone ?? "");
     setFormPlate(contract.plate);
     setFormVehicleType((contract.vehicleType as VehicleType) || "motorcycle");
-    setFormTariffKind((contract.tariffKind as TariffKind) || "employee");
+    setFormTariffKind(contract.tariffKind || "");
     setFormMonthlyAmount(String(contract.monthlyAmount));
     setFormIncludedHours(String(contract.includedHoursPerDay));
     setFormDateFrom(contract.dateFrom);
@@ -256,16 +256,17 @@ export const ContractsPage = () => {
     if (Number.isNaN(hours) || hours <= 0) return;
     if (!formClientName.trim() || !formPlate.trim() || !formDateFrom || !formDateTo) return;
 
-    const extraFirst = formExtraChargeFirst ? parseFloat(formExtraChargeFirst) : null;
-    const extraRepeat = formExtraChargeRepeat ? parseFloat(formExtraChargeRepeat) : null;
-    const extraInterval = formExtraInterval ? parseInt(formExtraInterval) : null;
+    const hasTariff = !!formTariffKind;
+    const extraFirst = !hasTariff && formExtraChargeFirst ? parseFloat(formExtraChargeFirst) : null;
+    const extraRepeat = !hasTariff && formExtraChargeRepeat ? parseFloat(formExtraChargeRepeat) : null;
+    const extraInterval = !hasTariff && formExtraInterval ? parseInt(formExtraInterval) : null;
 
     createMutation.mutate({
       clientName: formClientName.trim(),
       clientPhone: formClientPhone.trim() || null,
       plate: formPlate.trim().toUpperCase(),
       vehicleType: formVehicleType,
-      tariffKind: formTariffKind,
+      tariffKind: hasTariff ? (formTariffKind as TariffKind) : null,
       monthlyAmount: amount,
       includedHoursPerDay: hours,
       dateFrom: formDateFrom,
@@ -284,9 +285,10 @@ export const ContractsPage = () => {
     const hours = parseFloat(formIncludedHours.replace(",", "."));
     if (Number.isNaN(hours) || hours <= 0) return;
 
-    const extraFirst = formExtraChargeFirst ? parseFloat(formExtraChargeFirst) : null;
-    const extraRepeat = formExtraChargeRepeat ? parseFloat(formExtraChargeRepeat) : null;
-    const extraInterval = formExtraInterval ? parseInt(formExtraInterval) : null;
+    const hasTariff = !!formTariffKind;
+    const extraFirst = !hasTariff && formExtraChargeFirst ? parseFloat(formExtraChargeFirst) : null;
+    const extraRepeat = !hasTariff && formExtraChargeRepeat ? parseFloat(formExtraChargeRepeat) : null;
+    const extraInterval = !hasTariff && formExtraInterval ? parseInt(formExtraInterval) : null;
 
     updateMutation.mutate({
       id: editingContract.id,
@@ -315,8 +317,7 @@ export const ContractsPage = () => {
   const isFormValid = () => {
     const amount = parseFloat(formMonthlyAmount.replace(",", "."));
     const hours = parseFloat(formIncludedHours.replace(",", "."));
-    const hasExtra = formExtraChargeFirst || formExtraChargeRepeat || formExtraInterval;
-    if (hasExtra) {
+    if (!formTariffKind) {
       const first = parseFloat(formExtraChargeFirst || "0");
       const repeat = parseFloat(formExtraChargeRepeat || "0");
       const interval = parseInt(formExtraInterval || "0");
@@ -633,13 +634,19 @@ export const ContractsPage = () => {
                 <Select
                   value={formTariffKind}
                   onValueChange={(v) => {
-                    setFormTariffKind(v as TariffKind);
+                    setFormTariffKind(v);
                     setFormMonthlyAmount("");
+                    if (v) {
+                      setFormExtraChargeFirst("");
+                      setFormExtraChargeRepeat("");
+                      setFormExtraInterval("");
+                    }
                   }}
                   disabled={dialogMode === "edit"}
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("contracts.tariffKindNone")} /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="">{t("contracts.tariffKindNone")}</SelectItem>
                     {TARIFF_KIND_KEYS.map((kind) => (
                       <SelectItem key={kind} value={kind}>{tariffKindLabels[kind]}</SelectItem>
                     ))}
@@ -663,7 +670,7 @@ export const ContractsPage = () => {
                   placeholder="0.00"
                   inputMode="decimal"
                 />
-                {dialogMode === "create" && suggestQuery.data != null && (
+                {dialogMode === "create" && formTariffKind && suggestQuery.data != null && (
                   <p className="text-xs text-muted-foreground">
                     {t("contracts.suggestedAmount")}: {formatAmount(suggestQuery.data)}
                   </p>
@@ -687,44 +694,46 @@ export const ContractsPage = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label>{t("contracts.initialExtraCharge")}</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={formExtraChargeFirst}
-                  onChange={(e) => setFormExtraChargeFirst(e.target.value)}
-                  placeholder="0.00"
-                  inputMode="decimal"
-                />
+            {!formTariffKind && (
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>{t("contracts.initialExtraCharge")}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={formExtraChargeFirst}
+                    onChange={(e) => setFormExtraChargeFirst(e.target.value)}
+                    placeholder="0.00"
+                    inputMode="decimal"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t("contracts.extraCharge")}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={formExtraChargeRepeat}
+                    onChange={(e) => setFormExtraChargeRepeat(e.target.value)}
+                    placeholder="0.00"
+                    inputMode="decimal"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t("contracts.extraIntervalMinutes")}</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={formExtraInterval}
+                    onChange={(e) => setFormExtraInterval(e.target.value)}
+                    placeholder="30"
+                    inputMode="numeric"
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label>{t("contracts.extraCharge")}</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={formExtraChargeRepeat}
-                  onChange={(e) => setFormExtraChargeRepeat(e.target.value)}
-                  placeholder="0.00"
-                  inputMode="decimal"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>{t("contracts.extraIntervalMinutes")}</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={formExtraInterval}
-                  onChange={(e) => setFormExtraInterval(e.target.value)}
-                  placeholder="30"
-                  inputMode="numeric"
-                />
-              </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">

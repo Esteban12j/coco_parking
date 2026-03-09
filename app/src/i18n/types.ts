@@ -641,5 +641,6 @@ export interface Translations {
     initialExtraCharge: string;
     extraCharge: string;
     extraIntervalMinutes: string;
+    tariffKindNone: string;
   };
 }

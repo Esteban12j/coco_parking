@@ -649,6 +649,18 @@ pub fn vehiculos_process_exit(
                     } else {
                         0.0
                     }
+                } else if !contract.tariff_kind.is_empty() {
+                    let tariff = crate::domains::custom_tariffs::get_tariff_for_calculation(
+                        &conn,
+                        vehicle_type_to_str(&vehicle.vehicle_type),
+                        &contract.tariff_kind,
+                    )?;
+                    let overstay_minutes = duration_minutes - included_minutes;
+                    let overstay_hours = overstay_minutes / 60.0;
+                    let period_h = tariff.additional_period_hours.max(1.0 / 60.0);
+                    let additional_blocks = (overstay_hours / period_h).ceil().max(0.0);
+                    let additional_rate = tariff.additional_hour_price.unwrap_or(tariff.base_price);
+                    additional_blocks * additional_rate
                 } else {
                     0.0
                 }

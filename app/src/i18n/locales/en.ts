@@ -670,5 +670,6 @@ export const en: Translations = {
     initialExtraCharge: "Initial extra charge",
     extraCharge: "Charge per interval",
     extraIntervalMinutes: "Interval (min)",
+    tariffKindNone: "None (manual rates)",
   },
 };

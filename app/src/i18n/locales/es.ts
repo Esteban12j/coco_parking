@@ -670,5 +670,6 @@ export const es: Translations = {
     initialExtraCharge: "Cobro inicial extra",
     extraCharge: "Cobro por intervalo",
     extraIntervalMinutes: "Intervalo (min)",
+    tariffKindNone: "No aplica (manual)",
   },
 };
