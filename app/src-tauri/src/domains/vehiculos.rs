@@ -382,6 +382,13 @@ fn vehicle_type_has_plate(v: &VehicleType) -> bool {
     matches!(v, VehicleType::Car | VehicleType::Motorcycle | VehicleType::Truck)
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegisterEntryResult {
+    pub vehicle: Vehicle,
+    pub contract_arrears_warning: Option<String>,
+}
+
 #[tauri::command]
 pub fn vehiculos_register_entry(
     state: State<AppState>,
@@ -390,7 +397,7 @@ pub fn vehiculos_register_entry(
     observations: Option<String>,
     ticket_code: Option<String>,
     tariff_kind: Option<String>,
-) -> Result<Vehicle, String> {
+) -> Result<RegisterEntryResult, String> {
     state.check_permission(permissions::VEHICULOS_ENTRIES_CREATE)?;
     let code = ticket_code.unwrap_or_else(|| {
         format!(
@@ -520,6 +527,14 @@ pub fn vehiculos_register_entry(
 
     let _ = crate::domains::barcodes::ensure_barcode_exists_for_ticket(&*conn, &code);
 
+    let contract_arrears_warning = if !plate_upper.is_empty() {
+        crate::domains::contracts::find_any_contract_for_plate(&conn, &plate_upper)
+            .filter(|c| c.is_in_arrears)
+            .map(|c| format!("Contrato en mora: {}", c.client_name))
+    } else {
+        None
+    };
+
     let vehicle = Vehicle {
         id: id.clone(),
         ticket_code: code,
@@ -536,7 +551,7 @@ pub fn vehiculos_register_entry(
         tariff_id,
         operator_user_id,
     };
-    Ok(vehicle)
+    Ok(RegisterEntryResult { vehicle, contract_arrears_warning })
 }
 
 fn resolve_tariff_id_for_entry(
@@ -620,19 +635,22 @@ pub fn vehiculos_process_exit(
                 let plate_key = normalize_plate_for_index(&vehicle.plate);
                 let contract = crate::domains::contracts::find_active_contract_for_plate(&conn, &plate_key).unwrap();
                 let included_minutes = contract.included_hours_per_day * 60.0;
-                if duration_minutes <= included_minutes {
+
+                if duration_minutes <= included_minutes + 1.0 {
                     0.0
+                } else if let (Some(first), Some(repeat), Some(interval)) = (
+                    contract.extra_charge_first,
+                    contract.extra_charge_repeat,
+                    contract.extra_interval,
+                ) {
+                    if interval > 0 {
+                        let extra_minutes = duration_minutes - included_minutes;
+                        first + (extra_minutes / interval as f64).ceil() * repeat
+                    } else {
+                        0.0
+                    }
                 } else {
-                    let tariff = crate::domains::custom_tariffs::get_tariff_for_calculation(
-                        &conn,
-                        vehicle_type_to_str(&vehicle.vehicle_type),
-                        &vehicle.tariff_kind,
-                    )?;
-                    let overstay_hours = (duration_minutes - included_minutes) / 60.0;
-                    let period_h = tariff.additional_period_hours.max(1.0 / 60.0);
-                    let additional_blocks = (overstay_hours / period_h).ceil().max(0.0);
-                    let additional_rate = tariff.additional_hour_price.unwrap_or(tariff.base_price);
-                    additional_blocks * additional_rate
+                    0.0
                 }
             } else {
                 let tariff = crate::domains::custom_tariffs::get_tariff_for_calculation(

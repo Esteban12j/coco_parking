@@ -49,14 +49,19 @@ export function listVehiclesByDate(args: {
   return invokeTauri<ListVehiclesResponse>("vehiculos_list_vehicles_by_date", args);
 }
 
+export interface RegisterEntryResult {
+  vehicle: VehicleBackend;
+  contractArrearsWarning?: string | null;
+}
+
 export function registerEntry(args: {
   plate: string;
   vehicleType: VehicleType;
   observations?: string | null;
   ticketCode?: string | null;
   tariffKind?: TariffKind | null;
-}): Promise<VehicleBackend> {
-  return invokeTauri<VehicleBackend>("vehiculos_register_entry", args);
+}): Promise<RegisterEntryResult> {
+  return invokeTauri<RegisterEntryResult>("vehiculos_register_entry", args);
 }
 
 export function processExit(args: {

@@ -189,7 +189,7 @@ export const useParkingStore = () => {
   const registerMutation = useMutation({
     mutationFn: async (args: RegisterArgs) => {
       lastRegisterArgsRef.current = args;
-      const v = await apiVehiculos.registerEntry({
+      const result = await apiVehiculos.registerEntry({
         plate: args.plate,
         vehicleType: args.vehicleType,
         observations: args.observations ?? null,
@@ -197,14 +197,20 @@ export const useParkingStore = () => {
         tariffKind: args.tariffKind ?? null,
       });
       lastRegisterArgsRef.current = null;
-      return vehicleFromBackend(v);
+      return { vehicle: vehicleFromBackend(result.vehicle), contractArrearsWarning: result.contractArrearsWarning };
     },
-    onSuccess: (vehicle) => {
+    onSuccess: ({ vehicle, contractArrearsWarning }) => {
       setPendingRegisterConflict(null);
       setRegisterError(null);
       invalidateParkingVehicles();
       invalidateParkingMetrics();
       setScanResult({ type: 'entry', vehicle });
+      if (contractArrearsWarning) {
+        toast({
+          title: contractArrearsWarning,
+          variant: 'destructive',
+        });
+      }
     },
     onError: (err) => {
       const msg = String(err);
