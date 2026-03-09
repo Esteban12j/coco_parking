@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "COCO Parking",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "identifier": "com.cocoparking.app",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -47,13 +47,13 @@
     "shortDescription": "Smart Parking Dashboard",
     "category": "Business",
     "publisher": "COCO Parking",
-    "createUpdaterArtifacts": false
+    "createUpdaterArtifacts": true
   },
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhEODFEQ0E0MDEwRjMyNkEKUldScU1nOEJwTnlCaldMUXpQL2RHclY0SVVQM2p6TUQ1dmlmVWQzYWpMdVEzK2gzdGZUbWxaVEsK",
       "endpoints": [
-        "https://api.github.com/repos/Esteban12j/coco_parking/releases/latest"
+        "https://github.com/Esteban12j/coco_parking/releases/latest/download/latest.json"
       ]
     }
   }
