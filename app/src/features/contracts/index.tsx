@@ -109,10 +109,10 @@ export const ContractsPage = () => {
     queryKey: ["contracts_suggest_monthly", formVehicleType, formTariffKind],
     queryFn: () => suggestMonthlyAmount({
       vehicleType: formVehicleType,
-      tariffKind: formTariffKind as TariffKind || null,
+      tariffKind: formTariffKind !== "none" ? formTariffKind as TariffKind : null,
       days: 31,
     }),
-    enabled: tauri && dialogOpen && dialogMode === "create" && !!formTariffKind,
+    enabled: tauri && dialogOpen && dialogMode === "create" && formTariffKind !== "none",
   });
 
   useEffect(() => {
@@ -198,7 +198,7 @@ export const ContractsPage = () => {
     setFormClientPhone("");
     setFormPlate("");
     setFormVehicleType("motorcycle");
-    setFormTariffKind("");
+    setFormTariffKind("none");
     setFormMonthlyAmount("");
     setFormIncludedHours("6");
     setFormDateFrom(todayStr());
@@ -237,7 +237,7 @@ export const ContractsPage = () => {
     setFormClientPhone(contract.clientPhone ?? "");
     setFormPlate(contract.plate);
     setFormVehicleType((contract.vehicleType as VehicleType) || "motorcycle");
-    setFormTariffKind(contract.tariffKind || "");
+    setFormTariffKind(contract.tariffKind || "none");
     setFormMonthlyAmount(String(contract.monthlyAmount));
     setFormIncludedHours(String(contract.includedHoursPerDay));
     setFormDateFrom(contract.dateFrom);
@@ -256,7 +256,7 @@ export const ContractsPage = () => {
     if (Number.isNaN(hours) || hours <= 0) return;
     if (!formClientName.trim() || !formPlate.trim() || !formDateFrom || !formDateTo) return;
 
-    const hasTariff = !!formTariffKind;
+    const hasTariff = formTariffKind !== "none";
     const extraFirst = !hasTariff && formExtraChargeFirst ? parseFloat(formExtraChargeFirst) : null;
     const extraRepeat = !hasTariff && formExtraChargeRepeat ? parseFloat(formExtraChargeRepeat) : null;
     const extraInterval = !hasTariff && formExtraInterval ? parseInt(formExtraInterval) : null;
@@ -266,7 +266,7 @@ export const ContractsPage = () => {
       clientPhone: formClientPhone.trim() || null,
       plate: formPlate.trim().toUpperCase(),
       vehicleType: formVehicleType,
-      tariffKind: hasTariff ? (formTariffKind as TariffKind) : null,
+      tariffKind: hasTariff ? formTariffKind as TariffKind : null,
       monthlyAmount: amount,
       includedHoursPerDay: hours,
       dateFrom: formDateFrom,
@@ -285,7 +285,7 @@ export const ContractsPage = () => {
     const hours = parseFloat(formIncludedHours.replace(",", "."));
     if (Number.isNaN(hours) || hours <= 0) return;
 
-    const hasTariff = !!formTariffKind;
+    const hasTariff = formTariffKind !== "none";
     const extraFirst = !hasTariff && formExtraChargeFirst ? parseFloat(formExtraChargeFirst) : null;
     const extraRepeat = !hasTariff && formExtraChargeRepeat ? parseFloat(formExtraChargeRepeat) : null;
     const extraInterval = !hasTariff && formExtraInterval ? parseInt(formExtraInterval) : null;
@@ -317,7 +317,7 @@ export const ContractsPage = () => {
   const isFormValid = () => {
     const amount = parseFloat(formMonthlyAmount.replace(",", "."));
     const hours = parseFloat(formIncludedHours.replace(",", "."));
-    if (!formTariffKind) {
+    if (formTariffKind === "none") {
       const first = parseFloat(formExtraChargeFirst || "0");
       const repeat = parseFloat(formExtraChargeRepeat || "0");
       const interval = parseInt(formExtraInterval || "0");
@@ -636,7 +636,7 @@ export const ContractsPage = () => {
                   onValueChange={(v) => {
                     setFormTariffKind(v);
                     setFormMonthlyAmount("");
-                    if (v) {
+                    if (v !== "none") {
                       setFormExtraChargeFirst("");
                       setFormExtraChargeRepeat("");
                       setFormExtraInterval("");
@@ -644,9 +644,9 @@ export const ContractsPage = () => {
                   }}
                   disabled={dialogMode === "edit"}
                 >
-                  <SelectTrigger><SelectValue placeholder={t("contracts.tariffKindNone")} /></SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">{t("contracts.tariffKindNone")}</SelectItem>
+                    <SelectItem value="none">{t("contracts.tariffKindNone")}</SelectItem>
                     {TARIFF_KIND_KEYS.map((kind) => (
                       <SelectItem key={kind} value={kind}>{tariffKindLabels[kind]}</SelectItem>
                     ))}
@@ -670,7 +670,7 @@ export const ContractsPage = () => {
                   placeholder="0.00"
                   inputMode="decimal"
                 />
-                {dialogMode === "create" && formTariffKind && suggestQuery.data != null && (
+                {dialogMode === "create" && formTariffKind !== "none" && suggestQuery.data != null && (
                   <p className="text-xs text-muted-foreground">
                     {t("contracts.suggestedAmount")}: {formatAmount(suggestQuery.data)}
                   </p>
@@ -694,7 +694,7 @@ export const ContractsPage = () => {
               </div>
             </div>
 
-            {!formTariffKind && (
+            {formTariffKind === "none" && (
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label>{t("contracts.initialExtraCharge")}</Label>
