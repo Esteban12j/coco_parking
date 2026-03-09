@@ -44,7 +44,7 @@ export const en: Translations = {
     signOut: "Sign out",
     resetPassword: "Reset password",
     resetPasswordTitle: "Reset user password",
-    resetPasswordDescription: "Enter the developer password to authorize, then choose the user and set a new password. The developer password is set when the app is built (COCO_DEV_PASSWORD environment variable).",
+    resetPasswordDescription: "Enter the developer password to authorize, then choose the user and set a new password.",
     resetPasswordTargetUser: "User to reset",
     resetPasswordTargetUserPlaceholder: "admin, developer, or username",
     resetPasswordTargetUserRequired: "Please enter the user to reset (username).",

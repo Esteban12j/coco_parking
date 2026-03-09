@@ -44,7 +44,7 @@ export const es: Translations = {
     signOut: "Cerrar sesión",
     resetPassword: "Restablecer contraseña",
     resetPasswordTitle: "Restablecer contraseña de usuario",
-    resetPasswordDescription: "Ingrese la contraseña del desarrollador para autorizar, luego elija el usuario y establezca la nueva contraseña. La contraseña del desarrollador se define al compilar la app (variable COCO_DEV_PASSWORD).",
+    resetPasswordDescription: "Ingrese la contraseña del desarrollador para autorizar, luego elija el usuario y establezca la nueva contraseña.",
     resetPasswordTargetUser: "Usuario a restablecer",
     resetPasswordTargetUserPlaceholder: "admin, developer o nombre de usuario",
     resetPasswordTargetUserRequired: "Ingrese el usuario a restablecer (nombre de usuario).",
