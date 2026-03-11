@@ -372,6 +372,8 @@ export const TariffsPage = () => {
           <Input
             type="number"
             min={0}
+            step={1}
+            inputMode="numeric"
             value={formDurationHours}
             onChange={(e) => setFormDurationHours(e.target.value)}
             placeholder="0"
@@ -397,6 +399,8 @@ export const TariffsPage = () => {
           <Input
             type="number"
             min={0}
+            step={1}
+            inputMode="numeric"
             value={formAdditionalDurationHours}
             onChange={(e) => setFormAdditionalDurationHours(e.target.value)}
             placeholder="1"

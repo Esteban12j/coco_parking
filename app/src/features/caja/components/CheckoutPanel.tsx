@@ -351,6 +351,8 @@ export const CheckoutPanel = ({
               <Input
                 id="partial"
                 type="number"
+                step={0.01}
+                inputMode="decimal"
                 value={partialAmount}
                 onChange={(e) => setPartialAmount(e.target.value)}
                 placeholder={`Max: $${totalWithDebt.toFixed(2)}`}

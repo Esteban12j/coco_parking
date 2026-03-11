@@ -375,6 +375,8 @@ export const CustomTariffSelector = ({
                 <Input
                   type="number"
                   min={0}
+                  step={1}
+                  inputMode="numeric"
                   value={createDurationHours}
                   onChange={(e) => setCreateDurationHours(e.target.value)}
                   placeholder="0"

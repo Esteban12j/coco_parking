@@ -109,6 +109,7 @@ export const CloseShiftDialog = ({
               type="number"
               step="0.01"
               min="0"
+              inputMode="decimal"
               placeholder={t("till.arqueoCashPlaceholder")}
               value={arqueoCash}
               onChange={(e) => setArqueoCash(e.target.value)}
