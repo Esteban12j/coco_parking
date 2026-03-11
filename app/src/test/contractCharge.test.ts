@@ -22,6 +22,7 @@ describe("contractCharge logic", () => {
     dateTo: "2026-03-10",
     status: "active",
     createdAt: "2026-01-01",
+    billingPeriodDays: 30,
   };
   const today = new Date("2026-03-09T10:00:00");
 
