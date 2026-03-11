@@ -524,6 +524,10 @@ export const useParkingStore = () => {
               card: 0,
               transfer: 0,
             },
+            debtTotal: 0,
+            vehiclesAttended: completedVehicles.length,
+            vehiclesWithDebt: 0,
+            vehiclesRemoved: 0,
           };
         })());
 
