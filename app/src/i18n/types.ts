@@ -443,6 +443,16 @@ export interface Translations {
     historyPath: string;
     exportRestoreTitle: string;
     exportRestoreDescription: string;
+    updatesTitle: string;
+    updatesDescription: string;
+    checkForUpdates: string;
+    checking: string;
+    upToDate: string;
+    updateAvailable: string;
+    installUpdate: string;
+    installing: string;
+    downloadProgress: string;
+    updateError: string;
   };
   devConsole: {
     title: string;

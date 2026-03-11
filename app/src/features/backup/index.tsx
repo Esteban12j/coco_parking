@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { createBackup, restoreBackup } from "@/api/backup";
 import { save, open } from "@tauri-apps/plugin-dialog";
-import { Database, Download, Upload, Settings, History, FolderDown } from "lucide-react";
+import { Database, Download, Upload, Settings, History, FolderDown, RefreshCw, CheckCircle2, AlertCircle, ArrowDownToLine } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
 import { generatePrefixedId } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { checkForUpdateDetailed, installWithProgress } from "@/lib/updater";
 import {
   Accordion,
   AccordionContent,
@@ -42,6 +43,16 @@ export const BackupPage = () => {
   const [restoring, setRestoring] = useState(false);
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [pendingRestorePath, setPendingRestorePath] = useState<string | null>(null);
+
+  type UpdateState =
+    | { phase: "idle" }
+    | { phase: "checking" }
+    | { phase: "up-to-date" }
+    | { phase: "available"; version: string }
+    | { phase: "downloading"; percent: number }
+    | { phase: "installing" }
+    | { phase: "error"; message: string };
+  const [updateState, setUpdateState] = useState<UpdateState>({ phase: "idle" });
 
   const canExport = hasPermission("backup:create");
   const canRestore = hasPermission("backup:restore");
@@ -122,6 +133,30 @@ export const BackupPage = () => {
     setPendingRestorePath(null);
   };
 
+  const handleCheckUpdate = async () => {
+    setUpdateState({ phase: "checking" });
+    const result = await checkForUpdateDetailed();
+    if (result.status === "up-to-date") {
+      setUpdateState({ phase: "up-to-date" });
+    } else if (result.status === "available") {
+      setUpdateState({ phase: "available", version: result.manifest.version });
+    } else {
+      setUpdateState({ phase: "error", message: result.message });
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    setUpdateState({ phase: "downloading", percent: 0 });
+    try {
+      await installWithProgress((percent) => {
+        setUpdateState({ phase: "downloading", percent });
+      });
+      setUpdateState({ phase: "installing" });
+    } catch (err) {
+      setUpdateState({ phase: "error", message: String(err) });
+    }
+  };
+
   if (!tauri) {
     return (
       <div className="container mx-auto px-4 py-6">
@@ -174,6 +209,91 @@ export const BackupPage = () => {
             </AccordionTrigger>
             <AccordionContent className="pb-4 pt-0">
               <BackupHistorySection embedded />
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="updates" className="rounded-xl border border-border bg-card px-4">
+            <AccordionTrigger className="hover:no-underline [&[data-state=open]>svg]:rotate-180">
+              <div className="flex items-center gap-3 text-left">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                  <RefreshCw className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-semibold">{t("backup.updatesTitle")}</p>
+                  <p className="text-sm font-normal text-muted-foreground">
+                    {t("backup.updatesDescription")}
+                  </p>
+                </div>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pb-4 pt-0">
+              <div className="space-y-4">
+                {updateState.phase === "idle" || updateState.phase === "up-to-date" || updateState.phase === "error" ? (
+                  <Button
+                    variant="outline"
+                    onClick={handleCheckUpdate}
+                    className="gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    {t("backup.checkForUpdates")}
+                  </Button>
+                ) : null}
+
+                {updateState.phase === "checking" && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    {t("backup.checking")}
+                  </p>
+                )}
+
+                {updateState.phase === "up-to-date" && (
+                  <p className="text-sm text-green-600 dark:text-green-400 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4" />
+                    {t("backup.upToDate")}
+                  </p>
+                )}
+
+                {updateState.phase === "available" && (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-sm font-medium flex items-center gap-2">
+                      <ArrowDownToLine className="h-4 w-4 text-primary" />
+                      {t("backup.updateAvailable")} <span className="font-mono">{updateState.version}</span>
+                    </p>
+                    <Button onClick={handleInstallUpdate} variant="coco" className="w-fit gap-2">
+                      <Download className="h-4 w-4" />
+                      {t("backup.installUpdate")}
+                    </Button>
+                  </div>
+                )}
+
+                {updateState.phase === "downloading" && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      {t("backup.downloadProgress").replace("{{percent}}", String(updateState.percent))}
+                    </p>
+                    <div className="h-2 bg-secondary rounded-full overflow-hidden w-48">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all"
+                        style={{ width: `${updateState.percent}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {updateState.phase === "installing" && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    {t("backup.installing")}
+                  </p>
+                )}
+
+                {updateState.phase === "error" && (
+                  <p className="text-sm text-destructive flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <span>{t("backup.updateError")} {updateState.message}</span>
+                  </p>
+                )}
+              </div>
             </AccordionContent>
           </AccordionItem>
 
