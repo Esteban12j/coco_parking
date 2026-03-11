@@ -50,7 +50,14 @@ export async function checkForUpdateDetailed(): Promise<CheckUpdateResult> {
     }
     return { status: "up-to-date" };
   } catch (err) {
-    return { status: "error", message: String(err) };
+    const raw = String(err).toLowerCase();
+    let message = String(err);
+    if (raw.includes("error decoding response body") || raw.includes("invalid json") || raw.includes("expected value")) {
+      message = "El servidor de actualizaciones no devolvió un archivo válido. El release puede estar pendiente de publicación.";
+    } else if (raw.includes("network") || raw.includes("connection") || raw.includes("failed to fetch") || raw.includes("os error")) {
+      message = "No se pudo conectar al servidor de actualizaciones. Compruebe la conexión a internet.";
+    }
+    return { status: "error", message };
   }
 }
 
