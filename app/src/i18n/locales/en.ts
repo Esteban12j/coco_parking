@@ -563,6 +563,8 @@ export const en: Translations = {
     deferDebt: "Debt",
     deferDebtWarning: "The total will be registered as pending debt. Only authorized users can use this option.",
     registerDebt: "Register Debt",
+    contractArrears: "Overdue monthly fee:",
+    contractArrearsHint: "Record payment in Contracts.",
   },
   customTariff: {
     title: "Custom rate",

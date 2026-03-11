@@ -534,6 +534,8 @@ export interface Translations {
     deferDebt: string;
     deferDebtWarning: string;
     registerDebt: string;
+    contractArrears: string;
+    contractArrearsHint: string;
   };
   customTariff: {
     title: string;

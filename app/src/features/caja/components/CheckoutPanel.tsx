@@ -52,11 +52,12 @@ export const CheckoutPanel = ({
   const defaultTariff = getTariffForKind(vehicle.vehicleType, vehicleTariffKind);
 
   const contractQuery = useQuery({
-    queryKey: ["contract_by_plate", vehicle.plate],
-    queryFn: () => apiContracts.getContractByPlate(vehicle.plate),
+    queryKey: ["contract_any_by_plate", vehicle.plate],
+    queryFn: () => apiContracts.getContractAnyByPlate(vehicle.plate),
     enabled: tauri && !!vehicle.plate,
   });
   const activeContract = contractQuery.data;
+  const contractInArrears = activeContract?.isInArrears ?? false;
 
   const vehicleLabels: Record<VehicleType, string> = {
     car: t("checkout.car"),
@@ -199,11 +200,17 @@ export const CheckoutPanel = ({
           </div>
         </div>
         {activeContract && (
-          <div className="mt-3 pt-3 border-t border-border/50">
+          <div className="mt-3 pt-3 border-t border-border/50 space-y-1">
             <p className="text-xs text-muted-foreground">
               {t("checkout.contractActive")} — {activeContract.clientName}
               <span className="ml-1 font-mono">({activeContract.includedHoursPerDay}h {t("checkout.includedPerDay")})</span>
             </p>
+            {contractInArrears && (
+              <p className="text-xs font-medium text-warning flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3 shrink-0" />
+                {t("checkout.contractArrears")} ${activeContract.monthlyAmount.toFixed(2)} — {t("checkout.contractArrearsHint")}
+              </p>
+            )}
           </div>
         )}
       </div>

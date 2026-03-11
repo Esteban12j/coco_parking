@@ -563,6 +563,8 @@ export const es: Translations = {
     deferDebt: "Deuda",
     deferDebtWarning: "El total se registrará como deuda pendiente. Solo usuarios autorizados pueden usar esta opción.",
     registerDebt: "Registrar Deuda",
+    contractArrears: "Mensualidad vencida:",
+    contractArrearsHint: "Registra el pago en Contratos.",
   },
   customTariff: {
     title: "Tarifa personalizada",
