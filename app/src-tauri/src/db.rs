@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>;
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 23;
+const SCHEMA_VERSION: i64 = 26;
 
 fn table_has_column(conn: &Connection, table_name: &str, column_name: &str) -> Result<bool, String> {
     let pragma_sql = format!("PRAGMA table_info({table_name})");
@@ -615,6 +615,17 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
             "vehicles_removed INTEGER NOT NULL DEFAULT 0",
         )?;
         conn.execute("INSERT INTO schema_version (version) VALUES (25)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 26 {
+        add_column_if_missing(
+            conn,
+            "contracts",
+            "billing_period_days",
+            "billing_period_days INTEGER NOT NULL DEFAULT 30",
+        )?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (26)", [])
             .map_err(|e| e.to_string())?;
     }
 

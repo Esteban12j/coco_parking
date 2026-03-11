@@ -50,6 +50,7 @@ use domains::{
     contracts::{
         contracts_create,
         contracts_delete,
+        contracts_get_any_by_plate,
         contracts_get_by_plate,
         contracts_list,
         contracts_list_payments,
@@ -227,6 +228,7 @@ pub fn run() {
             contracts_update,
             contracts_delete,
             contracts_get_by_plate,
+            contracts_get_any_by_plate,
             contracts_suggest_monthly,
             contracts_record_payment,
             contracts_list_payments,

@@ -27,6 +27,7 @@ pub struct Contract {
     pub extra_charge_repeat: Option<f64>,
     pub extra_interval: Option<i64>,
     pub is_in_arrears: bool,
+    pub billing_period_days: i64,
 }
 
 fn is_in_arrears(status: &str, date_to: &str) -> bool {
@@ -63,6 +64,7 @@ fn row_to_contract(row: &rusqlite::Row) -> rusqlite::Result<Contract> {
         extra_charge_repeat: row.get("extra_charge_repeat")?,
         extra_interval: row.get("extra_interval")?,
         is_in_arrears: arrears,
+        billing_period_days: row.get("billing_period_days").unwrap_or(30),
     })
 }
 
@@ -70,7 +72,8 @@ const CONTRACT_COLS: &str = r#"
     id, client_name, client_phone, plate, plate_upper, vehicle_type,
     tariff_kind, monthly_amount, included_hours_per_day,
     date_from, date_to, status, created_at, notes,
-    extra_charge_first, extra_charge_repeat, extra_interval
+    extra_charge_first, extra_charge_repeat, extra_interval,
+    billing_period_days
 "#;
 
 pub fn find_active_contract_for_plate(
@@ -133,6 +136,7 @@ pub struct CreateContractArgs {
     extra_charge_first: Option<f64>,
     extra_charge_repeat: Option<f64>,
     extra_interval: Option<i64>,
+    billing_period_days: Option<i64>,
 }
 
 fn suggest_monthly_amount(
@@ -226,6 +230,7 @@ pub fn contracts_create(
     }
 
     let included_hours = args.included_hours_per_day.unwrap_or(6.0);
+    let billing_period_days = args.billing_period_days.unwrap_or(30).max(1);
     let date_from = args.date_from.trim().to_string();
     let date_to = args.date_to.trim().to_string();
 
@@ -241,13 +246,14 @@ pub fn contracts_create(
             (id, client_name, client_phone, plate, plate_upper, vehicle_type,
              tariff_kind, monthly_amount, included_hours_per_day,
              date_from, date_to, status, created_at, notes,
-             extra_charge_first, extra_charge_repeat, extra_interval)
-           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'active', ?12, ?13, ?14, ?15, ?16)"#,
+             extra_charge_first, extra_charge_repeat, extra_interval, billing_period_days)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'active', ?12, ?13, ?14, ?15, ?16, ?17)"#,
         params![
             id, client_name, args.client_phone, plate, plate_upper,
             vehicle_type, tariff_kind, monthly_amount, included_hours,
             date_from, date_to, created_at, args.notes,
             args.extra_charge_first, args.extra_charge_repeat, args.extra_interval,
+            billing_period_days,
         ],
     )
     .map_err(|e| e.to_string())?;
@@ -272,6 +278,7 @@ pub fn contracts_create(
         extra_charge_repeat: args.extra_charge_repeat,
         extra_interval: args.extra_interval,
         is_in_arrears: arrears,
+        billing_period_days,
     })
 }
 
@@ -362,6 +369,7 @@ pub struct UpdateContractArgs {
     extra_charge_first: Option<f64>,
     extra_charge_repeat: Option<f64>,
     extra_interval: Option<i64>,
+    billing_period_days: Option<i64>,
 }
 
 #[tauri::command]
@@ -393,15 +401,17 @@ pub fn contracts_update(
     let new_extra_first = if args.extra_charge_first.is_some() { args.extra_charge_first } else { existing.extra_charge_first };
     let new_extra_repeat = if args.extra_charge_repeat.is_some() { args.extra_charge_repeat } else { existing.extra_charge_repeat };
     let new_extra_interval = if args.extra_interval.is_some() { args.extra_interval } else { existing.extra_interval };
+    let new_billing = if args.billing_period_days.is_some() { args.billing_period_days.unwrap_or(30) } else { existing.billing_period_days };
 
     conn.execute(
         r#"UPDATE contracts SET client_name = ?1, client_phone = ?2, monthly_amount = ?3,
            included_hours_per_day = ?4, date_from = ?5, date_to = ?6, notes = ?7,
-           extra_charge_first = ?8, extra_charge_repeat = ?9, extra_interval = ?10
-           WHERE id = ?11"#,
+           extra_charge_first = ?8, extra_charge_repeat = ?9, extra_interval = ?10,
+           billing_period_days = ?11
+           WHERE id = ?12"#,
         params![
             new_name, new_phone, new_amount, new_hours, new_from, new_to, new_notes,
-            new_extra_first, new_extra_repeat, new_extra_interval, &id
+            new_extra_first, new_extra_repeat, new_extra_interval, new_billing, &id
         ],
     )
     .map_err(|e| e.to_string())?;
@@ -489,10 +499,9 @@ pub fn contracts_record_payment(
 
     let period_to_date = chrono::NaiveDate::parse_from_str(&period_from, "%Y-%m-%d")
         .map_err(|e| e.to_string())?;
-    let next_month = period_to_date
-        .checked_add_months(chrono::Months::new(1))
-        .ok_or("Date overflow")?;
-    let period_to = next_month.format("%Y-%m-%d").to_string();
+    let period_to = (period_to_date + chrono::Duration::days(contract.billing_period_days))
+        .format("%Y-%m-%d")
+        .to_string();
 
     let payment_id = id_gen::generate_id("cpay");
     let created_at = chrono::Utc::now().to_rfc3339();
@@ -573,4 +582,15 @@ pub fn contracts_list_payments(
         .map_err(|e| e.to_string())?;
 
     Ok(rows.filter_map(|r| r.ok()).collect())
+}
+
+#[tauri::command]
+pub fn contracts_get_any_by_plate(
+    state: State<AppState>,
+    plate: String,
+) -> Result<Option<Contract>, String> {
+    state.check_permission(permissions::CONTRACTS_READ)?;
+    let conn = state.db.get().map_err(|e| e.to_string())?;
+    let plate_upper = plate.trim().to_uppercase();
+    Ok(find_any_contract_for_plate(&conn, &plate_upper))
 }
