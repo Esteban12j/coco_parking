@@ -584,6 +584,40 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
     }
 
+    if current < 24 {
+        add_column_if_missing(
+            conn,
+            "shift_closures",
+            "debt_total",
+            "debt_total REAL NOT NULL DEFAULT 0",
+        )?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (24)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 25 {
+        add_column_if_missing(
+            conn,
+            "shift_closures",
+            "vehicles_attended",
+            "vehicles_attended INTEGER NOT NULL DEFAULT 0",
+        )?;
+        add_column_if_missing(
+            conn,
+            "shift_closures",
+            "vehicles_with_debt",
+            "vehicles_with_debt INTEGER NOT NULL DEFAULT 0",
+        )?;
+        add_column_if_missing(
+            conn,
+            "shift_closures",
+            "vehicles_removed",
+            "vehicles_removed INTEGER NOT NULL DEFAULT 0",
+        )?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (25)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
     sync_role_permissions_from_code(conn)?;
     seed_developer_role_and_user(conn)?;
     Ok(())

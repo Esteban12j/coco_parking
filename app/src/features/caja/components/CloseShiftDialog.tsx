@@ -76,6 +76,30 @@ export const CloseShiftDialog = ({
             <div className="mt-1 text-xs text-muted-foreground">
               {treasury.totalTransactions} {t("till.totalTransactions").toLowerCase()}
             </div>
+            {treasury.debtTotal > 0 && (
+              <div className="mt-2 flex justify-between text-destructive text-sm font-medium border-t border-border pt-2">
+                <span>{t("till.debtTotal")}</span>
+                <span>${treasury.debtTotal.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground space-y-0.5">
+              <div className="flex justify-between">
+                <span>{t("till.vehiclesAttended")}</span>
+                <span className="font-medium text-foreground">{treasury.vehiclesAttended}</span>
+              </div>
+              {treasury.vehiclesWithDebt > 0 && (
+                <div className="flex justify-between">
+                  <span>{t("till.vehiclesWithDebt")}</span>
+                  <span className="text-destructive font-medium">{treasury.vehiclesWithDebt}</span>
+                </div>
+              )}
+              {treasury.vehiclesRemoved > 0 && (
+                <div className="flex justify-between">
+                  <span>{t("till.vehiclesRemoved")}</span>
+                  <span>{treasury.vehiclesRemoved}</span>
+                </div>
+              )}
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="arqueo">{t("till.arqueoCash")}</Label>

@@ -231,6 +231,7 @@ export interface Translations {
   till: {
     title: string;
     today: string;
+    currentShift: string;
     subtitle: string;
     expectedCash: string;
     actualCash: string;
@@ -257,6 +258,10 @@ export interface Translations {
     notesPlaceholder: string;
     submitCloseShift: string;
     noClosuresYet: string;
+    debtTotal: string;
+    vehiclesAttended: string;
+    vehiclesWithDebt: string;
+    vehiclesRemoved: string;
     noTransactionsHint: string;
   };
   metrics: {

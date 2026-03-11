@@ -153,13 +153,9 @@ export const VehiclesTodayPage = () => {
             </TableHeader>
             <TableBody>
               {items.map((row) => {
-                const hasDebt = (row.debt ?? 0) > 0;
-                const amountOrDebt =
-                  row.status === "completed" && row.totalAmount != null
-                    ? `$${row.totalAmount.toFixed(2)}`
-                    : hasDebt
-                      ? `$${(row.debt ?? 0).toFixed(2)}`
-                      : "—";
+                const debt = row.debt ?? 0;
+                const amountPaid = row.totalAmount ?? 0;
+                const hasDebt = debt > 0;
                 return (
                   <TableRow key={row.id}>
                     <TableCell className="font-mono text-sm">
@@ -176,7 +172,23 @@ export const VehiclesTodayPage = () => {
                       {formatDateTime(row.exitTime)}
                     </TableCell>
                     <TableCell>{statusLabel(row.status)}</TableCell>
-                    <TableCell className="text-right">{amountOrDebt}</TableCell>
+                    <TableCell className="text-right">
+                      {row.status !== "completed" ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : hasDebt && amountPaid === 0 ? (
+                        <span className="inline-flex items-center gap-1.5 text-destructive font-medium">
+                          <span className="text-xs bg-destructive/10 px-1.5 py-0.5 rounded">Deuda</span>
+                          ${debt.toFixed(2)}
+                        </span>
+                      ) : hasDebt ? (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span>${amountPaid.toFixed(2)}</span>
+                          <span className="text-xs text-destructive">+Deuda ${debt.toFixed(2)}</span>
+                        </div>
+                      ) : (
+                        <span className="text-success font-medium">${amountPaid.toFixed(2)}</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })}

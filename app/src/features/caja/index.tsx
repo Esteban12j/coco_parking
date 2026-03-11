@@ -60,12 +60,12 @@ export const CajaPage = () => {
           <>
             {t("till.title")}
             <span className="inline-flex items-center rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-400 px-2 py-0.5 text-xs font-medium border border-amber-500/40 ml-2">
-              {t("till.today")}
+              {t("till.currentShift")}
             </span>
           </>
         }
         subtitle={t("till.subtitle")}
-        extraNote={isTauri ? t("till.fromBackendNote") : undefined}
+        extraNote={undefined}
         actions={
           isTauri ? (
             <Button
@@ -107,21 +107,20 @@ export const CajaPage = () => {
             variant="info"
           />
           <MetricCard
-            title={t("till.actualCash")}
-            value={`$${treasury.actualCash.toFixed(2)}`}
-            icon={<Wallet className="h-5 w-5" />}
-            variant="info"
+            title={t("till.vehiclesAttended")}
+            value={treasury.vehiclesAttended}
+            icon={<Users className="h-5 w-5" />}
           />
           <MetricCard
             title={t("till.totalTransactions")}
             value={treasury.totalTransactions}
-            icon={<Users className="h-5 w-5" />}
+            icon={<TrendingUp className="h-5 w-5" />}
           />
           <MetricCard
-            title={t("till.discrepancy")}
-            value={`$${treasury.discrepancy.toFixed(2)}`}
-            icon={<TrendingUp className="h-5 w-5" />}
-            variant={treasury.discrepancy !== 0 ? "warning" : "success"}
+            title={t("till.debtTotal")}
+            value={`$${treasury.debtTotal.toFixed(2)}`}
+            icon={<Wallet className="h-5 w-5" />}
+            variant={treasury.debtTotal > 0 ? "warning" : "success"}
           />
         </div>
 
@@ -216,7 +215,8 @@ export const CajaPage = () => {
                     <TableHead className="text-right">{t("till.expectedCashOnly")}</TableHead>
                     <TableHead className="text-right">{t("till.arqueoCash")}</TableHead>
                     <TableHead className="text-right">{t("till.discrepancy")}</TableHead>
-                    <TableHead className="text-right">{t("till.totalTransactions")}</TableHead>
+                    <TableHead className="text-right">{t("till.debtTotal")}</TableHead>
+                    <TableHead className="text-right">{t("till.vehiclesAttended")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -224,7 +224,7 @@ export const CajaPage = () => {
                     <TableRow key={c.id}>
                       <TableCell>{formatClosedAt(c.closedAt)}</TableCell>
                       <TableCell>{c.operatorUserId || "—"}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right font-medium">
                         ${c.expectedTotal.toFixed(2)}
                       </TableCell>
                       <TableCell className="text-right">
@@ -234,9 +234,27 @@ export const CajaPage = () => {
                         {c.arqueoCash != null ? `$${c.arqueoCash.toFixed(2)}` : "—"}
                       </TableCell>
                       <TableCell className="text-right">
-                        ${c.discrepancy.toFixed(2)}
+                        <span className={c.discrepancy !== 0 ? "text-warning font-medium" : ""}>
+                          ${c.discrepancy.toFixed(2)}
+                        </span>
                       </TableCell>
-                      <TableCell className="text-right">{c.totalTransactions}</TableCell>
+                      <TableCell className="text-right">
+                        {c.debtTotal > 0 ? (
+                          <span className="text-destructive font-medium">${c.debtTotal.toFixed(2)}</span>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className="font-medium">{c.vehiclesAttended}</span>
+                          {(c.vehiclesWithDebt > 0 || c.vehiclesRemoved > 0) && (
+                            <span className="text-xs text-muted-foreground">
+                              {c.vehiclesWithDebt > 0 && `${c.vehiclesWithDebt} deuda`}
+                              {c.vehiclesWithDebt > 0 && c.vehiclesRemoved > 0 && " · "}
+                              {c.vehiclesRemoved > 0 && `${c.vehiclesRemoved} retirados`}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

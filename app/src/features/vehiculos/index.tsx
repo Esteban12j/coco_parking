@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Search, CalendarDays, Plus, AlertCircle } from "lucide-react";
+import { Search, CalendarDays, Plus } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { VehicleEntryForm } from "./components/VehicleEntryForm";
 import { ActiveVehiclesGrid } from "./components/ActiveVehiclesGrid";
@@ -67,7 +67,6 @@ export const VehiculosPage = () => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [plateSearch, setPlateSearch] = useState("");
   const [vehicleToRemove, setVehicleToRemove] = useState<Vehicle | null>(null);
-  const [activeAlertVehicle, setActiveAlertVehicle] = useState<Vehicle | null>(null);
   const [prefillPlate, setPrefillPlate] = useState("");
   const [prefillVehicleType, setPrefillVehicleType] = useState<VehicleType | undefined>();
   const [prefillTariffKind, setPrefillTariffKind] = useState<TariffKind | undefined>();
@@ -80,17 +79,23 @@ export const VehiculosPage = () => {
 
   useEffect(() => {
     handleScanInputRef.current = handleScanInput;
+    handlePlateSearchRef.current = handlePlateSearch;
   });
 
   const viewModeRef = useRef(viewMode);
   viewModeRef.current = viewMode;
+
+  const handlePlateSearchRef = useRef<(value: string) => void>(() => {});
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     listen<string>("barcode-scanned", (event) => {
       if (viewModeRef.current !== "search") return;
       const code = typeof event.payload === "string" ? event.payload : String(event.payload ?? "").trim();
-      if (code) handleScanInputRef.current(code);
+      if (code) {
+        setPlateSearch(code);
+        handlePlateSearchRef.current(code);
+      }
     })
       .then((fn) => { unlisten = fn; })
       .catch(() => {});
@@ -127,20 +132,29 @@ export const VehiculosPage = () => {
     }
   };
 
-  const handlePlateSearch = async () => {
-    const plate = plateSearch.trim().toUpperCase();
+  const handlePlateSearch = async (overrideValue?: string) => {
+    const plate = (overrideValue ?? plateSearch).trim().toUpperCase();
     if (!plate) return;
     setSearchingByPlate(true);
     try {
       const activeVehicle = await findByPlate(plate);
       if (activeVehicle) {
-        setActiveAlertVehicle(activeVehicle);
+        setSelectedVehicle(activeVehicle);
+        setViewMode(canCheckout ? "checkout" : "search");
+        setPlateSearch("");
       } else {
-        const suggestions = await getEntrySuggestionsByPlate(plate);
-        setPrefillPlate(plate);
-        setPrefillVehicleType(suggestions.vehicleType);
-        setPrefillTariffKind(suggestions.tariffKind);
-        setViewMode("entry");
+        const vehicleByTicket = await handleScan(plate);
+        if (vehicleByTicket) {
+          setSelectedVehicle(vehicleByTicket);
+          setViewMode(canCheckout ? "checkout" : "search");
+          setPlateSearch("");
+        } else {
+          const suggestions = await getEntrySuggestionsByPlate(plate);
+          setPrefillPlate(plate);
+          setPrefillVehicleType(suggestions.vehicleType);
+          setPrefillTariffKind(suggestions.tariffKind);
+          setViewMode("entry");
+        }
       }
     } catch {
       setPrefillPlate(plate);
@@ -262,12 +276,12 @@ export const VehiculosPage = () => {
                 onChange={(e) => setPlateSearch(e.target.value.toUpperCase())}
                 placeholder={t("vehicles.searchByPlatePlaceholder")}
                 className="font-mono uppercase text-lg"
-                onKeyDown={(e) => { if (e.key === "Enter") void handlePlateSearch(); }}
+                onKeyDown={(e) => { if (e.key === "Enter") void handlePlateSearch(plateSearch); }}
                 autoFocus
               />
               <Button
                 variant="coco"
-                onClick={() => void handlePlateSearch()}
+                onClick={() => void handlePlateSearch(plateSearch)}
                 disabled={searchingByPlate || !plateSearch.trim()}
               >
                 <Search className="h-4 w-4 mr-2" />
@@ -388,40 +402,6 @@ export const VehiculosPage = () => {
         onDeleteAndRegister={(id) => void deleteExistingAndRetryRegister(id)}
         onCancel={clearPendingRegisterConflict}
       />
-
-      <AlertDialog open={!!activeAlertVehicle} onOpenChange={(o) => !o && setActiveAlertVehicle(null)}>
-        <AlertDialogContent className="max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-warning" />
-              {t("vehicles.plateAlreadyActiveTitle")}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("vehicles.plateAlreadyActiveDescription")}
-              {activeAlertVehicle && (
-                <span className="block mt-2 font-mono font-semibold text-foreground">
-                  {activeAlertVehicle.plate} — {activeAlertVehicle.vehicleType}
-                </span>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (activeAlertVehicle && canCheckout) {
-                  setSelectedVehicle(activeAlertVehicle);
-                  setViewMode("checkout");
-                  setPlateSearch("");
-                }
-                setActiveAlertVehicle(null);
-              }}
-            >
-              {t("vehicles.viewActiveVehicle")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <AlertDialog open={!!vehicleToRemove} onOpenChange={(o) => !o && setVehicleToRemove(null)}>
         <AlertDialogContent className="max-w-md">

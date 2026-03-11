@@ -53,6 +53,10 @@ function normalizeTreasuryData(raw: unknown): TreasuryData | null {
         card: Number(pb?.card) || 0,
         transfer: Number(pb?.transfer) || 0,
       },
+      debtTotal: Number(r.debtTotal) || 0,
+      vehiclesAttended: Number(r.vehiclesAttended) || 0,
+      vehiclesWithDebt: Number(r.vehiclesWithDebt) || 0,
+      vehiclesRemoved: Number(r.vehiclesRemoved) || 0,
     };
   }
   if (hasSnake) {
@@ -67,6 +71,10 @@ function normalizeTreasuryData(raw: unknown): TreasuryData | null {
         card: Number(pb?.card) || 0,
         transfer: Number(pb?.transfer) || 0,
       },
+      debtTotal: Number(r.debt_total) || 0,
+      vehiclesAttended: Number(r.vehicles_attended) || 0,
+      vehiclesWithDebt: Number(r.vehicles_with_debt) || 0,
+      vehiclesRemoved: Number(r.vehicles_removed) || 0,
     };
   }
   return null;
@@ -119,11 +127,7 @@ export const useParkingStore = () => {
 
   const treasuryQuery = useQuery({
     queryKey: ['parking', 'treasury'],
-    queryFn: () => {
-      const now = new Date();
-      const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      return apiCaja.getTreasury(localDate);
-    },
+    queryFn: () => apiCaja.getTreasury(),
     enabled: tauri,
     refetchOnWindowFocus: true,
   });
@@ -157,6 +161,10 @@ export const useParkingStore = () => {
     discrepancy: 0,
     totalTransactions: 0,
     paymentBreakdown: { cash: 0, card: 0, transfer: 0 },
+    debtTotal: 0,
+    vehiclesAttended: 0,
+    vehiclesWithDebt: 0,
+    vehiclesRemoved: 0,
   };
 
   const invalidateParkingVehicles = useCallback(() => {

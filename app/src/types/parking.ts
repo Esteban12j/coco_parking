@@ -76,6 +76,10 @@ export interface TreasuryData {
     card: number;
     transfer: number;
   };
+  debtTotal: number;
+  vehiclesAttended: number;
+  vehiclesWithDebt: number;
+  vehiclesRemoved: number;
 }
 
 /** Registro persistido de cierre de turno (resumen, arqueo opcional, diferencia). */
@@ -91,6 +95,10 @@ export interface ShiftClosure {
   totalTransactions: number;
   notes: string | null;
   operatorUserId?: string | null;
+  debtTotal: number;
+  vehiclesAttended: number;
+  vehiclesWithDebt: number;
+  vehiclesRemoved: number;
 }
 
 export type UserRole = 'operator' | 'admin' | 'developer';

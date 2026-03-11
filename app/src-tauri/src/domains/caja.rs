@@ -82,6 +82,10 @@ pub struct TreasuryData {
     pub discrepancy: f64,
     pub total_transactions: u32,
     pub payment_breakdown: PaymentBreakdown,
+    pub debt_total: f64,
+    pub vehicles_attended: u32,
+    pub vehicles_with_debt: u32,
+    pub vehicles_removed: u32,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -114,20 +118,44 @@ pub fn caja_get_treasury(state: State<AppState>, date: Option<String>) -> Result
     state.check_permission(permissions::CAJA_TREASURY_READ)?;
     let conn = state.db.get().map_err(|e| e.to_string())?;
 
-    let today_prefix = date_prefix_for_treasury(date.as_deref());
+    let now = chrono::Utc::now();
+    let now_rfc = now.to_rfc3339();
+    let today_str = now.format("%Y-%m-%d").to_string();
+    let is_today = date.is_none();
+
+    // For today: query only the current shift (since last closure).
+    // For historical dates: query the full day.
+    let (since_str, until_str) = if is_today {
+        let since = conn
+            .query_row(
+                "SELECT closed_at FROM shift_closures WHERE closed_at LIKE ?1 AND closed_at < ?2 ORDER BY closed_at DESC LIMIT 1",
+                params![&format!("{}%", today_str), &now_rfc],
+                |row| row.get::<_, String>(0),
+            )
+            .ok()
+            .unwrap_or_else(|| format!("{}T00:00:00.000Z", today_str));
+        (since, now_rfc.clone())
+    } else {
+        let today_prefix = date_prefix_for_treasury(date.as_deref());
+        let date_str = today_prefix.trim_end_matches('%');
+        (
+            format!("{}T00:00:00.000Z", date_str),
+            format!("{}T23:59:59.999Z", date_str),
+        )
+    };
 
     let (total_transactions, cash, card, transfer): (u32, f64, f64, f64) = conn
         .query_row(
             r#"
             SELECT
-                COUNT(*) AS cnt,
+                COUNT(CASE WHEN LOWER(method) NOT IN ('removed', 'debt') THEN 1 END),
                 COALESCE(SUM(CASE WHEN LOWER(method) = 'cash' THEN amount ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN LOWER(method) = 'card' THEN amount ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN LOWER(method) = 'transfer' THEN amount ELSE 0 END), 0)
             FROM transactions
-            WHERE created_at LIKE ?1
+            WHERE created_at > ?1 AND created_at <= ?2
             "#,
-            params![&today_prefix],
+            params![&since_str, &until_str],
             |row| Ok((row.get::<_, i64>(0)? as u32, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .map_err(|e| e.to_string())?;
@@ -135,6 +163,38 @@ pub fn caja_get_treasury(state: State<AppState>, date: Option<String>) -> Result
     let expected_cash = cash + card + transfer;
     let actual_cash = expected_cash;
     let discrepancy = 0.0;
+
+    let debt_total: f64 = conn
+        .query_row(
+            "SELECT COALESCE(SUM(debt), 0) FROM vehicles WHERE exit_time > ?1 AND exit_time <= ?2 AND status = 'completed' AND debt > 0",
+            params![&since_str, &until_str],
+            |row| row.get(0),
+        )
+        .unwrap_or(0.0);
+
+    let vehicles_attended: u32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM vehicles WHERE exit_time > ?1 AND exit_time <= ?2 AND status IN ('completed', 'removed')",
+            params![&since_str, &until_str],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    let vehicles_with_debt: u32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM vehicles WHERE exit_time > ?1 AND exit_time <= ?2 AND status = 'completed' AND debt > 0",
+            params![&since_str, &until_str],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    let vehicles_removed: u32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM vehicles WHERE exit_time > ?1 AND exit_time <= ?2 AND status = 'removed'",
+            params![&since_str, &until_str],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
 
     Ok(TreasuryData {
         expected_cash,
@@ -146,6 +206,10 @@ pub fn caja_get_treasury(state: State<AppState>, date: Option<String>) -> Result
             card,
             transfer,
         },
+        debt_total,
+        vehicles_attended,
+        vehicles_with_debt,
+        vehicles_removed,
     })
 }
 
@@ -163,6 +227,10 @@ pub struct ShiftClosure {
     pub total_transactions: u32,
     pub notes: Option<String>,
     pub operator_user_id: Option<String>,
+    pub debt_total: f64,
+    pub vehicles_attended: u32,
+    pub vehicles_with_debt: u32,
+    pub vehicles_removed: u32,
 }
 
 #[tauri::command]
@@ -189,7 +257,7 @@ pub fn caja_close_shift(
 
     let total_transactions: u32 = conn
         .query_row(
-            "SELECT COUNT(*) FROM transactions WHERE created_at > ?1 AND created_at <= ?2",
+            "SELECT COUNT(*) FROM transactions WHERE created_at > ?1 AND created_at <= ?2 AND LOWER(method) NOT IN ('removed', 'debt')",
             params![&since_str, &now_rfc],
             |row| row.get(0),
         )
@@ -227,12 +295,44 @@ pub fn caja_close_shift(
         .map(|a| a - cash_total)
         .unwrap_or(0.0);
 
+    let debt_total: f64 = conn
+        .query_row(
+            "SELECT COALESCE(SUM(debt), 0) FROM vehicles WHERE exit_time > ?1 AND exit_time <= ?2 AND status = 'completed' AND debt > 0",
+            params![&since_str, &now_rfc],
+            |row| row.get(0),
+        )
+        .unwrap_or(0.0);
+
+    let vehicles_attended: u32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM vehicles WHERE exit_time > ?1 AND exit_time <= ?2 AND status IN ('completed', 'removed')",
+            params![&since_str, &now_rfc],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    let vehicles_with_debt: u32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM vehicles WHERE exit_time > ?1 AND exit_time <= ?2 AND status = 'completed' AND debt > 0",
+            params![&since_str, &now_rfc],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    let vehicles_removed: u32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM vehicles WHERE exit_time > ?1 AND exit_time <= ?2 AND status = 'removed'",
+            params![&since_str, &now_rfc],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
     let id = id_gen::generate_id(id_gen::PREFIX_SHIFT_CLOSURE);
     let closed_at = now_rfc.clone();
     let operator_user_id = state.get_current_user_id();
 
     conn.execute(
-        "INSERT INTO shift_closures (id, closed_at, expected_total, cash_total, card_total, transfer_total, arqueo_cash, discrepancy, total_transactions, notes, operator_user_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        "INSERT INTO shift_closures (id, closed_at, expected_total, cash_total, card_total, transfer_total, arqueo_cash, discrepancy, total_transactions, notes, operator_user_id, debt_total, vehicles_attended, vehicles_with_debt, vehicles_removed) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
         params![
             &id,
             &closed_at,
@@ -245,6 +345,10 @@ pub fn caja_close_shift(
             total_transactions as i64,
             notes.as_deref(),
             operator_user_id,
+            debt_total,
+            vehicles_attended as i64,
+            vehicles_with_debt as i64,
+            vehicles_removed as i64,
         ],
     )
     .map_err(|e| e.to_string())?;
@@ -261,6 +365,10 @@ pub fn caja_close_shift(
         total_transactions,
         notes,
         operator_user_id,
+        debt_total,
+        vehicles_attended,
+        vehicles_with_debt,
+        vehicles_removed,
     })
 }
 
@@ -275,7 +383,7 @@ pub fn caja_list_shift_closures(
 
     let mut stmt = conn
         .prepare(
-            "SELECT s.id, s.closed_at, s.expected_total, s.cash_total, s.card_total, s.transfer_total, s.arqueo_cash, s.discrepancy, s.total_transactions, s.notes, COALESCE(u.display_name, s.operator_user_id) FROM shift_closures s LEFT JOIN users u ON s.operator_user_id = u.id ORDER BY s.closed_at DESC LIMIT ?1",
+            "SELECT s.id, s.closed_at, s.expected_total, s.cash_total, s.card_total, s.transfer_total, s.arqueo_cash, s.discrepancy, s.total_transactions, s.notes, COALESCE(u.display_name, s.operator_user_id), COALESCE(s.debt_total, 0), COALESCE(s.vehicles_attended, 0), COALESCE(s.vehicles_with_debt, 0), COALESCE(s.vehicles_removed, 0) FROM shift_closures s LEFT JOIN users u ON s.operator_user_id = u.id ORDER BY s.closed_at DESC LIMIT ?1",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt
@@ -292,6 +400,10 @@ pub fn caja_list_shift_closures(
                 total_transactions: row.get::<_, i64>(8)? as u32,
                 notes: row.get(9)?,
                 operator_user_id: row.get(10)?,
+                debt_total: row.get(11)?,
+                vehicles_attended: row.get::<_, i64>(12)? as u32,
+                vehicles_with_debt: row.get::<_, i64>(13)? as u32,
+                vehicles_removed: row.get::<_, i64>(14)? as u32,
             })
         })
         .map_err(|e| e.to_string())?;
