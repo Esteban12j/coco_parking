@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DatePickerField } from "@/components/ui/date-picker-field";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useTranslation } from "@/i18n";
 import {
@@ -58,6 +59,14 @@ function isTauri(): boolean {
 
 const VEHICLE_TYPE_KEYS: VehicleType[] = ["car", "motorcycle", "truck", "bicycle"];
 const TARIFF_KIND_KEYS: TariffKind[] = ["employee", "student"];
+
+const BILLING_PERIOD_OPTIONS = [
+  { days: 7,   key: "billingPeriod7" },
+  { days: 15,  key: "billingPeriod15" },
+  { days: 30,  key: "billingPeriod30" },
+  { days: 90,  key: "billingPeriod90" },
+  { days: 365, key: "billingPeriod365" },
+] as const;
 
 const STATUS_COLORS: Record<string, string> = {
   active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
@@ -91,6 +100,7 @@ export const ContractsPage = () => {
   const [formIncludedHours, setFormIncludedHours] = useState("6");
   const [formDateFrom, setFormDateFrom] = useState("");
   const [formDateTo, setFormDateTo] = useState("");
+  const [formBillingPeriodDays, setFormBillingPeriodDays] = useState("30");
   const [formNotes, setFormNotes] = useState("");
   const [formExtraChargeFirst, setFormExtraChargeFirst] = useState("");
   const [formExtraChargeRepeat, setFormExtraChargeRepeat] = useState("");
@@ -202,7 +212,8 @@ export const ContractsPage = () => {
     setFormMonthlyAmount("");
     setFormIncludedHours("6");
     setFormDateFrom(todayStr());
-    setFormDateTo(nextMonthStr());
+    setFormBillingPeriodDays("30");
+    setFormDateTo(computeNextCutDate(todayStr(), 30));
     setFormNotes("");
     setFormExtraChargeFirst("");
     setFormExtraChargeRepeat("");
@@ -216,6 +227,13 @@ export const ContractsPage = () => {
   function nextMonthStr() {
     const d = new Date();
     d.setMonth(d.getMonth() + 1);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function computeNextCutDate(dateFrom: string, days: number): string {
+    if (!dateFrom) return "";
+    const d = new Date(dateFrom + "T00:00:00");
+    d.setDate(d.getDate() + days);
     return d.toISOString().slice(0, 10);
   }
 
@@ -242,6 +260,7 @@ export const ContractsPage = () => {
     setFormIncludedHours(String(contract.includedHoursPerDay));
     setFormDateFrom(contract.dateFrom);
     setFormDateTo(contract.dateTo);
+    setFormBillingPeriodDays(String(contract.billingPeriodDays ?? 30));
     setFormNotes(contract.notes ?? "");
     setFormExtraChargeFirst(contract.extraChargeFirst != null ? String(contract.extraChargeFirst) : "");
     setFormExtraChargeRepeat(contract.extraChargeRepeat != null ? String(contract.extraChargeRepeat) : "");
@@ -254,7 +273,7 @@ export const ContractsPage = () => {
     if (Number.isNaN(amount) || amount < 0) return;
     const hours = parseFloat(formIncludedHours.replace(",", "."));
     if (Number.isNaN(hours) || hours <= 0) return;
-    if (!formClientName.trim() || !formPlate.trim() || !formDateFrom || !formDateTo) return;
+    if (!formClientName.trim() || !formPlate.trim() || !formDateFrom) return;
 
     const hasTariff = formTariffKind !== "none";
     const extraFirst = !hasTariff && formExtraChargeFirst ? parseFloat(formExtraChargeFirst) : null;
@@ -270,7 +289,8 @@ export const ContractsPage = () => {
       monthlyAmount: amount,
       includedHoursPerDay: hours,
       dateFrom: formDateFrom,
-      dateTo: formDateTo,
+      dateTo: computeNextCutDate(formDateFrom, parseInt(formBillingPeriodDays) || 30),
+      billingPeriodDays: parseInt(formBillingPeriodDays) || 30,
       notes: formNotes.trim() || null,
       extraChargeFirst: extraFirst,
       extraChargeRepeat: extraRepeat,
@@ -298,6 +318,7 @@ export const ContractsPage = () => {
       includedHoursPerDay: hours,
       dateFrom: formDateFrom || null,
       dateTo: formDateTo || null,
+      billingPeriodDays: parseInt(formBillingPeriodDays) || 30,
       notes: formNotes.trim() || null,
       extraChargeFirst: extraFirst,
       extraChargeRepeat: extraRepeat,
@@ -330,7 +351,7 @@ export const ContractsPage = () => {
       formPlate.trim().length > 0 &&
       !Number.isNaN(amount) && amount >= 0 &&
       !Number.isNaN(hours) && hours > 0 &&
-      !!formDateFrom && !!formDateTo
+      !!formDateFrom
     );
   };
 
@@ -497,7 +518,7 @@ export const ContractsPage = () => {
                       <TableHead className="text-right">{t("contracts.monthlyAmount")}</TableHead>
                       <TableHead>{t("contracts.includedHours")}</TableHead>
                       <TableHead>{t("contracts.extraCharge")}</TableHead>
-                      <TableHead>{t("contracts.period")}</TableHead>
+                      <TableHead>{t("contracts.nextCutDate")}</TableHead>
                       <TableHead>{t("contracts.status")}</TableHead>
                       <TableHead className="w-[100px]" />
                     </TableRow>
@@ -540,9 +561,9 @@ export const ContractsPage = () => {
                             : "—"}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5" />
-                            {formatDate(contract.dateFrom)} — {formatDate(contract.dateTo)}
+                          <div className="flex flex-col gap-0.5">
+                            <span>{formatDate(contract.dateFrom)}</span>
+                            <span className="font-medium text-foreground">{formatDate(contract.dateTo)}</span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -685,11 +706,11 @@ export const ContractsPage = () => {
                   type="number"
                   min={1}
                   max={24}
-                  step={0.5}
+                  step={1}
                   value={formIncludedHours}
                   onChange={(e) => setFormIncludedHours(e.target.value)}
                   placeholder="6"
-                  inputMode="decimal"
+                  inputMode="numeric"
                 />
               </div>
             </div>
@@ -741,24 +762,59 @@ export const ContractsPage = () => {
                   <Calendar className="h-3.5 w-3.5" />
                   {t("contracts.dateFrom")}
                 </Label>
-                <Input
-                  type="date"
+                <DatePickerField
+                  id="contract-date-from"
                   value={formDateFrom}
-                  onChange={(e) => setFormDateFrom(e.target.value)}
+                  onChange={(v) => {
+                    setFormDateFrom(v);
+                    if (dialogMode === "create") {
+                      setFormDateTo(computeNextCutDate(v, parseInt(formBillingPeriodDays) || 30));
+                    }
+                  }}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {t("contracts.dateTo")}
-                </Label>
-                <Input
-                  type="date"
-                  value={formDateTo}
-                  onChange={(e) => setFormDateTo(e.target.value)}
-                />
+                <Label>{t("contracts.billingFrequency")}</Label>
+                <Select
+                  value={formBillingPeriodDays}
+                  onValueChange={(v) => {
+                    setFormBillingPeriodDays(v);
+                    if (dialogMode === "create") {
+                      setFormDateTo(computeNextCutDate(formDateFrom, parseInt(v) || 30));
+                    }
+                  }}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {BILLING_PERIOD_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.days} value={String(opt.days)}>
+                        {t(`contracts.${opt.key}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+
+            {dialogMode === "create" && formDateFrom && (
+              <p className="text-xs text-muted-foreground -mt-1">
+                {t("contracts.nextCutPreview").replace("{{date}}", formatDate(formDateTo))}
+              </p>
+            )}
+
+            {dialogMode === "edit" && (
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {t("contracts.nextCutDate")}
+                </Label>
+                <DatePickerField
+                  id="contract-date-to"
+                  value={formDateTo}
+                  onChange={setFormDateTo}
+                />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label>{t("contracts.notes")}</Label>

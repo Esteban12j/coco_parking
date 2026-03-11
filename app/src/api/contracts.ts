@@ -22,6 +22,7 @@ export function createContract(args: {
   extraChargeFirst?: number | null;
   extraChargeRepeat?: number | null;
   extraInterval?: number | null;
+  billingPeriodDays?: number;
 }): Promise<Contract> {
   return invokeTauri<Contract>("contracts_create", { args });
 }
@@ -38,6 +39,7 @@ export function updateContract(args: {
   extraChargeFirst?: number | null;
   extraChargeRepeat?: number | null;
   extraInterval?: number | null;
+  billingPeriodDays?: number;
 }): Promise<Contract> {
   return invokeTauri<Contract>("contracts_update", { args });
 }
@@ -68,4 +70,8 @@ export function recordContractPayment(args: {
 
 export function listContractPayments(contractId: string): Promise<ContractPayment[]> {
   return invokeTauri<ContractPayment[]>("contracts_list_payments", { contractId });
+}
+
+export function getContractAnyByPlate(plate: string): Promise<import("@/types/parking").Contract | null> {
+  return invokeTauri<import("@/types/parking").Contract | null>("contracts_get_any_by_plate", { plate });
 }

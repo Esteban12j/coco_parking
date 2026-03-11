@@ -657,5 +657,13 @@ export interface Translations {
     extraCharge: string;
     extraIntervalMinutes: string;
     tariffKindNone: string;
+    nextCutDate: string;
+    billingFrequency: string;
+    billingPeriod7: string;
+    billingPeriod15: string;
+    billingPeriod30: string;
+    billingPeriod90: string;
+    billingPeriod365: string;
+    nextCutPreview: string;
   };
 }

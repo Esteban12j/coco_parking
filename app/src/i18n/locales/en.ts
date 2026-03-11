@@ -686,5 +686,13 @@ export const en: Translations = {
     extraCharge: "Charge per interval",
     extraIntervalMinutes: "Interval (min)",
     tariffKindNone: "None (manual rates)",
+    nextCutDate: "Next billing date",
+    billingFrequency: "Billing frequency",
+    billingPeriod7: "Weekly (7 days)",
+    billingPeriod15: "Biweekly (15 days)",
+    billingPeriod30: "Monthly (30 days)",
+    billingPeriod90: "Quarterly (90 days)",
+    billingPeriod365: "Annual (365 days)",
+    nextCutPreview: "Next billing date: {{date}}",
   },
 };

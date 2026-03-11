@@ -178,6 +178,7 @@ export interface Contract {
   extraChargeRepeat?: number | null;
   extraInterval?: number | null;
   isInArrears?: boolean;
+  billingPeriodDays: number;
 }
 
 export interface ContractPayment {

@@ -686,5 +686,13 @@ export const es: Translations = {
     extraCharge: "Cobro por intervalo",
     extraIntervalMinutes: "Intervalo (min)",
     tariffKindNone: "No aplica (manual)",
+    nextCutDate: "Próximo corte",
+    billingFrequency: "Frecuencia de cobro",
+    billingPeriod7: "Semanal (7 días)",
+    billingPeriod15: "Quincenal (15 días)",
+    billingPeriod30: "Mensual (30 días)",
+    billingPeriod90: "Trimestral (90 días)",
+    billingPeriod365: "Anual (365 días)",
+    nextCutPreview: "Próximo corte: {{date}}",
   },
 };
