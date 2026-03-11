@@ -51,7 +51,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhEODFEQ0E0MDEwRjMyNkEKUldScU1nOEJwTnlCaldMUXpQL2RHclY0SVVQM2p6TUQ1dmlmVWQzYWpMdVEzK2gzdGZUbWxaVEsK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU0QURGNjNDMTlFMzRBN0IKUldSN1N1TVpQUGF0VkpNZlJBeGFFUkszanVudmZqcUlwbCtzQUJLNy9pNHpkQlBvd25PZmdvekcK",
       "endpoints": [
         "https://github.com/Esteban12j/coco_parking/releases/latest/download/latest.json"
       ]
