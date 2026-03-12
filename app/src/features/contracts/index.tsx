@@ -255,7 +255,13 @@ export const ContractsPage = () => {
     setFormClientPhone(contract.clientPhone ?? "");
     setFormPlate(contract.plate);
     setFormVehicleType((contract.vehicleType as VehicleType) || "motorcycle");
-    setFormTariffKind(contract.tariffKind || "none");
+    // Legacy contracts may have stored "employee" as placeholder when extra charges were intended.
+    // If the contract has extra charge fields set, treat it as "none" (manual rate mode).
+    const hasExtraCharges =
+      contract.extraChargeFirst != null ||
+      contract.extraChargeRepeat != null ||
+      contract.extraInterval != null;
+    setFormTariffKind(hasExtraCharges ? "none" : (contract.tariffKind || "none"));
     setFormMonthlyAmount(String(contract.monthlyAmount));
     setFormIncludedHours(String(contract.includedHoursPerDay));
     setFormDateFrom(contract.dateFrom);

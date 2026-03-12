@@ -17,6 +17,7 @@ import { SelectedTariffForCheckout } from "./CustomTariffSelector";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { calculateTwoTierCost, getDefaultTariffForCheckout } from "@/lib/defaultRates";
+import { calculateExtraChargeFromContract } from "@/lib/contractCharge";
 import { useDefaultRates } from "@/hooks/useDefaultRates";
 import { CustomTariffSelector } from "./CustomTariffSelector";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
@@ -96,9 +97,21 @@ export const CheckoutPanel = ({
   const defaultCostResult = activeContract
     ? (() => {
         const includedMinutes = activeContract.includedHoursPerDay * 60;
-        if (totalMinutes <= includedMinutes) {
+        if (totalMinutes <= includedMinutes + 1) {
           return { parkingCost: 0, baseCost: 0, additionalCost: 0, additionalHours: 0 };
         }
+        // Use contract's own extra charge rates if defined (tariffKind === "none")
+        const hasContractRates = (activeContract.extraInterval ?? 0) > 0;
+        if (hasContractRates) {
+          const entryTime = new Date(vehicle.entryTime);
+          const nowTime = new Date(entryTime.getTime() + totalMinutes * 60000);
+          const cost = calculateExtraChargeFromContract(
+            { entryTime, exitTime: nowTime },
+            activeContract,
+          );
+          return { parkingCost: cost, baseCost: 0, additionalCost: cost, additionalHours: 0 };
+        }
+        // Fallback: use the vehicle's default tariff additional rate
         const overstayHours = (totalMinutes - includedMinutes) / 60;
         const periodH = ((defaultTariff.additionalDurationHours ?? 1) + ((defaultTariff.additionalDurationMinutes ?? 0) / 60)) || 1;
         const additionalBlocks = Math.ceil(overstayHours / periodH);
@@ -263,9 +276,11 @@ export const CheckoutPanel = ({
               <span className="text-muted-foreground col-span-2 bg-muted/50 rounded px-2 py-1.5 font-mono flex justify-between items-baseline gap-2">
                 <span>{t("checkout.contractCoverage")}</span>
                 <span className="font-semibold">
-                  {totalMinutes <= activeContract.includedHoursPerDay * 60
+                  {totalMinutes <= activeContract.includedHoursPerDay * 60 + 1
                     ? t("checkout.coveredByContract")
-                    : `${defaultCostResult.additionalHours}h × $${(defaultTariff.additionalHourPrice ?? 0).toFixed(2)} = $${parkingCost.toFixed(2)}`
+                    : (activeContract.extraInterval ?? 0) > 0
+                      ? `${(totalMinutes - activeContract.includedHoursPerDay * 60).toFixed(0)}min extra = $${parkingCost.toFixed(2)}`
+                      : `${defaultCostResult.additionalHours}h × $${(defaultTariff.additionalHourPrice ?? 0).toFixed(2)} = $${parkingCost.toFixed(2)}`
                   }
                 </span>
               </span>

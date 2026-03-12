@@ -117,7 +117,7 @@ pub fn find_any_contract_for_plate(
 }
 
 const VALID_VEHICLE_TYPES: &[&str] = &["car", "motorcycle", "truck", "bicycle"];
-const VALID_TARIFF_KINDS: &[&str] = &["employee", "student"];
+const VALID_TARIFF_KINDS: &[&str] = &["none", "employee", "student"];
 const VALID_STATUSES: &[&str] = &["active", "expired", "cancelled", "arrears"];
 
 #[derive(Debug, Deserialize)]
@@ -200,7 +200,7 @@ pub fn contracts_create(
         .map(str::trim)
         .map(str::to_lowercase)
         .filter(|s| VALID_TARIFF_KINDS.contains(&s.as_str()))
-        .unwrap_or_else(|| "employee".to_string());
+        .unwrap_or_else(|| "none".to_string());
 
     if let Some(v) = args.extra_charge_first {
         if v < 0.0 {
