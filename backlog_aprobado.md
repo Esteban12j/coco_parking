@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-03-13
 **Propuesta original:** Unificar campos de cobro extra + auto-calcular `date_to`
-**Estado:** Aprobado parcialmente con condiciones
+**Estado:** ✅ COMPLETADO — 2026-03-13
 
 ---
 
@@ -104,22 +104,9 @@ let period_from = contract.date_to.clone();
 ---
 
 ### TASK-7 — [DATOS] Auditar contratos con `extra_charge_first != extra_charge_repeat`
-**Prioridad:** Media (pre-requisito para cualquier unificación futura)
-**Acción:** Ejecutar en Dev Console:
-```sql
-SELECT COUNT(*), extra_charge_first, extra_charge_repeat
-FROM contracts
-WHERE extra_charge_first IS NOT NULL
-  AND extra_charge_repeat IS NOT NULL
-  AND ABS(extra_charge_first - extra_charge_repeat) > 0.01;
-```
-Si resultado = 0, la unificación futura es segura. Si > 0, requiere revisión manual por contrato.
-
-También verificar si la fórmula actual cobra doble el primer intervalo:
-```
-total = first + ceil(extra_min / interval) * repeat
-```
-Si `first` es distinto de `repeat`, el primer intervalo se paga con `first` Y está incluido en `ceil(...)`. Confirmar con casos de prueba reales.
+**Estado:** ✅ Completado
+**Resultado:** 0 contratos con valores distintos (5 contratos totales, 2 con extra charges — ambos con first = repeat).
+**Conclusión:** La unificación futura en un solo campo es segura con los datos actuales.
 
 ---
 

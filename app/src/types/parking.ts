@@ -179,6 +179,9 @@ export interface Contract {
   extraInterval?: number | null;
   isInArrears?: boolean;
   billingPeriodDays: number;
+  cancelledAt?: string | null;
+  cancellationReason?: string | null;
+  lastPaymentDate?: string | null;
 }
 
 export interface ContractPayment {

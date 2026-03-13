@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>;
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 27;
+const SCHEMA_VERSION: i64 = 28;
 
 fn table_has_column(conn: &Connection, table_name: &str, column_name: &str) -> Result<bool, String> {
     let pragma_sql = format!("PRAGMA table_info({table_name})");
@@ -636,6 +636,14 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
             "CREATE INDEX IF NOT EXISTS idx_contracts_status_date_to ON contracts(status, date_to);"
         ).map_err(|e| e.to_string())?;
         conn.execute("INSERT INTO schema_version (version) VALUES (27)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 28 {
+        add_column_if_missing(conn, "contracts", "cancelled_at", "cancelled_at TEXT")?;
+        add_column_if_missing(conn, "contracts", "cancellation_reason", "cancellation_reason TEXT")?;
+        add_column_if_missing(conn, "contracts", "last_payment_date", "last_payment_date TEXT")?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (28)", [])
             .map_err(|e| e.to_string())?;
     }
 

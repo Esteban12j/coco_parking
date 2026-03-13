@@ -28,6 +28,9 @@ pub struct Contract {
     pub extra_interval: Option<i64>,
     pub is_in_arrears: bool,
     pub billing_period_days: i64,
+    pub cancelled_at: Option<String>,
+    pub cancellation_reason: Option<String>,
+    pub last_payment_date: Option<String>,
 }
 
 fn is_in_arrears(status: &str, date_to: &str) -> bool {
@@ -65,6 +68,9 @@ fn row_to_contract(row: &rusqlite::Row) -> rusqlite::Result<Contract> {
         extra_interval: row.get("extra_interval")?,
         is_in_arrears: arrears,
         billing_period_days: row.get("billing_period_days").unwrap_or(30),
+        cancelled_at: row.get("cancelled_at").unwrap_or(None),
+        cancellation_reason: row.get("cancellation_reason").unwrap_or(None),
+        last_payment_date: row.get("last_payment_date").unwrap_or(None),
     })
 }
 
@@ -73,7 +79,7 @@ const CONTRACT_COLS: &str = r#"
     tariff_kind, monthly_amount, included_hours_per_day,
     date_from, date_to, status, created_at, notes,
     extra_charge_first, extra_charge_repeat, extra_interval,
-    billing_period_days
+    billing_period_days, cancelled_at, cancellation_reason, last_payment_date
 "#;
 
 pub fn find_active_contract_for_plate(
@@ -280,6 +286,9 @@ pub fn contracts_create(
         extra_interval: args.extra_interval,
         is_in_arrears: arrears,
         billing_period_days,
+        cancelled_at: None,
+        cancellation_reason: None,
+        last_payment_date: None,
     })
 }
 
@@ -537,8 +546,8 @@ pub fn contracts_record_payment(
         .map_err(|e| e.to_string())?;
 
         conn.execute(
-            "UPDATE contracts SET date_to = ?1, status = 'active' WHERE id = ?2",
-            params![period_to, contract_id],
+            "UPDATE contracts SET date_to = ?1, status = 'active', last_payment_date = ?3 WHERE id = ?2",
+            params![period_to, contract_id, created_at],
         )
         .map_err(|e| e.to_string())?;
 
