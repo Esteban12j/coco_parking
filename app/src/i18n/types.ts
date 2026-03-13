@@ -675,5 +675,7 @@ export interface Translations {
     billingPeriod90: string;
     billingPeriod365: string;
     nextCutPreview: string;
+    endDate: string;
+    endDateHint: string;
   };
 }

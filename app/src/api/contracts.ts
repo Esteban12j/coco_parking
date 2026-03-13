@@ -21,6 +21,7 @@ export function createContract(args: {
   extraChargePerInterval?: number | null;
   extraInterval?: number | null;
   billingPeriodDays?: number;
+  endDate?: string | null;
 }): Promise<Contract> {
   return invokeTauri<Contract>("contracts_create", { args });
 }
@@ -37,6 +38,7 @@ export function updateContract(args: {
   extraChargePerInterval?: number | null;
   extraInterval?: number | null;
   billingPeriodDays?: number;
+  endDate?: string | null;
 }): Promise<Contract> {
   return invokeTauri<Contract>("contracts_update", { args });
 }

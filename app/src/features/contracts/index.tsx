@@ -102,11 +102,11 @@ export const ContractsPage = () => {
   const [formMonthlyAmount, setFormMonthlyAmount] = useState("");
   const [formIncludedHours, setFormIncludedHours] = useState("6");
   const [formDateFrom, setFormDateFrom] = useState("");
-  const [formDateTo, setFormDateTo] = useState("");
   const [formBillingPeriodDays, setFormBillingPeriodDays] = useState("30");
   const [formNotes, setFormNotes] = useState("");
   const [formExtraChargePerInterval, setFormExtraChargePerInterval] = useState("");
   const [formExtraInterval, setFormExtraInterval] = useState("");
+  const [formEndDate, setFormEndDate] = useState("");
   const [extraChargesOpen, setExtraChargesOpen] = useState(false);
 
   const listQuery = useQuery({
@@ -216,21 +216,15 @@ export const ContractsPage = () => {
     setFormIncludedHours("6");
     setFormDateFrom(todayStr());
     setFormBillingPeriodDays("30");
-    setFormDateTo(computeNextCutDate(todayStr(), 30));
     setFormNotes("");
     setFormExtraChargePerInterval("");
     setFormExtraInterval("");
+    setFormEndDate("");
     setExtraChargesOpen(false);
   }
 
   function todayStr() {
     return new Date().toISOString().slice(0, 10);
-  }
-
-  function nextMonthStr() {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 1);
-    return d.toISOString().slice(0, 10);
   }
 
   function computeNextCutDate(dateFrom: string, days: number): string {
@@ -278,13 +272,13 @@ export const ContractsPage = () => {
     setFormMonthlyAmount(String(contract.monthlyAmount));
     setFormIncludedHours(String(contract.includedHoursPerDay));
     setFormDateFrom(contract.dateFrom);
-    setFormDateTo(contract.dateTo);
     setFormBillingPeriodDays(String(contract.billingPeriodDays ?? 30));
     setFormNotes(contract.notes ?? "");
     const rate = contract.extraChargePerInterval ?? contract.extraChargeRepeat ?? contract.extraChargeFirst;
     setFormExtraChargePerInterval(rate != null ? String(rate) : "");
     setFormExtraInterval(contract.extraInterval != null ? String(contract.extraInterval) : "");
     setExtraChargesOpen(rate != null || contract.extraInterval != null);
+    setFormEndDate(contract.endDate ?? "");
     setDialogOpen(true);
   };
 
@@ -312,6 +306,7 @@ export const ContractsPage = () => {
       notes: formNotes.trim() || null,
       extraChargePerInterval: extraRate,
       extraInterval: extraInterval,
+      endDate: formEndDate || null,
     });
   };
 
@@ -333,11 +328,11 @@ export const ContractsPage = () => {
       monthlyAmount: amount,
       includedHoursPerDay: hours,
       dateFrom: formDateFrom || null,
-      dateTo: formDateTo || null,
       billingPeriodDays: parseInt(formBillingPeriodDays) || 30,
       notes: formNotes.trim() || null,
       extraChargePerInterval: extraRate,
       extraInterval: extraInterval,
+      endDate: formEndDate || null,
     });
   };
 
@@ -671,8 +666,7 @@ export const ContractsPage = () => {
                     setFormTariffKind(v);
                     setFormMonthlyAmount("");
                     if (v !== "none") {
-                      setFormExtraChargeFirst("");
-                      setFormExtraChargeRepeat("");
+                      setFormExtraChargePerInterval("");
                       setFormExtraInterval("");
                     }
                   }}
@@ -780,12 +774,7 @@ export const ContractsPage = () => {
                 <DatePickerField
                   id="contract-date-from"
                   value={formDateFrom}
-                  onChange={(v) => {
-                    setFormDateFrom(v);
-                    if (dialogMode === "create") {
-                      setFormDateTo(computeNextCutDate(v, parseInt(formBillingPeriodDays) || 30));
-                    }
-                  }}
+                  onChange={(v) => setFormDateFrom(v)}
                 />
               </div>
               <div className="space-y-1.5">
@@ -793,12 +782,7 @@ export const ContractsPage = () => {
                 <Select
                   value={formBillingPeriodDays}
                   disabled={dialogMode === "edit" && editingContractHasPayments}
-                  onValueChange={(v) => {
-                    setFormBillingPeriodDays(v);
-                    if (dialogMode === "create") {
-                      setFormDateTo(computeNextCutDate(formDateFrom, parseInt(v) || 30));
-                    }
-                  }}
+                  onValueChange={(v) => setFormBillingPeriodDays(v)}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -819,23 +803,28 @@ export const ContractsPage = () => {
 
             {dialogMode === "create" && formDateFrom && (
               <p className="text-xs text-muted-foreground -mt-1">
-                {t("contracts.nextCutPreview").replace("{{date}}", formatDate(formDateTo))}
+                {t("contracts.nextCutPreview").replace("{{date}}", formatDate(computeNextCutDate(formDateFrom, parseInt(formBillingPeriodDays) || 30)))}
+              </p>
+            )}
+            {dialogMode === "edit" && editingContract && (
+              <p className="text-xs text-muted-foreground -mt-1">
+                {t("contracts.nextCutPreview").replace("{{date}}", formatDate(editingContract.dateTo))}
               </p>
             )}
 
-            {dialogMode === "edit" && (
-              <div className="space-y-1.5">
-                <Label className="flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {t("contracts.nextCutDate")}
-                </Label>
-                <DatePickerField
-                  id="contract-date-to"
-                  value={formDateTo}
-                  onChange={setFormDateTo}
-                />
-              </div>
-            )}
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
+                {t("contracts.endDate")}
+                <span className="text-xs text-muted-foreground font-normal">({t("common.optional")})</span>
+              </Label>
+              <DatePickerField
+                id="contract-end-date"
+                value={formEndDate}
+                onChange={setFormEndDate}
+              />
+              <p className="text-xs text-muted-foreground">{t("contracts.endDateHint")}</p>
+            </div>
 
             <div className="space-y-1.5">
               <Label>{t("contracts.notes")}</Label>

@@ -704,5 +704,7 @@ export const en: Translations = {
     billingPeriod90: "Quarterly (90 days)",
     billingPeriod365: "Annual (365 days)",
     nextCutPreview: "Next billing date: {{date}}",
+    endDate: "End date",
+    endDateHint: "Optional. The contract stops applying from this date.",
   },
 };

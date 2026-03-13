@@ -32,23 +32,31 @@ pub struct Contract {
     pub cancelled_at: Option<String>,
     pub cancellation_reason: Option<String>,
     pub last_payment_date: Option<String>,
+    pub end_date: Option<String>,
 }
 
-fn is_in_arrears(status: &str, date_to: &str) -> bool {
+fn is_in_arrears(status: &str, date_to: &str, end_date: Option<&str>) -> bool {
     if status == "cancelled" {
         return false;
+    }
+    // If the contract has a culmination date and it has passed, billing stops — not arrears.
+    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    if let Some(ed) = end_date {
+        if !ed.is_empty() && ed <= today.as_str() {
+            return false;
+        }
     }
     if status == "arrears" {
         return true;
     }
-    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
     date_to < today.as_str()
 }
 
 fn row_to_contract(row: &rusqlite::Row) -> rusqlite::Result<Contract> {
     let status: String = row.get("status")?;
     let date_to: String = row.get("date_to")?;
-    let arrears = is_in_arrears(&status, &date_to);
+    let end_date: Option<String> = row.get("end_date").unwrap_or(None);
+    let arrears = is_in_arrears(&status, &date_to, end_date.as_deref());
     Ok(Contract {
         id: row.get("id")?,
         client_name: row.get("client_name")?,
@@ -73,6 +81,7 @@ fn row_to_contract(row: &rusqlite::Row) -> rusqlite::Result<Contract> {
         cancellation_reason: row.get("cancellation_reason").unwrap_or(None),
         last_payment_date: row.get("last_payment_date").unwrap_or(None),
         extra_charge_per_interval: row.get("extra_charge_per_interval").unwrap_or(None),
+        end_date,
     })
 }
 
@@ -82,7 +91,7 @@ const CONTRACT_COLS: &str = r#"
     date_from, date_to, status, created_at, notes,
     extra_charge_first, extra_charge_repeat, extra_interval,
     billing_period_days, cancelled_at, cancellation_reason, last_payment_date,
-    extra_charge_per_interval
+    extra_charge_per_interval, end_date
 "#;
 
 pub fn find_active_contract_for_plate(
@@ -98,6 +107,7 @@ pub fn find_active_contract_for_plate(
                  AND status = 'active'
                  AND date_from <= ?2
                  AND date_to >= ?2
+                 AND (end_date IS NULL OR end_date >= ?2)
                LIMIT 1"#
         ),
         params![plate_upper, today],
@@ -144,6 +154,7 @@ pub struct CreateContractArgs {
     extra_charge_per_interval: Option<f64>,
     extra_interval: Option<i64>,
     billing_period_days: Option<i64>,
+    end_date: Option<String>,
 }
 
 fn suggest_monthly_amount(
@@ -245,25 +256,27 @@ pub fn contracts_create(
     let id = id_gen::generate_id(id_gen::PREFIX_CONTRACT);
     let created_at = chrono::Utc::now().to_rfc3339();
 
+    let end_date = args.end_date.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(String::from);
+
     conn.execute(
         r#"INSERT INTO contracts
             (id, client_name, client_phone, plate, plate_upper, vehicle_type,
              tariff_kind, monthly_amount, included_hours_per_day,
              date_from, date_to, status, created_at, notes,
              extra_charge_first, extra_charge_repeat, extra_interval, billing_period_days,
-             extra_charge_per_interval)
-           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'active', ?12, ?13, ?14, ?14, ?15, ?16, ?14)"#,
+             extra_charge_per_interval, end_date)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'active', ?12, ?13, ?14, ?14, ?15, ?16, ?14, ?17)"#,
         params![
             id, client_name, args.client_phone, plate, plate_upper,
             vehicle_type, tariff_kind, monthly_amount, included_hours,
             date_from, date_to, created_at, args.notes,
             args.extra_charge_per_interval, args.extra_interval,
-            billing_period_days,
+            billing_period_days, end_date,
         ],
     )
     .map_err(|e| e.to_string())?;
 
-    let arrears = is_in_arrears("active", &date_to);
+    let arrears = is_in_arrears("active", &date_to, end_date.as_deref());
     Ok(Contract {
         id,
         client_name,
@@ -288,6 +301,7 @@ pub fn contracts_create(
         cancelled_at: None,
         cancellation_reason: None,
         last_payment_date: None,
+        end_date,
     })
 }
 
@@ -378,6 +392,7 @@ pub struct UpdateContractArgs {
     extra_charge_per_interval: Option<f64>,
     extra_interval: Option<i64>,
     billing_period_days: Option<i64>,
+    end_date: Option<String>,
 }
 
 #[tauri::command]
@@ -423,6 +438,12 @@ pub fn contracts_update(
         }
     }
 
+    let new_end_date = if args.end_date.is_some() {
+        args.end_date.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(String::from)
+    } else {
+        existing.end_date
+    };
+
     let updated_at = chrono::Utc::now().to_rfc3339();
     let updated_by = state.get_current_user_id();
 
@@ -431,12 +452,12 @@ pub fn contracts_update(
            included_hours_per_day = ?4, date_from = ?5, date_to = ?6, notes = ?7,
            extra_charge_first = ?8, extra_charge_repeat = ?8, extra_interval = ?9,
            billing_period_days = ?10, updated_at = ?11, updated_by = ?12,
-           extra_charge_per_interval = ?8
+           extra_charge_per_interval = ?8, end_date = ?14
            WHERE id = ?13"#,
         params![
             new_name, new_phone, new_amount, new_hours, new_from, new_to, new_notes,
             new_extra, new_extra_interval, new_billing,
-            updated_at, updated_by, &id
+            updated_at, updated_by, &id, new_end_date
         ],
     )
     .map_err(|e| e.to_string())?;

@@ -704,5 +704,7 @@ export const es: Translations = {
     billingPeriod90: "Trimestral (90 días)",
     billingPeriod365: "Anual (365 días)",
     nextCutPreview: "Próximo corte: {{date}}",
+    endDate: "Fecha de culminación",
+    endDateHint: "Opcional. El contrato deja de aplicarse a partir de esta fecha.",
   },
 };
