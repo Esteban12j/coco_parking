@@ -638,14 +638,13 @@ pub fn vehiculos_process_exit(
 
                 if duration_minutes <= included_minutes + 1.0 {
                     0.0
-                } else if let (Some(first), Some(repeat), Some(interval)) = (
-                    contract.extra_charge_first,
-                    contract.extra_charge_repeat,
+                } else if let (Some(rate), Some(interval)) = (
+                    contract.extra_charge_per_interval.or(contract.extra_charge_repeat),
                     contract.extra_interval,
                 ) {
                     if interval > 0 {
                         let extra_minutes = duration_minutes - included_minutes;
-                        first + (extra_minutes / interval as f64).ceil() * repeat
+                        (extra_minutes / interval as f64).ceil() * rate
                     } else {
                         0.0
                     }

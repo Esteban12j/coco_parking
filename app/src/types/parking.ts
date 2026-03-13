@@ -182,6 +182,7 @@ export interface Contract {
   cancelledAt?: string | null;
   cancellationReason?: string | null;
   lastPaymentDate?: string | null;
+  extraChargePerInterval?: number | null;
 }
 
 export interface ContractPayment {

@@ -690,7 +690,6 @@ export const es: Translations = {
     chargeSuccess: "Pago registrado exitosamente.",
     confirmCharge: "Confirmar cobro",
     vehicleArrearsAlert: "Hay contratos en mora. El vehículo entrante puede tener deuda pendiente.",
-    initialExtraCharge: "Cargo fijo por exceso",
     extraCharge: "Tarifa por intervalo extra",
     extraIntervalMinutes: "Intervalo (min)",
     extraChargesHint: "Se cobra cuando el vehículo supera las horas incluidas.",

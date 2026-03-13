@@ -18,8 +18,7 @@ export function createContract(args: {
   includedHoursPerDay?: number | null;
   dateFrom: string;
   notes?: string | null;
-  extraChargeFirst?: number | null;
-  extraChargeRepeat?: number | null;
+  extraChargePerInterval?: number | null;
   extraInterval?: number | null;
   billingPeriodDays?: number;
 }): Promise<Contract> {
@@ -35,8 +34,7 @@ export function updateContract(args: {
   dateFrom?: string | null;
   dateTo?: string | null;
   notes?: string | null;
-  extraChargeFirst?: number | null;
-  extraChargeRepeat?: number | null;
+  extraChargePerInterval?: number | null;
   extraInterval?: number | null;
   billingPeriodDays?: number;
 }): Promise<Contract> {

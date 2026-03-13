@@ -7,7 +7,7 @@ use rusqlite::Connection;
 pub type Pool = std::sync::Arc<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>;
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 28;
+const SCHEMA_VERSION: i64 = 29;
 
 fn table_has_column(conn: &Connection, table_name: &str, column_name: &str) -> Result<bool, String> {
     let pragma_sql = format!("PRAGMA table_info({table_name})");
@@ -644,6 +644,25 @@ pub fn run_migrations(conn: &Connection) -> Result<(), String> {
         add_column_if_missing(conn, "contracts", "cancellation_reason", "cancellation_reason TEXT")?;
         add_column_if_missing(conn, "contracts", "last_payment_date", "last_payment_date TEXT")?;
         conn.execute("INSERT INTO schema_version (version) VALUES (28)", [])
+            .map_err(|e| e.to_string())?;
+    }
+
+    if current < 29 {
+        add_column_if_missing(
+            conn,
+            "contracts",
+            "extra_charge_per_interval",
+            "extra_charge_per_interval REAL CHECK (extra_charge_per_interval IS NULL OR extra_charge_per_interval >= 0)",
+        )?;
+        // Migrate existing data: first == repeat confirmed (TASK-7 audit = 0 divergent contracts).
+        // Use COALESCE to handle contracts where only one of the old fields was set.
+        conn.execute_batch(
+            "UPDATE contracts
+             SET extra_charge_per_interval = COALESCE(extra_charge_repeat, extra_charge_first)
+             WHERE (extra_charge_repeat IS NOT NULL OR extra_charge_first IS NOT NULL)
+               AND extra_charge_per_interval IS NULL;"
+        ).map_err(|e| e.to_string())?;
+        conn.execute("INSERT INTO schema_version (version) VALUES (29)", [])
             .map_err(|e| e.to_string())?;
     }
 

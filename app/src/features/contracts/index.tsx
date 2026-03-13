@@ -105,8 +105,7 @@ export const ContractsPage = () => {
   const [formDateTo, setFormDateTo] = useState("");
   const [formBillingPeriodDays, setFormBillingPeriodDays] = useState("30");
   const [formNotes, setFormNotes] = useState("");
-  const [formExtraChargeFirst, setFormExtraChargeFirst] = useState("");
-  const [formExtraChargeRepeat, setFormExtraChargeRepeat] = useState("");
+  const [formExtraChargePerInterval, setFormExtraChargePerInterval] = useState("");
   const [formExtraInterval, setFormExtraInterval] = useState("");
   const [extraChargesOpen, setExtraChargesOpen] = useState(false);
 
@@ -219,8 +218,7 @@ export const ContractsPage = () => {
     setFormBillingPeriodDays("30");
     setFormDateTo(computeNextCutDate(todayStr(), 30));
     setFormNotes("");
-    setFormExtraChargeFirst("");
-    setFormExtraChargeRepeat("");
+    setFormExtraChargePerInterval("");
     setFormExtraInterval("");
     setExtraChargesOpen(false);
   }
@@ -272,6 +270,7 @@ export const ContractsPage = () => {
     // Legacy contracts may have stored "employee" as placeholder when extra charges were intended.
     // If the contract has extra charge fields set, treat it as "none" (manual rate mode).
     const hasExtraCharges =
+      contract.extraChargePerInterval != null ||
       contract.extraChargeFirst != null ||
       contract.extraChargeRepeat != null ||
       contract.extraInterval != null;
@@ -282,10 +281,10 @@ export const ContractsPage = () => {
     setFormDateTo(contract.dateTo);
     setFormBillingPeriodDays(String(contract.billingPeriodDays ?? 30));
     setFormNotes(contract.notes ?? "");
-    setFormExtraChargeFirst(contract.extraChargeFirst != null ? String(contract.extraChargeFirst) : "");
-    setFormExtraChargeRepeat(contract.extraChargeRepeat != null ? String(contract.extraChargeRepeat) : "");
+    const rate = contract.extraChargePerInterval ?? contract.extraChargeRepeat ?? contract.extraChargeFirst;
+    setFormExtraChargePerInterval(rate != null ? String(rate) : "");
     setFormExtraInterval(contract.extraInterval != null ? String(contract.extraInterval) : "");
-    setExtraChargesOpen(contract.extraChargeFirst != null || contract.extraChargeRepeat != null || contract.extraInterval != null);
+    setExtraChargesOpen(rate != null || contract.extraInterval != null);
     setDialogOpen(true);
   };
 
@@ -297,8 +296,7 @@ export const ContractsPage = () => {
     if (!formClientName.trim() || !formPlate.trim() || !formDateFrom) return;
 
     const hasTariff = formTariffKind !== "none";
-    const extraFirst = !hasTariff && formExtraChargeFirst ? parseFloat(formExtraChargeFirst) : null;
-    const extraRepeat = !hasTariff && formExtraChargeRepeat ? parseFloat(formExtraChargeRepeat) : null;
+    const extraRate = !hasTariff && formExtraChargePerInterval ? parseFloat(formExtraChargePerInterval) : null;
     const extraInterval = !hasTariff && formExtraInterval ? parseInt(formExtraInterval) : null;
 
     createMutation.mutate({
@@ -312,8 +310,7 @@ export const ContractsPage = () => {
       dateFrom: formDateFrom,
       billingPeriodDays: parseInt(formBillingPeriodDays) || 30,
       notes: formNotes.trim() || null,
-      extraChargeFirst: extraFirst,
-      extraChargeRepeat: extraRepeat,
+      extraChargePerInterval: extraRate,
       extraInterval: extraInterval,
     });
   };
@@ -326,8 +323,7 @@ export const ContractsPage = () => {
     if (Number.isNaN(hours) || hours <= 0) return;
 
     const hasTariff = formTariffKind !== "none";
-    const extraFirst = !hasTariff && formExtraChargeFirst ? parseFloat(formExtraChargeFirst) : null;
-    const extraRepeat = !hasTariff && formExtraChargeRepeat ? parseFloat(formExtraChargeRepeat) : null;
+    const extraRate = !hasTariff && formExtraChargePerInterval ? parseFloat(formExtraChargePerInterval) : null;
     const extraInterval = !hasTariff && formExtraInterval ? parseInt(formExtraInterval) : null;
 
     updateMutation.mutate({
@@ -340,8 +336,7 @@ export const ContractsPage = () => {
       dateTo: formDateTo || null,
       billingPeriodDays: parseInt(formBillingPeriodDays) || 30,
       notes: formNotes.trim() || null,
-      extraChargeFirst: extraFirst,
-      extraChargeRepeat: extraRepeat,
+      extraChargePerInterval: extraRate,
       extraInterval: extraInterval,
     });
   };
@@ -358,12 +353,10 @@ export const ContractsPage = () => {
   const isFormValid = () => {
     const amount = parseFloat(formMonthlyAmount.replace(",", "."));
     const hours = parseFloat(formIncludedHours.replace(",", "."));
-    if (formTariffKind === "none") {
-      const first = parseFloat(formExtraChargeFirst || "0");
-      const repeat = parseFloat(formExtraChargeRepeat || "0");
+    if (formTariffKind === "none" && extraChargesOpen) {
+      const rate = parseFloat(formExtraChargePerInterval || "0");
       const interval = parseInt(formExtraInterval || "0");
-      if (Number.isNaN(first) || first < 0) return false;
-      if (Number.isNaN(repeat) || repeat < 0) return false;
+      if (Number.isNaN(rate) || rate < 0) return false;
       if (Number.isNaN(interval) || interval <= 0) return false;
     }
     return (
@@ -576,8 +569,8 @@ export const ContractsPage = () => {
                           {contract.includedHoursPerDay}h/{t("contracts.day")}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {contract.extraChargeFirst != null
-                            ? `+${formatAmount(contract.extraChargeFirst)} / ${contract.extraInterval}min`
+                          {(contract.extraChargePerInterval ?? contract.extraChargeFirst) != null
+                            ? `+${formatAmount((contract.extraChargePerInterval ?? contract.extraChargeFirst)!)} / ${contract.extraInterval}min`
                             : "—"}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
@@ -748,27 +741,15 @@ export const ContractsPage = () => {
                 </CollapsibleTrigger>
                 <CollapsibleContent className="pt-3">
                   <p className="text-xs text-muted-foreground mb-3">{t("contracts.extraChargesHint")}</p>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-1.5">
-                      <Label>{t("contracts.initialExtraCharge")}</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        value={formExtraChargeFirst}
-                        onChange={(e) => setFormExtraChargeFirst(e.target.value)}
-                        placeholder="0.00"
-                        inputMode="decimal"
-                      />
-                    </div>
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label>{t("contracts.extraCharge")}</Label>
                       <Input
                         type="number"
                         min={0}
                         step={0.01}
-                        value={formExtraChargeRepeat}
-                        onChange={(e) => setFormExtraChargeRepeat(e.target.value)}
+                        value={formExtraChargePerInterval}
+                        onChange={(e) => setFormExtraChargePerInterval(e.target.value)}
                         placeholder="0.00"
                         inputMode="decimal"
                       />

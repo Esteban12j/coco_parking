@@ -661,7 +661,6 @@ export interface Translations {
     chargeSuccess: string;
     confirmCharge: string;
     vehicleArrearsAlert: string;
-    initialExtraCharge: string;
     extraCharge: string;
     extraIntervalMinutes: string;
     extraChargesHint: string;

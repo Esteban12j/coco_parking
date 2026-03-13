@@ -690,7 +690,6 @@ export const en: Translations = {
     chargeSuccess: "Payment recorded successfully.",
     confirmCharge: "Confirm payment",
     vehicleArrearsAlert: "Contracts in arrears detected. The incoming vehicle may have outstanding debt.",
-    initialExtraCharge: "Fixed charge for overtime",
     extraCharge: "Rate per extra interval",
     extraIntervalMinutes: "Interval (min)",
     extraChargesHint: "Charged when the vehicle exceeds included hours.",

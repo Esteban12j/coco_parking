@@ -26,6 +26,7 @@ pub struct Contract {
     pub extra_charge_first: Option<f64>,
     pub extra_charge_repeat: Option<f64>,
     pub extra_interval: Option<i64>,
+    pub extra_charge_per_interval: Option<f64>,
     pub is_in_arrears: bool,
     pub billing_period_days: i64,
     pub cancelled_at: Option<String>,
@@ -71,6 +72,7 @@ fn row_to_contract(row: &rusqlite::Row) -> rusqlite::Result<Contract> {
         cancelled_at: row.get("cancelled_at").unwrap_or(None),
         cancellation_reason: row.get("cancellation_reason").unwrap_or(None),
         last_payment_date: row.get("last_payment_date").unwrap_or(None),
+        extra_charge_per_interval: row.get("extra_charge_per_interval").unwrap_or(None),
     })
 }
 
@@ -79,7 +81,8 @@ const CONTRACT_COLS: &str = r#"
     tariff_kind, monthly_amount, included_hours_per_day,
     date_from, date_to, status, created_at, notes,
     extra_charge_first, extra_charge_repeat, extra_interval,
-    billing_period_days, cancelled_at, cancellation_reason, last_payment_date
+    billing_period_days, cancelled_at, cancellation_reason, last_payment_date,
+    extra_charge_per_interval
 "#;
 
 pub fn find_active_contract_for_plate(
@@ -138,8 +141,7 @@ pub struct CreateContractArgs {
     included_hours_per_day: Option<f64>,
     date_from: String,
     notes: Option<String>,
-    extra_charge_first: Option<f64>,
-    extra_charge_repeat: Option<f64>,
+    extra_charge_per_interval: Option<f64>,
     extra_interval: Option<i64>,
     billing_period_days: Option<i64>,
 }
@@ -207,14 +209,9 @@ pub fn contracts_create(
         .filter(|s| VALID_TARIFF_KINDS.contains(&s.as_str()))
         .unwrap_or_else(|| "none".to_string());
 
-    if let Some(v) = args.extra_charge_first {
+    if let Some(v) = args.extra_charge_per_interval {
         if v < 0.0 {
-            return Err("extra_charge_first must be >= 0".to_string());
-        }
-    }
-    if let Some(v) = args.extra_charge_repeat {
-        if v < 0.0 {
-            return Err("extra_charge_repeat must be >= 0".to_string());
+            return Err("extra_charge_per_interval must be >= 0".to_string());
         }
     }
     if let Some(v) = args.extra_interval {
@@ -253,13 +250,14 @@ pub fn contracts_create(
             (id, client_name, client_phone, plate, plate_upper, vehicle_type,
              tariff_kind, monthly_amount, included_hours_per_day,
              date_from, date_to, status, created_at, notes,
-             extra_charge_first, extra_charge_repeat, extra_interval, billing_period_days)
-           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'active', ?12, ?13, ?14, ?15, ?16, ?17)"#,
+             extra_charge_first, extra_charge_repeat, extra_interval, billing_period_days,
+             extra_charge_per_interval)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'active', ?12, ?13, ?14, ?14, ?15, ?16, ?14)"#,
         params![
             id, client_name, args.client_phone, plate, plate_upper,
             vehicle_type, tariff_kind, monthly_amount, included_hours,
             date_from, date_to, created_at, args.notes,
-            args.extra_charge_first, args.extra_charge_repeat, args.extra_interval,
+            args.extra_charge_per_interval, args.extra_interval,
             billing_period_days,
         ],
     )
@@ -281,9 +279,10 @@ pub fn contracts_create(
         status: "active".to_string(),
         created_at,
         notes: args.notes,
-        extra_charge_first: args.extra_charge_first,
-        extra_charge_repeat: args.extra_charge_repeat,
+        extra_charge_first: args.extra_charge_per_interval,
+        extra_charge_repeat: args.extra_charge_per_interval,
         extra_interval: args.extra_interval,
+        extra_charge_per_interval: args.extra_charge_per_interval,
         is_in_arrears: arrears,
         billing_period_days,
         cancelled_at: None,
@@ -376,8 +375,7 @@ pub struct UpdateContractArgs {
     date_from: Option<String>,
     date_to: Option<String>,
     notes: Option<String>,
-    extra_charge_first: Option<f64>,
-    extra_charge_repeat: Option<f64>,
+    extra_charge_per_interval: Option<f64>,
     extra_interval: Option<i64>,
     billing_period_days: Option<i64>,
 }
@@ -408,8 +406,7 @@ pub fn contracts_update(
     let new_from = args.date_from.unwrap_or(existing.date_from);
     let new_to = args.date_to.unwrap_or(existing.date_to);
     let new_notes = args.notes.or(existing.notes);
-    let new_extra_first = if args.extra_charge_first.is_some() { args.extra_charge_first } else { existing.extra_charge_first };
-    let new_extra_repeat = if args.extra_charge_repeat.is_some() { args.extra_charge_repeat } else { existing.extra_charge_repeat };
+    let new_extra = if args.extra_charge_per_interval.is_some() { args.extra_charge_per_interval } else { existing.extra_charge_per_interval };
     let new_extra_interval = if args.extra_interval.is_some() { args.extra_interval } else { existing.extra_interval };
     let new_billing = if args.billing_period_days.is_some() { args.billing_period_days.unwrap_or(30) } else { existing.billing_period_days };
 
@@ -432,12 +429,13 @@ pub fn contracts_update(
     conn.execute(
         r#"UPDATE contracts SET client_name = ?1, client_phone = ?2, monthly_amount = ?3,
            included_hours_per_day = ?4, date_from = ?5, date_to = ?6, notes = ?7,
-           extra_charge_first = ?8, extra_charge_repeat = ?9, extra_interval = ?10,
-           billing_period_days = ?11, updated_at = ?12, updated_by = ?13
-           WHERE id = ?14"#,
+           extra_charge_first = ?8, extra_charge_repeat = ?8, extra_interval = ?9,
+           billing_period_days = ?10, updated_at = ?11, updated_by = ?12,
+           extra_charge_per_interval = ?8
+           WHERE id = ?13"#,
         params![
             new_name, new_phone, new_amount, new_hours, new_from, new_to, new_notes,
-            new_extra_first, new_extra_repeat, new_extra_interval, new_billing,
+            new_extra, new_extra_interval, new_billing,
             updated_at, updated_by, &id
         ],
     )
