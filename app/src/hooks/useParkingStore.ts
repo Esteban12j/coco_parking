@@ -555,20 +555,24 @@ export const useParkingStore = () => {
   );
 
   const getEntrySuggestionsByPlate = useCallback(
-    async (plate: string): Promise<{ vehicleType?: VehicleType; tariffKind?: TariffKind; hasContract: boolean }> => {
-      if (!tauri) return { hasContract: false };
+    async (plate: string): Promise<{ vehicleType?: VehicleType; tariffKind?: TariffKind; hasContract: boolean; contractIsInArrears: boolean; contractMonthlyAmount?: number; contractClientName?: string }> => {
+      if (!tauri) return { hasContract: false, contractIsInArrears: false };
       try {
-        const contract = await apiContracts.getContractByPlate(plate.trim());
-        const vehicles = await apiVehiculos.getVehiclesByPlate(plate.trim());
+        const [contract, anyContract, vehicles] = await Promise.all([
+          apiContracts.getContractByPlate(plate.trim()),
+          apiContracts.getContractAnyByPlate(plate.trim()),
+          apiVehiculos.getVehiclesByPlate(plate.trim()),
+        ]);
         const mappedVehicles = (vehicles ?? []).map(vehicleFromBackend);
 
         // Prioridad: contrato > vehículo activo > último histórico
         let vehicleType: VehicleType | undefined;
         let tariffKind: TariffKind | undefined;
 
-        if (contract) {
-          vehicleType = contract.vehicleType as VehicleType;
-          tariffKind = contract.tariffKind as TariffKind || 'regular';
+        const effectiveContract = contract ?? anyContract;
+        if (effectiveContract) {
+          vehicleType = effectiveContract.vehicleType as VehicleType;
+          tariffKind = effectiveContract.tariffKind as TariffKind || 'regular';
         } else {
           // Buscar el tipo más reciente
           const sortedVehicles = mappedVehicles.sort((a, b) => b.entryTime.getTime() - a.entryTime.getTime());
@@ -579,13 +583,17 @@ export const useParkingStore = () => {
           }
         }
 
+        const contractIsInArrears = !!(anyContract?.isInArrears);
         return {
           vehicleType,
           tariffKind,
           hasContract: !!contract,
+          contractIsInArrears,
+          contractMonthlyAmount: contractIsInArrears ? anyContract?.monthlyAmount : undefined,
+          contractClientName: contractIsInArrears ? anyContract?.clientName : undefined,
         };
       } catch {
-        return { hasContract: false };
+        return { hasContract: false, contractIsInArrears: false };
       }
     },
     [tauri]

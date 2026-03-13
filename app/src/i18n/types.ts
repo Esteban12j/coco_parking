@@ -145,6 +145,11 @@ export interface Translations {
     method: string;
     noSessions: string;
     noPayments: string;
+    contractsInArrears: string;
+    noContractsInArrears: string;
+    client: string;
+    monthlyAmount: string;
+    dueSince: string;
   };
   vehicles: {
     title: string;
@@ -169,6 +174,7 @@ export interface Translations {
     observationsAdministrative: string;
     registerVehicle: string;
     plateDebtWarning: string;
+    contractArrearsWarning: string;
     car: string;
     motorcycle: string;
     truck: string;
@@ -658,9 +664,12 @@ export interface Translations {
     initialExtraCharge: string;
     extraCharge: string;
     extraIntervalMinutes: string;
+    extraChargesHint: string;
+    extraChargesSection: string;
     tariffKindNone: string;
     nextCutDate: string;
     billingFrequency: string;
+    billingPeriodLocked: string;
     billingPeriod7: string;
     billingPeriod15: string;
     billingPeriod30: string;

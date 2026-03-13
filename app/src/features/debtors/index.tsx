@@ -24,7 +24,8 @@ import {
   listDebtors,
   getDebtDetailByPlate,
 } from "@/api/vehiculos";
-import type { DebtorEntry } from "@/types/parking";
+import { listContracts } from "@/api/contracts";
+import type { Contract, DebtorEntry } from "@/types/parking";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useParkingStore } from "@/hooks/useParkingStore";
 import { formatDateTime } from "@/lib/dateTime";
@@ -65,9 +66,19 @@ export const DebtorsPage = () => {
     enabled: isTauri && selectedPlate !== null && selectedPlate.length > 0,
   });
 
+  const contractsInArrearsQuery = useQuery({
+    queryKey: ["parking", "contractsInArrears"],
+    queryFn: async () => {
+      const all = await listContracts({ status: null, search: null });
+      return all.filter((c: Contract) => c.isInArrears);
+    },
+    enabled: isTauri,
+  });
+
   const totalDebt = totalDebtQuery.data ?? 0;
   const debtors = debtorsQuery.data?.items ?? [];
   const totalDebtors = debtorsQuery.data?.total ?? 0;
+  const contractsInArrears: Contract[] = contractsInArrearsQuery.data ?? [];
   const isLoading = totalDebtQuery.isLoading || debtorsQuery.isLoading;
   const isError = totalDebtQuery.isError || debtorsQuery.isError;
   const errorMessage =
@@ -83,6 +94,7 @@ export const DebtorsPage = () => {
   const refetch = () => {
     totalDebtQuery.refetch();
     debtorsQuery.refetch();
+    contractsInArrearsQuery.refetch();
   };
 
   return (
@@ -193,6 +205,36 @@ export const DebtorsPage = () => {
                 </div>
               )}
             </>
+          )}
+        </div>
+
+        <div className="bg-card border border-border rounded-xl p-6">
+          <h3 className="font-semibold mb-4">{t("debtors.contractsInArrears")}</h3>
+          {contractsInArrearsQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+          ) : contractsInArrears.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("debtors.noContractsInArrears")}</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("debtors.plate")}</TableHead>
+                  <TableHead>{t("debtors.client")}</TableHead>
+                  <TableHead className="text-right">{t("debtors.monthlyAmount")}</TableHead>
+                  <TableHead>{t("debtors.dueSince")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {contractsInArrears.map((c: Contract) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-medium">{c.plate}</TableCell>
+                    <TableCell>{c.clientName}</TableCell>
+                    <TableCell className="text-right">${c.monthlyAmount.toFixed(2)}</TableCell>
+                    <TableCell>{c.dateTo}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </div>
       </div>

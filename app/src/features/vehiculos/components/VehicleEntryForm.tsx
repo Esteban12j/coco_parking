@@ -65,7 +65,7 @@ function buildTariffLabel(
 interface VehicleEntryFormProps {
   existingDebt?: number;
   getPlateDebt?: (plate: string) => Promise<number>;
-  getEntrySuggestionsByPlate?: (plate: string) => Promise<{ vehicleType?: VehicleType; tariffKind?: TariffKind; hasContract: boolean }>;
+  getEntrySuggestionsByPlate?: (plate: string) => Promise<{ vehicleType?: VehicleType; tariffKind?: TariffKind; hasContract: boolean; contractIsInArrears: boolean; contractMonthlyAmount?: number; contractClientName?: string }>;
   registerError?: string | null;
   initialPlate?: string;
   initialVehicleType?: VehicleType;
@@ -110,6 +110,8 @@ export const VehicleEntryForm = ({
   const [existingDebt, setExistingDebt] = useState(initialDebt);
   const [hasContract, setHasContract] = useState(false);
   const [contractTariffKind, setContractTariffKind] = useState<TariffKind | undefined>();
+  const [contractIsInArrears, setContractIsInArrears] = useState(false);
+  const [contractMonthlyAmount, setContractMonthlyAmount] = useState<number | undefined>();
   const [chargeMode, setChargeMode] = useState<"tariff" | "contract">("tariff");
   const ticketInputRef = useRef<HTMLInputElement>(null);
   const lastSearchedPlateRef = useRef<string>("");
@@ -179,6 +181,8 @@ export const VehicleEntryForm = ({
       }
       // Detectar si el vehículo tiene contrato
       setHasContract(suggestions.hasContract);
+      setContractIsInArrears(suggestions.contractIsInArrears ?? false);
+      setContractMonthlyAmount(suggestions.contractMonthlyAmount);
       if (suggestions.hasContract) {
         setChargeMode("contract");
         setContractTariffKind(suggestions.tariffKind);
@@ -261,6 +265,14 @@ export const VehicleEntryForm = ({
         <div className="mb-4 p-3 rounded-lg bg-warning/10 border border-warning/30">
           <p className="text-sm font-medium text-warning">
             {t("vehicles.plateDebtWarning")} ${existingDebt.toFixed(2)}
+          </p>
+        </div>
+      )}
+
+      {contractIsInArrears && (
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+          <p className="text-sm font-medium text-destructive">
+            {t("vehicles.contractArrearsWarning")}{contractMonthlyAmount != null ? ` $${contractMonthlyAmount.toFixed(2)}` : ""}
           </p>
         </div>
       )}

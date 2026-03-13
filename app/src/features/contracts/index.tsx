@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, Pencil, Trash2, FileText, Phone, Calendar, Clock, DollarSign, AlertTriangle, CreditCard } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, FileText, Phone, Calendar, Clock, DollarSign, AlertTriangle, CreditCard, ChevronDown } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DatePickerField } from "@/components/ui/date-picker-field";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useTranslation } from "@/i18n";
 import {
@@ -48,6 +49,7 @@ import {
   deleteContract,
   suggestMonthlyAmount,
   recordContractPayment,
+  listContractPayments,
 } from "@/api/contracts";
 import type { Contract, VehicleType, TariffKind } from "@/types/parking";
 import { toast } from "@/hooks/use-toast";
@@ -88,6 +90,7 @@ export const ContractsPage = () => {
   const [dialogMode, setDialogMode] = useState<DialogMode>("create");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
+  const [editingContractHasPayments, setEditingContractHasPayments] = useState(false);
   const [paymentContract, setPaymentContract] = useState<Contract | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
 
@@ -105,6 +108,7 @@ export const ContractsPage = () => {
   const [formExtraChargeFirst, setFormExtraChargeFirst] = useState("");
   const [formExtraChargeRepeat, setFormExtraChargeRepeat] = useState("");
   const [formExtraInterval, setFormExtraInterval] = useState("");
+  const [extraChargesOpen, setExtraChargesOpen] = useState(false);
 
   const listQuery = useQuery({
     queryKey: ["contracts", statusFilter, search],
@@ -218,6 +222,7 @@ export const ContractsPage = () => {
     setFormExtraChargeFirst("");
     setFormExtraChargeRepeat("");
     setFormExtraInterval("");
+    setExtraChargesOpen(false);
   }
 
   function todayStr() {
@@ -248,9 +253,18 @@ export const ContractsPage = () => {
     setDialogOpen(true);
   };
 
-  const openEdit = (contract: Contract) => {
+  const openEdit = async (contract: Contract) => {
     setEditingContract(contract);
     setDialogMode("edit");
+    setEditingContractHasPayments(false);
+    if (tauri) {
+      try {
+        const payments = await listContractPayments(contract.id);
+        setEditingContractHasPayments((payments ?? []).length > 0);
+      } catch {
+        // si falla, el backend lo bloqueará igualmente
+      }
+    }
     setFormClientName(contract.clientName);
     setFormClientPhone(contract.clientPhone ?? "");
     setFormPlate(contract.plate);
@@ -271,6 +285,7 @@ export const ContractsPage = () => {
     setFormExtraChargeFirst(contract.extraChargeFirst != null ? String(contract.extraChargeFirst) : "");
     setFormExtraChargeRepeat(contract.extraChargeRepeat != null ? String(contract.extraChargeRepeat) : "");
     setFormExtraInterval(contract.extraInterval != null ? String(contract.extraInterval) : "");
+    setExtraChargesOpen(contract.extraChargeFirst != null || contract.extraChargeRepeat != null || contract.extraInterval != null);
     setDialogOpen(true);
   };
 
@@ -295,7 +310,6 @@ export const ContractsPage = () => {
       monthlyAmount: amount,
       includedHoursPerDay: hours,
       dateFrom: formDateFrom,
-      dateTo: computeNextCutDate(formDateFrom, parseInt(formBillingPeriodDays) || 30),
       billingPeriodDays: parseInt(formBillingPeriodDays) || 30,
       notes: formNotes.trim() || null,
       extraChargeFirst: extraFirst,
@@ -722,44 +736,58 @@ export const ContractsPage = () => {
             </div>
 
             {formTariffKind === "none" && (
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label>{t("contracts.initialExtraCharge")}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    value={formExtraChargeFirst}
-                    onChange={(e) => setFormExtraChargeFirst(e.target.value)}
-                    placeholder="0.00"
-                    inputMode="decimal"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>{t("contracts.extraCharge")}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    value={formExtraChargeRepeat}
-                    onChange={(e) => setFormExtraChargeRepeat(e.target.value)}
-                    placeholder="0.00"
-                    inputMode="decimal"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>{t("contracts.extraIntervalMinutes")}</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={formExtraInterval}
-                    onChange={(e) => setFormExtraInterval(e.target.value)}
-                    placeholder="30"
-                    inputMode="numeric"
-                  />
-                </div>
-              </div>
+              <Collapsible open={extraChargesOpen} onOpenChange={setExtraChargesOpen}>
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm font-medium hover:bg-muted/50 transition-colors"
+                  >
+                    <span>{t("contracts.extraChargesSection")}</span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${extraChargesOpen ? "rotate-180" : ""}`} />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3">
+                  <p className="text-xs text-muted-foreground mb-3">{t("contracts.extraChargesHint")}</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>{t("contracts.initialExtraCharge")}</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={formExtraChargeFirst}
+                        onChange={(e) => setFormExtraChargeFirst(e.target.value)}
+                        placeholder="0.00"
+                        inputMode="decimal"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>{t("contracts.extraCharge")}</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={formExtraChargeRepeat}
+                        onChange={(e) => setFormExtraChargeRepeat(e.target.value)}
+                        placeholder="0.00"
+                        inputMode="decimal"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>{t("contracts.extraIntervalMinutes")}</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={formExtraInterval}
+                        onChange={(e) => setFormExtraInterval(e.target.value)}
+                        placeholder="30"
+                        inputMode="numeric"
+                      />
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
 
             <div className="grid grid-cols-2 gap-3">
@@ -783,6 +811,7 @@ export const ContractsPage = () => {
                 <Label>{t("contracts.billingFrequency")}</Label>
                 <Select
                   value={formBillingPeriodDays}
+                  disabled={dialogMode === "edit" && editingContractHasPayments}
                   onValueChange={(v) => {
                     setFormBillingPeriodDays(v);
                     if (dialogMode === "create") {
@@ -799,6 +828,11 @@ export const ContractsPage = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                {dialogMode === "edit" && editingContractHasPayments && (
+                  <p className="text-xs text-muted-foreground">
+                    {t("contracts.billingPeriodLocked")}
+                  </p>
+                )}
               </div>
             </div>
 

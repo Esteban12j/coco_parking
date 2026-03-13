@@ -17,7 +17,6 @@ export function createContract(args: {
   monthlyAmount?: number | null;
   includedHoursPerDay?: number | null;
   dateFrom: string;
-  dateTo: string;
   notes?: string | null;
   extraChargeFirst?: number | null;
   extraChargeRepeat?: number | null;

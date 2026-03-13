@@ -131,7 +131,6 @@ pub struct CreateContractArgs {
     monthly_amount: Option<f64>,
     included_hours_per_day: Option<f64>,
     date_from: String,
-    date_to: String,
     notes: Option<String>,
     extra_charge_first: Option<f64>,
     extra_charge_repeat: Option<f64>,
@@ -232,7 +231,9 @@ pub fn contracts_create(
     let included_hours = args.included_hours_per_day.unwrap_or(6.0);
     let billing_period_days = args.billing_period_days.unwrap_or(30).max(1);
     let date_from = args.date_from.trim().to_string();
-    let date_to = args.date_to.trim().to_string();
+    let date_to = chrono::NaiveDate::parse_from_str(&date_from, "%Y-%m-%d")
+        .map(|d| (d + chrono::Duration::days(billing_period_days)).format("%Y-%m-%d").to_string())
+        .unwrap_or_else(|_| date_from.clone());
 
     let monthly_amount = args.monthly_amount.unwrap_or_else(|| {
         suggest_monthly_amount(&conn, &vehicle_type, &tariff_kind, 31)
@@ -403,15 +404,32 @@ pub fn contracts_update(
     let new_extra_interval = if args.extra_interval.is_some() { args.extra_interval } else { existing.extra_interval };
     let new_billing = if args.billing_period_days.is_some() { args.billing_period_days.unwrap_or(30) } else { existing.billing_period_days };
 
+    if new_billing != existing.billing_period_days {
+        let payments_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM contract_payments WHERE contract_id = ?1",
+                params![&id],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        if payments_count > 0 {
+            return Err("No se puede cambiar la frecuencia de cobro de un contrato con pagos registrados. Esto podría extender la vigencia sin cobro.".to_string());
+        }
+    }
+
+    let updated_at = chrono::Utc::now().to_rfc3339();
+    let updated_by = state.get_current_user_id();
+
     conn.execute(
         r#"UPDATE contracts SET client_name = ?1, client_phone = ?2, monthly_amount = ?3,
            included_hours_per_day = ?4, date_from = ?5, date_to = ?6, notes = ?7,
            extra_charge_first = ?8, extra_charge_repeat = ?9, extra_interval = ?10,
-           billing_period_days = ?11
-           WHERE id = ?12"#,
+           billing_period_days = ?11, updated_at = ?12, updated_by = ?13
+           WHERE id = ?14"#,
         params![
             new_name, new_phone, new_amount, new_hours, new_from, new_to, new_notes,
-            new_extra_first, new_extra_repeat, new_extra_interval, new_billing, &id
+            new_extra_first, new_extra_repeat, new_extra_interval, new_billing,
+            updated_at, updated_by, &id
         ],
     )
     .map_err(|e| e.to_string())?;
@@ -490,12 +508,9 @@ pub fn contracts_record_payment(
         return Err("Amount must be >= 0".to_string());
     }
 
-    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let period_from = if contract.date_to < today {
-        today.clone()
-    } else {
-        contract.date_to.clone()
-    };
+    // Siempre encadenar desde el último vencimiento para mantener historial sin gaps.
+    // Si hay mora, el gap se refleja en is_in_arrears, no en los períodos.
+    let period_from = contract.date_to.clone();
 
     let period_to_date = chrono::NaiveDate::parse_from_str(&period_from, "%Y-%m-%d")
         .map_err(|e| e.to_string())?;
